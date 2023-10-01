@@ -1,4 +1,8 @@
+use std::f64::consts::PI;
+
 use space::{point2, Mat33, Point2};
+
+use crate::Curve2Impl;
 
 pub fn arc(l: Mat33, a: f64, b: f64) -> Arc {
     Arc::new(l, a, b)
@@ -14,13 +18,30 @@ impl Arc {
     pub fn new(l: Mat33, a: f64, b: f64) -> Self {
         Self { l, a, b }
     }
+}
+impl Curve2Impl for Arc {
+    fn eval(&self, u: f64) -> Point2 {
+        point2(self.a * u.cos(), self.b * u.sin()).transform(&self.l)
+    }
 
-    pub fn eval(&self, u: f64) -> Point2 {
-        let u = u * 2.0 * std::f64::consts::PI;
-        //self.l.o + (self.a * u.cos() * self.l.x) + (self.b * u.sin() * self.l.y)
-        let pt = point2(self.a * u.cos(), self.b * u.sin());
+    fn u_min(&self) -> f64 {
+        0.0
+    }
 
-        pt.transform(&self.l)
+    fn u_max(&self) -> f64 {
+        2.0 * PI
+    }
+
+    fn der1(&self, u: f64) -> space::Vec2 {
+        point2(-self.a * u.sin(), self.b * u.cos())
+            .transform(self.l.zero_translation())
+            .to_vec()
+    }
+
+    fn der2(&self, u: f64) -> space::Vec2 {
+        point2(-self.a * u.cos(), -self.b * u.sin())
+            .transform(self.l.zero_translation())
+            .to_vec()
     }
 }
 
@@ -44,7 +65,7 @@ mod tests {
         for i in 0..=samples {
             let u = i as f64 / samples as f64;
 
-            println!("{}", arc.eval(u));
+            println!("{}", arc.eval_normalized(u));
         }
     }
 }

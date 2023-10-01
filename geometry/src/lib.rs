@@ -1,3 +1,3 @@
-mod curve;
+mod curve2;
 
-pub use curve::*;
+pub use curve2::*;

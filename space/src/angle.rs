@@ -1,4 +1,4 @@
-use auto_ops::{impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
 const DEG_TO_RAD: f64 = std::f64::consts::PI / 180.0;
 const RAD_TO_DEG: f64 = 180.0 / std::f64::consts::PI;

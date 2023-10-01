@@ -35,6 +35,26 @@ impl Mat33 {
         ])
     }
 
+    pub fn rotation_from_axes(x: Vec2, y: Vec2) -> Self {
+        // Arithmetic average of angle between local and global X-axes
+        let x_axis_angle = (x.y.asin() + x.x.acos()) / 2.0;
+        // Arithmetic average of angle between local and global Y-axes
+        let y_axis_angle = (y.x.asin() + y.y.acos()) / 2.0;
+
+        // Arithmetic average of X and Y angles
+        let angle = (x_axis_angle + y_axis_angle) / 2.0;
+
+        Self::rotation(rad(angle))
+    }
+
+    pub fn zero_translation(&self) -> Self {
+        Self([
+            [self[0][0], self[0][1], 0.0],
+            [self[1][0], self[1][1], 0.0],
+            [self[2][0], self[2][1], self[2][2]],
+        ])
+    }
+
     pub fn get_translation(&self) -> Vec2 {
         vec2(self[0][2], self[1][2])
     }
@@ -87,3 +107,91 @@ impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
         ], //
     ])
 });
+
+#[cfg(test)]
+mod tests {
+    use crate::{deg, point2};
+
+    use super::*;
+
+    #[test]
+    fn rotates_point() {
+        // Rotate +90°
+        assert_cc!(
+            point2(-2.0, 4.0),
+            point2(4.0, 2.0).transform(Mat33::rotation(deg(90.0)))
+        );
+
+        // Rotate -90°
+        assert_cc!(
+            point2(2.0, -4.0),
+            point2(4.0, 2.0).transform(Mat33::rotation(deg(-90.0)))
+        );
+
+        // Rotate all the way around, should get back to the starting point
+        let rotation = Mat33::rotation(deg(36.0));
+        assert_cc!(
+            point2(4.0, 2.0),
+            point2(4.0, 2.0)
+                // Rotate 36° at a time, 10 times
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+        );
+
+        // Same thing, going the other way
+        let rotation = Mat33::rotation(deg(-36.0));
+        assert_cc!(
+            point2(4.0, 2.0),
+            point2(4.0, 2.0)
+                // Rotate -36° at a time, 10 times
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+                .transform(&rotation)
+        );
+    }
+
+    #[test]
+    fn translates_point() {
+        assert_cc!(
+            point2(5.5, -0.3),
+            point2(4.0, 2.0).transform(Mat33::translation(vec2(1.5, -2.3)))
+        );
+        assert_cc!(
+            point2(4.0, 2.0),
+            point2(5.5, -0.3).transform(Mat33::translation(vec2(-1.5, 2.3)))
+        );
+    }
+
+    #[test]
+    fn rotates_then_translates() {
+        assert_cc!(
+            point2(1.0, 5.0),
+            point2(4.0, 2.0)
+                .transform(Mat33::translation(vec2(3.0, 1.0)) * Mat33::rotation(deg(90.0)))
+        );
+    }
+
+    #[test]
+    fn translates_then_rotates() {
+        assert_cc!(
+            point2(-3.0, 7.0),
+            point2(4.0, 2.0)
+                .transform(Mat33::rotation(deg(90.0)) * Mat33::translation(vec2(3.0, 1.0)))
+        );
+    }
+}
