@@ -59,7 +59,7 @@ mod tests {
             1.0,
         );
 
-        println!("arc {:#?}", arc);
+        //println!("arc {:#?}", arc);
 
         let samples = 100;
         for i in 0..=samples {

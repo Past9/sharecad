@@ -57,12 +57,12 @@ impl Curve2Impl for Offset {
 mod tests {
     use space::{assert_cc, point2, vec2};
 
-    use crate::segment;
+    use crate::{arc, segment};
 
     use super::*;
 
     #[test]
-    fn offset_test() {
+    fn offsets_segment() {
         let base = segment(point2(2.0, 1.0), point2(5.0, 4.0));
 
         // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
@@ -106,5 +106,29 @@ mod tests {
         assert_cc!(expected.eval(0.0), offset_curve.eval(0.0));
         assert_cc!(expected.eval(0.5), offset_curve.eval(0.5));
         assert_cc!(expected.eval(1.0), offset_curve.eval(1.0));
+    }
+
+    #[test]
+    fn offsets_arc() {
+        let base = arc(Mat33::IDENTITY, 1.0, 1.0);
+
+        // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(0.0, -1.0));
+
+        // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
+        //let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+
+        let samples = 8;
+        for i in 0..=samples {
+            let u = i as f64 / samples as f64;
+
+            This is wrong
+
+            println!(
+                "{}, {}",
+                base.eval_normalized(u),
+                offset_curve.eval_normalized(u)
+            );
+        }
     }
 }
