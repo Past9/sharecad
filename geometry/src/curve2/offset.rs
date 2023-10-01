@@ -40,24 +40,22 @@ impl Curve2Impl for Offset {
 
     fn eval(&self, u: f64) -> space::Point2 {
         let (local_x, local_y) = self.base.local_axes(u);
-        //println!("local {}, {}", local_x, local_y);
         let rotation = Mat33::rotation_from_axes(local_x, local_y);
-        //println!("rotation {:?}", rotation);
         self.base.eval(u) + (self.offset.to_point().transform(rotation)).to_vec()
     }
 
-    fn der1(&self, u: f64) -> Vec2 {
+    fn der1(&self, _u: f64) -> Vec2 {
         todo!()
     }
 
-    fn der2(&self, u: f64) -> Vec2 {
+    fn der2(&self, _u: f64) -> Vec2 {
         todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use space::{deg, point2, vec2};
+    use space::{assert_cc, point2, vec2};
 
     use crate::segment;
 
@@ -65,27 +63,48 @@ mod tests {
 
     #[test]
     fn offset_test() {
-        println!(
-            "{:?}",
-            Mat33::rotation_from_axes(vec2(1.0, 0.0), vec2(0.0, -1.0))
+        let base = segment(point2(2.0, 1.0), point2(5.0, 4.0));
+
+        // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Segment(base.clone()), vec2(0.0, 1.0));
+
+        // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
+        let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+        let expected = segment(
+            point2(2.0, 1.0).transform(&translation),
+            point2(5.0, 4.0).transform(translation),
         );
 
-        let segment = segment(point2(2.0, 2.0), point2(7.0, 4.0));
-        let offset = offset(Curve2::Segment(segment.clone()), vec2(3.0, -1.0));
+        assert_cc!(expected.eval(0.0), offset_curve.eval(0.0));
+        assert_cc!(expected.eval(0.5), offset_curve.eval(0.5));
+        assert_cc!(expected.eval(1.0), offset_curve.eval(1.0));
 
-        let samples = 10;
-        for i in 0..=samples {
-            let u = i as f64 / samples as f64;
+        // Offset the base curve by [1.0, 1.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Segment(base.clone()), vec2(1.0, 1.0));
 
-            offset.eval(u);
+        // Should result in the same segment, but translated by [0, sqrt(2)]
+        let translation = Mat33::translation(vec2(0.0, 2f64.sqrt()));
+        let expected = segment(
+            point2(2.0, 1.0).transform(&translation),
+            point2(5.0, 4.0).transform(translation),
+        );
 
-            //println!("normal = {}", segment.tangent(u).orthogonal());
+        assert_cc!(expected.eval(0.0), offset_curve.eval(0.0));
+        assert_cc!(expected.eval(0.5), offset_curve.eval(0.5));
+        assert_cc!(expected.eval(1.0), offset_curve.eval(1.0));
 
-            println!(
-                "{}, {}",
-                segment.eval_normalized(u),
-                offset.eval_normalized(u)
-            );
-        }
+        // Offset the base curve by [1.0, 0.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Segment(base.clone()), vec2(1.0, 0.0));
+
+        // Should result in the same segment, but translated by [sqrt(2) / 2, sqrt(2) / 2]
+        let translation = Mat33::translation(vec2(2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+        let expected = segment(
+            point2(2.0, 1.0).transform(&translation),
+            point2(5.0, 4.0).transform(translation),
+        );
+
+        assert_cc!(expected.eval(0.0), offset_curve.eval(0.0));
+        assert_cc!(expected.eval(0.5), offset_curve.eval(0.5));
+        assert_cc!(expected.eval(1.0), offset_curve.eval(1.0));
     }
 }

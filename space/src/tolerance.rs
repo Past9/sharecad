@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use crate::{Point2, Vec2};
+use crate::{Mat33, Point2, Vec2};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 
@@ -57,11 +57,26 @@ impl Coincidence<f32> for f32 {
         within_tolerance_f32(*self, other, COINCIDENT_TOL as f32)
     }
 }
+
 impl Coincidence<f64> for f64 {
     /// To be considered geometrically coincident,
     /// `f64`s must have a difference near `0.0`
     fn cc(&self, other: f64) -> bool {
         within_tolerance_f64(*self, other, COINCIDENT_TOL)
+    }
+}
+
+impl Coincidence<Mat33> for Mat33 {
+    fn cc(&self, other: Mat33) -> bool {
+        for row in 0..3 {
+            for col in 0..3 {
+                if !within_tolerance_f64(self[row][col], other[row][col], COINCIDENT_TOL) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 }
 

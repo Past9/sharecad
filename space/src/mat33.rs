@@ -36,10 +36,16 @@ impl Mat33 {
     }
 
     pub fn rotation_from_axes(x: Vec2, y: Vec2) -> Self {
+        //println!("x={}, y={}", x, y);
+        /*
         // Arithmetic average of angle between local and global X-axes
         let x_axis_angle = (x.y.asin() + x.x.acos()) / 2.0;
         // Arithmetic average of angle between local and global Y-axes
         let y_axis_angle = (y.x.asin() + y.y.acos()) / 2.0;
+        */
+
+        let x_axis_angle = (x.y).atan2(x.x);
+        let y_axis_angle = (-y.x).atan2(y.y);
 
         // Arithmetic average of X and Y angles
         let angle = (x_axis_angle + y_axis_angle) / 2.0;
@@ -193,5 +199,31 @@ mod tests {
             point2(4.0, 2.0)
                 .transform(Mat33::rotation(deg(90.0)) * Mat33::translation(vec2(3.0, 1.0)))
         );
+    }
+
+    #[test]
+    fn gets_rotation_from_axes() {
+        let x_axis = vec2(2.0, 1.0).normalize();
+        let y_axis = x_axis.orthogonal();
+
+        println!("x_axis = {}", x_axis);
+
+        let mat1 = Mat33::rotation(deg(45.0));
+        let rot1 = mat1.get_rotation();
+        println!("rot1 = {}", rot1.degrees());
+
+        let mat2 = Mat33::rotation_from_axes(x_axis, y_axis);
+        let rot2 = mat2.get_rotation();
+        println!("rot2 = {}", rot2.degrees());
+
+        println!("mat1 {:#?}", mat1);
+        println!("mat2 {:#?}", mat2);
+
+        /*
+        assert_cc!(
+            Mat33::rotation(deg(90.0)),
+            Mat33::rotation_from_axes(x_axis, y_axis)
+        );
+         */
     }
 }
