@@ -122,7 +122,7 @@ mod tests {
         for i in 0..=samples {
             let u = i as f64 / samples as f64;
 
-            This is wrong
+            // This is wrong
 
             println!(
                 "{}, {}",
