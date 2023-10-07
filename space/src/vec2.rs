@@ -152,17 +152,17 @@ mod tests {
 
     #[test]
     fn gets_orthogonal() {
-        assert_cc!(vec2(-2.0, 4.0), vec2(4.0, 2.0).orthogonal());
-        assert_cc!(vec2(-4.0, -2.0), vec2(-2.0, 4.0).orthogonal());
-        assert_cc!(vec2(2.0, -4.0), vec2(-4.0, -2.0).orthogonal());
-        assert_cc!(vec2(4.0, 2.0), vec2(2.0, -4.0).orthogonal());
+        assert_cc!(vec2(2.0, 4.0), vec2(-4.0, 2.0).orthogonal());
+        assert_cc!(vec2(4.0, 2.0), vec2(-2.0, 4.0).orthogonal());
+        assert_cc!(vec2(-2.0, 4.0), vec2(-4.0, -2.0).orthogonal());
+        assert_cc!(vec2(-4.0, -2.0), vec2(2.0, -4.0).orthogonal());
 
         // Check that the orthogonal is equivalent to rotating the base
-        // vector +90°
+        // vector -90°
         let base_vec = vec2(4.0, 2.0);
         assert_cc!(
             base_vec.orthogonal().into_point(),
-            base_vec.into_point().transform(Mat33::rotation(deg(90.0)))
+            base_vec.into_point().transform(Mat33::rotation(deg(-90.0)))
         );
     }
 
