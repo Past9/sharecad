@@ -97,7 +97,7 @@ mod tests {
         let segment = segment(point2(2.0, 2.0), point2(7.0, 4.0));
 
         let (x_axis, y_axis) = segment.local_axes(0.0);
-        assert_cc!(vec2(5.0, 2.0).normalize(), x_axis);
-        assert_cc!(vec2(-2.0, 5.0).normalize(), y_axis);
+        assert_cc!(vec2(5.0, 2.0).normalize(), y_axis);
+        assert_cc!(vec2(-2.0, 5.0).normalize(), x_axis);
     }
 }

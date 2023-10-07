@@ -88,7 +88,7 @@ pub trait Curve2Impl {
 
     fn local_axes(&self, u: f64) -> (Vec2, Vec2) {
         let tangent = self.tangent(u);
-        (tangent, tangent.orthogonal())
+        (tangent.orthogonal(), tangent)
     }
 
     fn eval_normalized(&self, u: f64) -> Point2 {

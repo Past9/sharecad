@@ -41,8 +41,8 @@ impl Vec2 {
 
     pub fn orthogonal(&self) -> Self {
         Self {
-            x: -self.y,
-            y: self.x,
+            x: self.y,
+            y: -self.x,
         }
     }
 

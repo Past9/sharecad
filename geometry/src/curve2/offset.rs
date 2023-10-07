@@ -66,10 +66,10 @@ mod tests {
         let base = segment(point2(2.0, 1.0), point2(5.0, 4.0));
 
         // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
-        let offset_curve = offset(Curve2::Segment(base.clone()), vec2(0.0, 1.0));
+        let offset_curve = offset(Curve2::Segment(base.clone()), vec2(1.0, 0.0));
 
-        // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
-        let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+        // Should result in the same segment, but translated by [sqrt(2) / 2, -sqrt(2) / 2]
+        let translation = Mat33::translation(vec2(2f64.sqrt() / 2.0, -2f64.sqrt() / 2.0));
         let expected = segment(
             point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
@@ -82,8 +82,8 @@ mod tests {
         // Offset the base curve by [1.0, 1.0] in the base's local coordinate system
         let offset_curve = offset(Curve2::Segment(base.clone()), vec2(1.0, 1.0));
 
-        // Should result in the same segment, but translated by [0, sqrt(2)]
-        let translation = Mat33::translation(vec2(0.0, 2f64.sqrt()));
+        // Should result in the same segment, but translated by [sqrt(2), 0]
+        let translation = Mat33::translation(vec2(2f64.sqrt(), 0.0));
         let expected = segment(
             point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
@@ -96,8 +96,8 @@ mod tests {
         // Offset the base curve by [1.0, 0.0] in the base's local coordinate system
         let offset_curve = offset(Curve2::Segment(base.clone()), vec2(1.0, 0.0));
 
-        // Should result in the same segment, but translated by [sqrt(2) / 2, sqrt(2) / 2]
-        let translation = Mat33::translation(vec2(2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+        // Should result in the same segment, but translated by [sqrt(2) / 2, -sqrt(2) / 2]
+        let translation = Mat33::translation(vec2(2f64.sqrt() / 2.0, -2f64.sqrt() / 2.0));
         let expected = segment(
             point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
@@ -110,10 +110,10 @@ mod tests {
 
     #[test]
     fn offsets_arc() {
-        let base = arc(Mat33::IDENTITY, 1.0, 1.0);
+        let base = arc(Mat33::IDENTITY, 2.0, 1.0);
 
-        // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
-        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(0.0, -1.0));
+        // Offset the base curve by [1.0, 0.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(0.0, 1.0));
 
         // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
         //let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
@@ -121,8 +121,6 @@ mod tests {
         let samples = 8;
         for i in 0..=samples {
             let u = i as f64 / samples as f64;
-
-            // This is wrong
 
             println!(
                 "{}, {}",
