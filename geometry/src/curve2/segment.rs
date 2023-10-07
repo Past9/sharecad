@@ -26,7 +26,7 @@ impl Curve2Impl for Segment {
     }
 
     fn eval(&self, u: f64) -> Point2 {
-        ((1.0 - u) * self.a.to_vec() + u * self.b.to_vec()).to_point()
+        ((1.0 - u) * self.a.into_vec() + u * self.b.into_vec()).into_point()
     }
 
     fn der1(&self, _u: f64) -> space::Vec2 {

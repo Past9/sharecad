@@ -1,6 +1,5 @@
 use crate::{vec2, Mat33, Vec2};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use std::borrow::Borrow;
 
 pub fn point2(x: f64, y: f64) -> Point2 {
     Point2::new(x, y)
@@ -18,21 +17,19 @@ impl Point2 {
         Self { x, y }
     }
 
-    pub fn to_vec(&self) -> Vec2 {
-        self.into()
+    pub fn into_vec(&self) -> Vec2 {
+        (*self).into()
     }
 
-    pub fn transform<M: Borrow<Mat33>>(&self, m: M) -> Self {
-        let m = m.borrow();
+    pub fn transform(&self, m: Mat33) -> Self {
         let x = (self.x * m[0][0]) + (self.y * m[0][1]) + m[0][2];
         let y = (self.x * m[1][0]) + (self.y * m[1][1]) + m[1][2];
         let z = (self.x * m[2][0]) + (self.y * m[2][1]) + m[2][2];
         Self { x: x / z, y: y / z }
     }
 }
-impl<T: Borrow<Vec2>> From<T> for Point2 {
-    fn from(vec: T) -> Self {
-        let vec = vec.borrow();
+impl From<Vec2> for Point2 {
+    fn from(vec: Vec2) -> Self {
         Self { x: vec.x, y: vec.y }
     }
 }

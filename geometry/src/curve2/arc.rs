@@ -21,7 +21,7 @@ impl Arc {
 }
 impl Curve2Impl for Arc {
     fn eval(&self, u: f64) -> Point2 {
-        point2(self.a * u.cos(), self.b * u.sin()).transform(&self.l)
+        point2(self.a * u.cos(), self.b * u.sin()).transform(self.l)
     }
 
     fn u_min(&self) -> f64 {
@@ -35,13 +35,13 @@ impl Curve2Impl for Arc {
     fn der1(&self, u: f64) -> space::Vec2 {
         point2(-self.a * u.sin(), self.b * u.cos())
             .transform(self.l.zero_translation())
-            .to_vec()
+            .into_vec()
     }
 
     fn der2(&self, u: f64) -> space::Vec2 {
         point2(-self.a * u.cos(), -self.b * u.sin())
             .transform(self.l.zero_translation())
-            .to_vec()
+            .into_vec()
     }
 }
 

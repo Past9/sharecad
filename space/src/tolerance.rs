@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use crate::{Mat33, Point2, Vec2};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
@@ -80,20 +78,20 @@ impl Coincidence<Mat33> for Mat33 {
     }
 }
 
-impl<T: Borrow<Vec2>> Coincidence<T> for Vec2 {
+impl Coincidence<Vec2> for Vec2 {
     /// To be considered geometrically coincident,
     /// vectors are treated as points and those points
     /// must be separated by a distance near `0.0`
-    fn cc(&self, other: T) -> bool {
-        self.to_point().cc(other.borrow().to_point())
+    fn cc(&self, other: Vec2) -> bool {
+        self.into_point().cc(other.into_point())
     }
 }
 
-impl<T: Borrow<Point2>> Coincidence<T> for Point2 {
+impl Coincidence<Point2> for Point2 {
     /// To be considered geometrically coincident,
     /// points must be separated by a distance near `0.0`
-    fn cc(&self, other: T) -> bool {
-        within_tolerance_f64((*self - *other.borrow()).magnitude(), 0.0, COINCIDENT_TOL)
+    fn cc(&self, other: Point2) -> bool {
+        within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
     }
 }
 

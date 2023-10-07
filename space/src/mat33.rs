@@ -4,7 +4,7 @@ use auto_ops::impl_op_ex;
 
 use crate::{rad, vec2, Angle, Vec2};
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
 impl Mat33 {
     pub const IDENTITY: Self = Self([
@@ -121,6 +121,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn makes_rotation_matrix() {
+        // +90° (counterclockwise 1/4 turn)
+        assert_cc!(
+            Mat33([
+                [0.0, -1.0, 0.0], //
+                [1.0, 0.0, 0.0],  //
+                [0.0, 0.0, 1.0],  //
+            ]),
+            Mat33::rotation(deg(90.0))
+        );
+    }
+
+    #[test]
     fn rotates_point() {
         // Rotate +90°
         assert_cc!(
@@ -140,16 +153,16 @@ mod tests {
             point2(4.0, 2.0),
             point2(4.0, 2.0)
                 // Rotate 36° at a time, 10 times
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
         );
 
         // Same thing, going the other way
@@ -158,16 +171,16 @@ mod tests {
             point2(4.0, 2.0),
             point2(4.0, 2.0)
                 // Rotate -36° at a time, 10 times
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
-                .transform(&rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
+                .transform(rotation)
         );
     }
 

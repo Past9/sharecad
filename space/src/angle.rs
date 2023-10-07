@@ -62,3 +62,29 @@ impl_op_ex!(+|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 + b.0) });
 impl_op_ex!(-|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 - b.0) });
 impl_op_ex!(/|a: Angle, b: f64| -> Angle { Angle::rad(a.0 / b) });
 impl_op_ex_commutative!(*|a: Angle, b: f64| -> Angle { Angle::rad(a.0 * b) });
+
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::PI;
+
+    use crate::{Angle, rad, deg};
+
+    #[test]
+    fn is_rad_internally() {
+        let angle = Angle(1.0);
+        assert_eq!(angle.0, angle.radians());
+    }
+
+    #[test]
+    fn converts_rad_to_deg() {
+        let angle = rad(PI);
+        assert_cc!(180.0, angle.degrees());
+    }
+
+    #[test]
+    fn converts_deg_to_rad() {
+        let angle = deg(180.0);
+        assert_cc!(PI, angle.radians());
+    }
+}

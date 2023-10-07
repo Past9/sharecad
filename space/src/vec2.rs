@@ -1,6 +1,5 @@
 use crate::Point2;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use std::borrow::Borrow;
 
 pub fn vec2(x: f64, y: f64) -> Vec2 {
     Vec2::new(x, y)
@@ -28,8 +27,7 @@ impl Vec2 {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot<T: Borrow<Self>>(&self, other: T) -> f64 {
-        let other = other.borrow();
+    pub fn dot(&self, other: Vec2) -> f64 {
         self.x * other.x + self.y * other.y
     }
 
@@ -48,13 +46,12 @@ impl Vec2 {
         }
     }
 
-    pub fn to_point(&self) -> Point2 {
-        self.into()
+    pub fn into_point(&self) -> Point2 {
+        (*self).into()
     }
 }
-impl<T: Borrow<Point2>> From<T> for Vec2 {
-    fn from(point: T) -> Self {
-        let point = point.borrow();
+impl From<Point2> for Vec2 {
+    fn from(point: Point2) -> Self {
         Self {
             x: point.x,
             y: point.y,
@@ -164,8 +161,8 @@ mod tests {
         // vector +90°
         let base_vec = vec2(4.0, 2.0);
         assert_cc!(
-            base_vec.orthogonal().to_point(),
-            base_vec.to_point().transform(Mat33::rotation(deg(90.0)))
+            base_vec.orthogonal().into_point(),
+            base_vec.into_point().transform(Mat33::rotation(deg(90.0)))
         );
     }
 
@@ -191,6 +188,6 @@ mod tests {
 
     #[test]
     fn vec_to_point() {
-        assert_cc!(point2(-3.0, 14.0), vec2(-3.0, 14.0).to_point());
+        assert_cc!(point2(-3.0, 14.0), vec2(-3.0, 14.0).into_point());
     }
 }

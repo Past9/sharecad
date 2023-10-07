@@ -41,7 +41,7 @@ impl Curve2Impl for Offset {
     fn eval(&self, u: f64) -> space::Point2 {
         let (local_x, local_y) = self.base.local_axes(u);
         let rotation = Mat33::rotation_from_axes(local_x, local_y);
-        self.base.eval(u) + (self.offset.to_point().transform(rotation)).to_vec()
+        self.base.eval(u) + (self.offset.into_point().transform(rotation)).into_vec()
     }
 
     fn der1(&self, _u: f64) -> Vec2 {
@@ -71,7 +71,7 @@ mod tests {
         // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
         let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
         let expected = segment(
-            point2(2.0, 1.0).transform(&translation),
+            point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
         );
 
@@ -85,7 +85,7 @@ mod tests {
         // Should result in the same segment, but translated by [0, sqrt(2)]
         let translation = Mat33::translation(vec2(0.0, 2f64.sqrt()));
         let expected = segment(
-            point2(2.0, 1.0).transform(&translation),
+            point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
         );
 
@@ -99,7 +99,7 @@ mod tests {
         // Should result in the same segment, but translated by [sqrt(2) / 2, sqrt(2) / 2]
         let translation = Mat33::translation(vec2(2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
         let expected = segment(
-            point2(2.0, 1.0).transform(&translation),
+            point2(2.0, 1.0).transform(translation),
             point2(5.0, 4.0).transform(translation),
         );
 
