@@ -47,9 +47,29 @@ impl Curve2Impl for Arc {
 
 #[cfg(test)]
 mod tests {
-    use space::{deg, vec2};
+    use space::{deg, vec2, Coincidence};
+
+    use crate::curve2::tests::{validate_der1, validate_der2};
 
     use super::*;
+
+    #[test]
+    fn tangents() {
+        let arc = arc(Mat33::IDENTITY, 1.0, 1.0);
+
+        let samples = 8;
+        for i in 0..=samples {
+            let u = i as f64 / samples as f64;
+
+            println!("\n");
+            println!("der1 {}", arc.der1_normalized(u));
+            println!("tangent {}", arc.tangent_normalized(u));
+            println!("der2 {}", arc.der2_normalized(u));
+            println!("normal {}", arc.normal_normalized(u));
+            println!("der1 orth {}", arc.der1_normalized(u).orthogonal());
+            println!("tangent orth {}", arc.tangent_normalized(u).orthogonal());
+        }
+    }
 
     #[test]
     fn arc_test() {
@@ -67,5 +87,46 @@ mod tests {
 
             println!("{}", arc.eval_normalized(u));
         }
+    }
+
+    #[test]
+    fn curvature() {
+        let arc = arc(Mat33::IDENTITY, 2.0, 1.0);
+
+        println!("{}", arc.curvature_normalized(0.0));
+        println!("{}", arc.curvature_normalized(0.125));
+        println!("{}", arc.curvature_normalized(0.25));
+        println!("{}", arc.curvature_normalized(0.375));
+        println!("{}", arc.curvature_normalized(0.5));
+        println!("{}", arc.curvature_normalized(0.625));
+        println!("{}", arc.curvature_normalized(0.75));
+        println!("{}", arc.curvature_normalized(0.875));
+        println!("{}", arc.curvature_normalized(1.0));
+    }
+
+    #[test]
+    fn arc_validate_der1() {
+        validate_der1(
+            &arc(
+                Mat33::rotation(deg(90.0)) * Mat33::translation(vec2(3.0, 3.0)),
+                2.0,
+                1.0,
+            ),
+            100,
+            0.0000001,
+        );
+    }
+
+    #[test]
+    fn arc_validate_der2() {
+        validate_der2(
+            &arc(
+                Mat33::rotation(deg(90.0)) * Mat33::translation(vec2(3.0, 3.0)),
+                2.0,
+                1.0,
+            ),
+            100,
+            0.0000001,
+        );
     }
 }

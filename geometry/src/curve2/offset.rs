@@ -55,9 +55,15 @@ impl Curve2Impl for Offset {
 
 #[cfg(test)]
 mod tests {
+    use std::f64::consts::PI;
+
     use space::{assert_cc, point2, vec2};
 
-    use crate::{arc, segment};
+    use crate::{
+        arc,
+        curve2::tests::{validate_der1, validate_der2},
+        segment,
+    };
 
     use super::*;
 
@@ -113,20 +119,50 @@ mod tests {
         let base = arc(Mat33::IDENTITY, 2.0, 1.0);
 
         // Offset the base curve by [1.0, 0.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(1.0, 0.0));
+
+        // Should result in a curve that is expanded by 1.0 in every direction normal
+        // to the base ellipse.
+        assert_cc!(point2(3.0, 0.0), offset_curve.eval_normalized(0.0));
+        assert_cc!(point2(0.0, 2.0), offset_curve.eval_normalized(0.25));
+        assert_cc!(point2(-3.0, 0.0), offset_curve.eval_normalized(0.5));
+        assert_cc!(point2(0.0, -2.0), offset_curve.eval_normalized(0.75));
+        assert_cc!(point2(3.0, 0.0), offset_curve.eval_normalized(1.0));
+
+        // Offset the base curve by [-0.5, 0.0] in the base's local coordinate system
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(-0.5, 0.0));
+
+        // Should result in a curve that is shrunk by 0.5 in every direction normal
+        // to the base ellipse.
+        assert_cc!(point2(1.5, 0.0), offset_curve.eval_normalized(0.0));
+        assert_cc!(point2(0.0, 0.5), offset_curve.eval_normalized(0.25));
+        assert_cc!(point2(-1.5, 0.0), offset_curve.eval_normalized(0.5));
+        assert_cc!(point2(0.0, -0.5), offset_curve.eval_normalized(0.75));
+        assert_cc!(point2(1.5, 0.0), offset_curve.eval_normalized(1.0));
+
+        // Offset the base curve by [0.0, 1.0] in the base's local coordinate system
         let offset_curve = offset(Curve2::Arc(base.clone()), vec2(0.0, 1.0));
 
-        // Should result in the same segment, but translated by [-sqrt(2) / 2, sqrt(2) / 2]
-        //let translation = Mat33::translation(vec2(-2f64.sqrt() / 2.0, 2f64.sqrt() / 2.0));
+        // Should result in a curve that is moved 1.0 along the base ellipse's tangent
+        // at all points
+        assert_cc!(point2(2.0, 1.0), offset_curve.eval_normalized(0.0));
+        assert_cc!(point2(-1.0, 1.0), offset_curve.eval_normalized(0.25));
+        assert_cc!(point2(-2.0, -1.0), offset_curve.eval_normalized(0.5));
+        assert_cc!(point2(1.0, -1.0), offset_curve.eval_normalized(0.75));
+        assert_cc!(point2(2.0, 1.0), offset_curve.eval_normalized(1.0));
+    }
 
-        let samples = 8;
-        for i in 0..=samples {
-            let u = i as f64 / samples as f64;
+    #[test]
+    fn offset_arc_validate_der1() {
+        let base = arc(Mat33::IDENTITY, 2.0, 1.0);
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(1.0, 1.0));
+        validate_der1(&offset_curve, 100, 0.0000001);
+    }
 
-            println!(
-                "{}, {}",
-                base.eval_normalized(u),
-                offset_curve.eval_normalized(u)
-            );
-        }
+    #[test]
+    fn offset_arc_validate_der2() {
+        let base = arc(Mat33::IDENTITY, 2.0, 1.0);
+        let offset_curve = offset(Curve2::Arc(base.clone()), vec2(1.0, 1.0));
+        validate_der2(&offset_curve, 100, 0.0000001);
     }
 }

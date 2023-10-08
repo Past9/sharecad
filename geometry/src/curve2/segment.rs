@@ -42,6 +42,8 @@ impl Curve2Impl for Segment {
 mod tests {
     use space::{assert_cc, point2, vec2};
 
+    use crate::curve2::tests::{validate_der1, validate_der2};
+
     use super::*;
 
     #[test]
@@ -99,5 +101,15 @@ mod tests {
         let (x_axis, y_axis) = segment.local_axes(0.0);
         assert_cc!(vec2(5.0, 2.0).normalize(), y_axis);
         assert_cc!(vec2(2.0, -5.0).normalize(), x_axis);
+    }
+
+    #[test]
+    fn segment_validate_der1() {
+        validate_der1(&segment(point2(2.0, 2.0), point2(7.0, 4.0)), 100, 0.0000001);
+    }
+
+    #[test]
+    fn segment_validate_der2() {
+        validate_der2(&segment(point2(2.0, 2.0), point2(7.0, 4.0)), 100, 0.0000001);
     }
 }
