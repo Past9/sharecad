@@ -1,11 +1,10 @@
-use std::{f32::consts::PI, num::NonZeroU64};
-
 use eframe::{
     egui,
     egui_wgpu::{self, RenderState},
     wgpu::{self, util::DeviceExt},
     Renderer,
 };
+use std::num::NonZeroU64;
 
 const RENDER_LABEL: Option<&'static str> = Some("View2D");
 
@@ -13,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init();
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        initial_window_size: Some(egui::vec2(1600.0, 900.0)),
         renderer: Renderer::Wgpu,
         ..Default::default()
     };
@@ -45,18 +44,12 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 fn custom_painting(ui: &mut egui::Ui) {
-    //println!("custom painting");
-    let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+    let (rect, _response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
 
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
         RenderCallback { angle: 0.0 },
     ));
-
-    /*
-    ui.painter()
-        .add(egui_wgpu::Callback::new_paint_callback(rect, callback));
-     */
 }
 
 fn init_renderer(render_state: &RenderState) {
@@ -121,8 +114,6 @@ fn init_renderer(render_state: &RenderState) {
         }],
     });
 
-    println!("Initialized renderer");
-
     render_state
         .renderer
         .write()
@@ -145,7 +136,6 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
         _egui_encoder: &mut eframe::wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<eframe::wgpu::CommandBuffer> {
-        println!("preparing callback");
         let resources: &RenderResources = resources.get().unwrap();
         resources.prepare(device, queue, self.angle);
         Vec::new()
@@ -153,11 +143,10 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
 
     fn paint<'a>(
         &'a self,
-        info: eframe::epaint::PaintCallbackInfo,
+        _info: eframe::epaint::PaintCallbackInfo,
         render_pass: &mut eframe::wgpu::RenderPass<'a>,
         resources: &'a egui_wgpu::CallbackResources,
     ) {
-        println!("painting callback");
         let resources: &RenderResources = resources.get().unwrap();
         resources.paint(render_pass);
     }
@@ -169,8 +158,7 @@ struct RenderResources {
     uniform_buffer: wgpu::Buffer,
 }
 impl RenderResources {
-    fn prepare(&self, device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
-        println!("preparing resources");
+    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
         queue.write_buffer(
             &self.uniform_buffer,
             0,
@@ -179,7 +167,6 @@ impl RenderResources {
     }
 
     fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
-        println!("painting resources");
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.draw(0..3, 0..1);
