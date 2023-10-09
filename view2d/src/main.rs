@@ -2,7 +2,7 @@ use eframe::{
     egui::{self, Sense},
     egui_wgpu::{self, RenderState},
     epaint::Vec2,
-    wgpu::{self, util::DeviceExt, CommandBuffer, DynamicOffset},
+    wgpu::{self, util::DeviceExt, BufferBinding, CommandBuffer, DynamicOffset},
     Renderer,
 };
 use std::{num::NonZeroU64, process::Command};
@@ -54,18 +54,18 @@ fn main() -> Result<(), eframe::Error> {
 
 struct RenderResources {
     pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
+    bind_groups: Vec<wgpu::BindGroup>,
+    uniform_buffers: Vec<wgpu::Buffer>,
 }
 
 #[derive(Clone)]
 struct SketchState {
-    id: u64,
+    id: usize,
     renderer_initialized: bool,
     angle: f32,
 }
 impl SketchState {
-    fn new(id: u64) -> Self {
+    fn new(id: usize) -> Self {
         Self {
             id,
             renderer_initialized: false,
@@ -81,11 +81,9 @@ impl egui_wgpu::CallbackTrait for SketchState {
         _encoder: &mut eframe::wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<CommandBuffer> {
-        println!("prepare {}", self.id);
         let resources: &RenderResources = resources.get().unwrap();
-        //println!("write buffer {} {}", self.name, self.angle);
         queue.write_buffer(
-            &resources.uniform_buffer,
+            &resources.uniform_buffers[self.id],
             0,
             &bytemuck::cast_slice(&[self.angle, 0.0, 0.0, 0.0]),
         );
@@ -100,7 +98,6 @@ impl egui_wgpu::CallbackTrait for SketchState {
         egui_encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
-        println!("finish_prepare {}", self.id);
         let resources: &mut RenderResources = resources.get_mut().unwrap();
 
         vec![]
@@ -112,11 +109,10 @@ impl egui_wgpu::CallbackTrait for SketchState {
         render_pass: &mut eframe::wgpu::RenderPass<'a>,
         resources: &'a egui_wgpu::CallbackResources,
     ) {
-        println!("paint {}", self.id);
         let resources: &RenderResources = resources.get().unwrap();
         render_pass.set_pipeline(&resources.pipeline);
 
-        render_pass.set_bind_group(0, &resources.bind_group, &[]);
+        render_pass.set_bind_group(0, &resources.bind_groups[self.id], &[]);
 
         render_pass.draw(0..3, 0..1);
     }
@@ -128,8 +124,6 @@ trait SketchUi {
 impl SketchUi for &mut egui::Ui {
     fn sketch(self, state: &mut SketchState) {
         egui::Frame::canvas(self.style()).show(self, |ui| {
-            //println!("paint callback {}, {}", state.name, state.angle);
-
             let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
 
             state.angle += response.drag_delta().x * 0.01;
@@ -187,20 +181,34 @@ fn init_sketch_pipeline(render_state: &RenderState) {
         multiview: None,
     });
 
-    let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: RENDER_LABEL,
-        contents: bytemuck::cast_slice(&[0.0_f32; 4]),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-    });
+    let uniform_buffers: Vec<wgpu::Buffer> = (0..2)
+        .map(|_| {
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: RENDER_LABEL,
+                contents: bytemuck::cast_slice(&[0.0_f32; 4]),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+            })
+        })
+        .collect();
 
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: RENDER_LABEL,
-        layout: &bind_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: uniform_buffer.as_entire_binding(),
-        }],
-    });
+    let bind_groups = uniform_buffers
+        .iter()
+        .enumerate()
+        .map(|(i, uniform_buffer)| {
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: RENDER_LABEL,
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(BufferBinding {
+                        buffer: uniform_buffer,
+                        offset: 0,
+                        size: NonZeroU64::new(16),
+                    }),
+                }],
+            })
+        })
+        .collect::<Vec<_>>();
 
     render_state
         .renderer
@@ -208,7 +216,7 @@ fn init_sketch_pipeline(render_state: &RenderState) {
         .callback_resources
         .insert(RenderResources {
             pipeline,
-            bind_group,
-            uniform_buffer,
+            bind_groups,
+            uniform_buffers,
         });
 }
