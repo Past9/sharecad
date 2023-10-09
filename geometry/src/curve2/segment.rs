@@ -112,4 +112,13 @@ mod tests {
     fn segment_validate_der2() {
         validate_der2(&segment(point2(2.0, 2.0), point2(7.0, 4.0)), 100, 0.0000001);
     }
+
+    #[test]
+    fn zero_curvature() {
+        let segment = segment(point2(2.0, 2.0), point2(7.0, 4.0));
+
+        assert_cc!(0.0, segment.curvature_normalized(0.0));
+        assert_cc!(0.0, segment.curvature_normalized(0.5));
+        assert_cc!(0.0, segment.curvature_normalized(1.0));
+    }
 }

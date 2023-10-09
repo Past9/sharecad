@@ -47,7 +47,7 @@ impl Curve2Impl for Arc {
 
 #[cfg(test)]
 mod tests {
-    use space::{deg, vec2, Coincidence};
+    use space::{assert_cc, deg, vec2, Coincidence};
 
     use crate::curve2::tests::{validate_der1, validate_der2};
 
@@ -93,15 +93,13 @@ mod tests {
     fn curvature() {
         let arc = arc(Mat33::IDENTITY, 2.0, 1.0);
 
-        println!("{}", arc.curvature_normalized(0.0));
         println!("{}", arc.curvature_normalized(0.125));
-        println!("{}", arc.curvature_normalized(0.25));
-        println!("{}", arc.curvature_normalized(0.375));
-        println!("{}", arc.curvature_normalized(0.5));
-        println!("{}", arc.curvature_normalized(0.625));
-        println!("{}", arc.curvature_normalized(0.75));
-        println!("{}", arc.curvature_normalized(0.875));
-        println!("{}", arc.curvature_normalized(1.0));
+
+        assert_cc!(2.0, arc.curvature_normalized(0.0));
+        assert_cc!(0.25, arc.curvature_normalized(0.25));
+        assert_cc!(2.0, arc.curvature_normalized(0.5));
+        assert_cc!(0.25, arc.curvature_normalized(0.75));
+        assert_cc!(2.0, arc.curvature_normalized(1.0));
     }
 
     #[test]

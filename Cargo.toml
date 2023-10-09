@@ -1,3 +1,9 @@
 [workspace]
 
-members = ["space", "geometry"]
+members = [
+    "geometry",
+    "render2d",
+    "space",
+    "view2d",
+    #
+]
