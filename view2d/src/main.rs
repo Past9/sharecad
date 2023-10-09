@@ -1,10 +1,11 @@
 use eframe::{
-    egui,
+    egui::{self, Sense},
     egui_wgpu::{self, RenderState},
-    wgpu::{self, util::DeviceExt},
+    epaint::Vec2,
+    wgpu::{self, util::DeviceExt, CommandBuffer, DynamicOffset},
     Renderer,
 };
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, process::Command};
 
 const RENDER_LABEL: Option<&'static str> = Some("View2D");
 
@@ -17,16 +18,18 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
+    let mut sketch_pipeline_initialized = false;
+
     let mut name = "Ross".to_owned();
 
-    let mut renderer_initialized = false;
+    let mut sketch1 = SketchState::new(0);
+    let mut sketch2 = SketchState::new(1);
 
     eframe::run_simple_native("View 2D", options, move |ctx, frame| {
-        if !renderer_initialized {
-            init_renderer(frame.wgpu_render_state().unwrap());
-
-            renderer_initialized = true;
+        if !sketch_pipeline_initialized {
+            init_sketch_pipeline(frame.wgpu_render_state().unwrap());
         }
+        sketch_pipeline_initialized = true;
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Some app");
@@ -36,23 +39,108 @@ fn main() -> Result<(), eframe::Error> {
                     .labelled_by(name_label.id);
             });
 
-            egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                custom_painting(ui);
+            ui.horizontal(|ui| {
+                ui.allocate_ui([300.0, 300.0].into(), |ui| {
+                    ui.sketch(&mut sketch1);
+                });
+
+                ui.allocate_ui([300.0, 300.0].into(), |ui| {
+                    ui.sketch(&mut sketch2);
+                });
             });
         });
     })
 }
 
-fn custom_painting(ui: &mut egui::Ui) {
-    let (rect, _response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
-
-    ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-        rect,
-        RenderCallback { angle: 0.0 },
-    ));
+struct RenderResources {
+    pipeline: wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    uniform_buffer: wgpu::Buffer,
 }
 
-fn init_renderer(render_state: &RenderState) {
+#[derive(Clone)]
+struct SketchState {
+    id: u64,
+    renderer_initialized: bool,
+    angle: f32,
+}
+impl SketchState {
+    fn new(id: u64) -> Self {
+        Self {
+            id,
+            renderer_initialized: false,
+            angle: 0.0,
+        }
+    }
+}
+impl egui_wgpu::CallbackTrait for SketchState {
+    fn prepare(
+        &self,
+        _device: &eframe::wgpu::Device,
+        queue: &eframe::wgpu::Queue,
+        _encoder: &mut eframe::wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<CommandBuffer> {
+        println!("prepare {}", self.id);
+        let resources: &RenderResources = resources.get().unwrap();
+        //println!("write buffer {} {}", self.name, self.angle);
+        queue.write_buffer(
+            &resources.uniform_buffer,
+            0,
+            &bytemuck::cast_slice(&[self.angle, 0.0, 0.0, 0.0]),
+        );
+
+        Vec::new()
+    }
+
+    fn finish_prepare(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        egui_encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        println!("finish_prepare {}", self.id);
+        let resources: &mut RenderResources = resources.get_mut().unwrap();
+
+        vec![]
+    }
+
+    fn paint<'a>(
+        &'a self,
+        _info: eframe::epaint::PaintCallbackInfo,
+        render_pass: &mut eframe::wgpu::RenderPass<'a>,
+        resources: &'a egui_wgpu::CallbackResources,
+    ) {
+        println!("paint {}", self.id);
+        let resources: &RenderResources = resources.get().unwrap();
+        render_pass.set_pipeline(&resources.pipeline);
+
+        render_pass.set_bind_group(0, &resources.bind_group, &[]);
+
+        render_pass.draw(0..3, 0..1);
+    }
+}
+
+trait SketchUi {
+    fn sketch(self, state: &mut SketchState);
+}
+impl SketchUi for &mut egui::Ui {
+    fn sketch(self, state: &mut SketchState) {
+        egui::Frame::canvas(self.style()).show(self, |ui| {
+            //println!("paint callback {}, {}", state.name, state.angle);
+
+            let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+
+            state.angle += response.drag_delta().x * 0.01;
+
+            ui.painter()
+                .add(egui_wgpu::Callback::new_paint_callback(rect, state.clone()));
+        });
+    }
+}
+
+fn init_sketch_pipeline(render_state: &RenderState) {
     let device = &render_state.device;
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -123,52 +211,4 @@ fn init_renderer(render_state: &RenderState) {
             bind_group,
             uniform_buffer,
         });
-}
-
-struct RenderCallback {
-    angle: f32,
-}
-impl egui_wgpu::CallbackTrait for RenderCallback {
-    fn prepare(
-        &self,
-        device: &eframe::wgpu::Device,
-        queue: &eframe::wgpu::Queue,
-        _egui_encoder: &mut eframe::wgpu::CommandEncoder,
-        resources: &mut egui_wgpu::CallbackResources,
-    ) -> Vec<eframe::wgpu::CommandBuffer> {
-        let resources: &RenderResources = resources.get().unwrap();
-        resources.prepare(device, queue, self.angle);
-        Vec::new()
-    }
-
-    fn paint<'a>(
-        &'a self,
-        _info: eframe::epaint::PaintCallbackInfo,
-        render_pass: &mut eframe::wgpu::RenderPass<'a>,
-        resources: &'a egui_wgpu::CallbackResources,
-    ) {
-        let resources: &RenderResources = resources.get().unwrap();
-        resources.paint(render_pass);
-    }
-}
-
-struct RenderResources {
-    pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
-}
-impl RenderResources {
-    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[angle, 0.0, 0.0, 0.0]),
-        );
-    }
-
-    fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
-        render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
-    }
 }
