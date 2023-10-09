@@ -18,12 +18,6 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     let mut sketch_pipeline_initialized = false;
-
-    let mut name = "Ross".to_owned();
-
-    //let mut sketch1 = SketchState::new(0);
-    //let mut sketch2 = SketchState::new(1);
-
     let mut sketches = Vec::new();
 
     eframe::run_simple_native("View 2D", options, move |ctx, frame| {
@@ -35,21 +29,6 @@ fn main() -> Result<(), eframe::Error> {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Some app");
             ui.horizontal(|ui| {
-                let name_label = ui.label("Your name: ");
-                ui.text_edit_singleline(&mut name)
-                    .labelled_by(name_label.id);
-            });
-
-            ui.horizontal(|ui| {
-                /*
-                ui.allocate_ui([300.0, 300.0].into(), |ui| {
-                    ui.sketch(&mut sketch1);
-                });
-
-                ui.allocate_ui([300.0, 300.0].into(), |ui| {
-                    ui.sketch(&mut sketch2);
-                });
-                 */
                 for sketch in sketches.iter_mut() {
                     ui.allocate_ui([300.0, 300.0].into(), |ui| {
                         ui.sketch(sketch);
@@ -58,7 +37,6 @@ fn main() -> Result<(), eframe::Error> {
             });
 
             if ui.button("Add").clicked() {
-                println!("Adding sketch");
                 sketches.push(SketchState::new(sketches.len()));
             }
         });
