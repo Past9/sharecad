@@ -61,14 +61,14 @@ impl std::fmt::Display for Angle {
 impl_op_ex!(+|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 + b.0) });
 impl_op_ex!(-|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 - b.0) });
 impl_op_ex!(/|a: Angle, b: f64| -> Angle { Angle::rad(a.0 / b) });
+impl_op_ex!(/|a: Angle, b: Angle| -> f64 { a.0 / b.0 });
 impl_op_ex_commutative!(*|a: Angle, b: f64| -> Angle { Angle::rad(a.0 * b) });
-
 
 #[cfg(test)]
 mod tests {
     use std::f64::consts::PI;
 
-    use crate::{Angle, rad, deg};
+    use crate::{deg, rad, Angle};
 
     #[test]
     fn is_rad_internally() {

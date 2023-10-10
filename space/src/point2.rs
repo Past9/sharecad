@@ -27,6 +27,14 @@ impl Point2 {
         let z = (self.x * m[2][0]) + (self.y * m[2][1]) + m[2][2];
         Self { x: x / z, y: y / z }
     }
+
+    pub fn to_f64s(&self) -> [f64; 2] {
+        [self.x, self.y]
+    }
+
+    pub fn to_f32s(&self) -> [f32; 2] {
+        [self.x as f32, self.y as f32]
+    }
 }
 impl From<Vec2> for Point2 {
     fn from(vec: Vec2) -> Self {
@@ -47,4 +55,5 @@ impl std::fmt::Debug for Point2 {
 impl_op_ex_commutative!(+|p: Vec2, v: Point2| -> Point2 {
     point2(p.x + v.x, p.y + v.y)
 });
+impl_op_ex!(-|p: Point2, v: Vec2| -> Point2 { point2(p.x - v.x, p.y - v.y) });
 impl_op_ex!(-|a: Point2, b: Point2| -> Vec2 { vec2(a.x - b.x, a.y - b.y) });

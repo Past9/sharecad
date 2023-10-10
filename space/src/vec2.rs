@@ -1,8 +1,16 @@
-use crate::Point2;
+use crate::{rad, Angle, Point2};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
 pub fn vec2(x: f64, y: f64) -> Vec2 {
     Vec2::new(x, y)
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TurnDir {
+    Cw,
+    Ccw,
+    Aligned,
+    Opposite,
 }
 
 #[derive(Copy, Clone)]
@@ -17,6 +25,26 @@ impl Vec2 {
 
     pub fn new(x: f64, y: f64) -> Self {
         Self { x, y }
+    }
+
+    pub fn turn_dir(&self, other: Vec2) -> TurnDir {
+        let z = (self.x * other.y) - (self.y * other.x);
+
+        if z > 0.0 {
+            TurnDir::Ccw
+        } else if z < 0.0 {
+            TurnDir::Cw
+        } else {
+            if self.x.signum() == other.x.signum() && self.y.signum() == other.y.signum() {
+                TurnDir::Aligned
+            } else {
+                TurnDir::Opposite
+            }
+        }
+    }
+
+    pub fn angle(&self) -> Angle {
+        rad(self.y.atan2(self.x))
     }
 
     pub fn magnitude2(&self) -> f64 {
@@ -48,6 +76,14 @@ impl Vec2 {
 
     pub fn into_point(&self) -> Point2 {
         (*self).into()
+    }
+
+    pub fn to_f64s(&self) -> [f64; 2] {
+        [self.x, self.y]
+    }
+
+    pub fn to_f32s(&self) -> [f32; 2] {
+        [self.x as f32, self.y as f32]
     }
 }
 impl From<Point2> for Vec2 {
@@ -81,6 +117,16 @@ impl_op_ex_commutative!(/|v: Vec2, s: f64| -> Vec2 { vec2(v.x / s, v.y / s) });
 mod tests {
     use super::*;
     use crate::{deg, point2, Mat33};
+
+    #[test]
+    fn gets_turn_dir() {
+        assert_eq!(TurnDir::Ccw, vec2(4.0, 0.0).turn_dir(vec2(4.0, 5.0)));
+        assert_eq!(TurnDir::Ccw, vec2(4.0, 0.0).turn_dir(vec2(-4.0, 5.0)));
+        assert_eq!(TurnDir::Cw, vec2(4.0, 0.0).turn_dir(vec2(4.0, -5.0)));
+        assert_eq!(TurnDir::Cw, vec2(4.0, 0.0).turn_dir(vec2(-4.0, -5.0)));
+        assert_eq!(TurnDir::Aligned, vec2(2.0, 3.0).turn_dir(vec2(4.0, 6.0)));
+        assert_eq!(TurnDir::Opposite, vec2(2.0, 3.0).turn_dir(vec2(-4.0, -6.0)));
+    }
 
     #[test]
     fn gets_magnitude2() {
