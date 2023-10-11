@@ -240,10 +240,114 @@ struct PolyLine {
 }
 impl PolyLine {
     pub fn to_verts(&self, stroke: &Stroke) -> (Vec<Vertex>, Vec<u32>) {
+        // Vertex and index buffer data
+        let mut vertices = vec![];
+        let mut indices = vec![];
+
         if self.points.len() < 2 {
-            return (vec![], vec![]);
+            return (vertices, indices);
         }
 
+        let all_offsets = (1..self.points.len())
+            .map(|i| {
+                let p0 = self.points[i - 1];
+                let p1 = self.points[i];
+                Offsets::new(p0, p1, stroke.half_width)
+            })
+            .collect::<Vec<_>>();
+
+        for offsets in all_offsets.iter() {
+            let verts_len = vertices.len() as u32;
+            indices.extend([
+                verts_len + 0,
+                verts_len + 2,
+                verts_len + 1,
+                verts_len + 1,
+                verts_len + 2,
+                verts_len + 3,
+            ]);
+            vertices.extend([
+                Vertex::from(offsets.s0.p0),
+                Vertex::from(offsets.s0.p1),
+                Vertex::from(offsets.s1.p0),
+                Vertex::from(offsets.s1.p1),
+            ]);
+        }
+
+        let mut fans = vec![];
+
+        // Starting end cap
+        fans.push(Fan::new(
+            FanKind::Start,
+            all_offsets[0].p0,
+            all_offsets[0].p0,
+            stroke.half_width,
+            all_offsets[0].orth.angle(),
+            (-all_offsets[0].orth).angle(),
+        ));
+
+        // Intermediate fans
+        for i in 1..all_offsets.len() {
+            let offsets0 = &all_offsets[i - 1];
+            let offsets1 = &all_offsets[i];
+
+            let turn = offsets0.vec.turn_dir(offsets1.vec);
+
+            match turn {
+                TurnDir::Cw => {
+                    fans.push(Fan::new(
+                        FanKind::CwTurn,
+                        offsets0.p1,
+                        offsets0.p1,
+                        stroke.half_width,
+                        offsets1.orth.angle(),
+                        offsets0.orth.angle(),
+                    ));
+                }
+                TurnDir::Ccw => {
+                    fans.push(Fan::new(
+                        FanKind::CwTurn,
+                        offsets0.p1,
+                        offsets0.p1,
+                        stroke.half_width,
+                        (-offsets0.orth).angle(),
+                        (-offsets1.orth).angle(),
+                    ));
+                }
+                TurnDir::Aligned => {
+                    //
+                }
+                TurnDir::Opposite => {
+                    fans.push(Fan::new(
+                        FanKind::Start,
+                        offsets0.p1,
+                        offsets0.p1,
+                        stroke.half_width,
+                        (-offsets0.orth).angle(),
+                        offsets0.orth.angle(),
+                    ));
+                }
+            };
+        }
+
+        // Finishing end cap
+        fans.push(Fan::new(
+            FanKind::Start,
+            all_offsets[all_offsets.len() - 1].p1,
+            all_offsets[all_offsets.len() - 1].p1,
+            stroke.half_width,
+            (-all_offsets[all_offsets.len() - 1].orth).angle(),
+            all_offsets[all_offsets.len() - 1].orth.angle(),
+        ));
+
+        // Add fan geometry
+        for fan in fans {
+            let verts = fan.verts(stroke.max_angle);
+            indices.extend(verts.indices.iter().map(|i| vertices.len() as u32 + i));
+            vertices.extend(verts.verts);
+        }
+
+        /*
         enum Points {
             FirstTwo(Point2, Point2),
             Middle(Point2, Point2, Point2),
@@ -351,10 +455,6 @@ impl PolyLine {
             };
         }
 
-        // Turns fans into vertices
-        let mut vertices = vec![];
-        let mut indices = vec![];
-
         let mut prev_fan_verts = fans[0].verts(stroke.max_angle);
         vertices.extend(prev_fan_verts.verts.clone());
         indices.extend(prev_fan_verts.indices.clone());
@@ -368,6 +468,7 @@ impl PolyLine {
 
             let prev_fan_index_start = verts_len - prev_fan_verts.verts.len() as u32;
 
+            /*
             indices.extend([
                 // Triangle 1
                 prev_fan_index_start + prev_fan_verts.left_end_idx,
@@ -378,6 +479,7 @@ impl PolyLine {
                 prev_fan_index_start + prev_fan_verts.right_end_idx,
                 verts_len + fan_verts.right_start_idx,
             ]);
+             */
 
             vertices.extend(fan_verts.verts.clone());
             indices.extend(fan_verts.indices.iter().map(|i| verts_len + i));
@@ -385,43 +487,10 @@ impl PolyLine {
             prev_fan_verts = fan_verts;
         }
 
-        /*
-        for i in 0..fans.len() {
-            let next_index = vertices.len() as u32;
-            let fan = &fans[i];
-            let verts = fan.verts(max_angle);
-
-            println!("fan_verts.len() = {}", verts.verts.len());
-
-            let fan_indices = verts
-                .indices
-                .iter()
-                .map(|i| i + next_index)
-                .collect::<Vec<u32>>();
-
-            if let Some(last_fan_verts_len) = last_fan_verts_len {
-                indices.extend([
-                    // First triangle
-                    next_index - last_fan_verts_len,
-                    next_index - 1,
-                    next_index,
-                    // Second triangle
-                    next_index,
-                    next_index - 1,
-                    next_index + verts.len() as u32 - 1,
-                ]);
-            }
-
-            last_fan_verts_len = Some(verts.len() as u32);
-
-            vertices.extend(verts);
-            indices.extend(fan_indices);
-        }
-         */
-
         println!("vertices.len() = {}", vertices.len());
 
         println!("indices = {:?}", indices);
+         */
 
         (vertices, indices)
     }
@@ -545,6 +614,9 @@ impl SketchState {
                 point2(0.2, -0.6),  //
                 point2(-0.2, -0.6), //
                 point2(0.6, -0.5),  //
+                point2(0.6, 0.5),   //
+                point2(0.6, 0.8),   //
+                point2(0.6, 0.3),   //
 
                                     /*
                                     point2(0.4, 0.3), //
