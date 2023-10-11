@@ -1,7 +1,11 @@
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+use std::f64::consts::PI;
 
-const DEG_TO_RAD: f64 = std::f64::consts::PI / 180.0;
-const RAD_TO_DEG: f64 = 180.0 / std::f64::consts::PI;
+const PI2_1: f64 = PI * 2.0;
+const PI1_2: f64 = PI / 2.0;
+const PI1_4: f64 = PI / 4.0;
+const DEG_TO_RAD: f64 = PI / 180.0;
+const RAD_TO_DEG: f64 = 180.0 / PI;
 
 pub fn deg(deg: f64) -> Angle {
     Angle::deg(deg)
@@ -11,9 +15,20 @@ pub fn rad(rad: f64) -> Angle {
     Angle::rad(rad)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Angle(pub f64);
 impl Angle {
+    const ZERO: Self = Self(0.0);
+    const RAD_PI: Self = Self(PI);
+    const RAD_2PI: Self = Self(PI2_1);
+    const RAD_1_2_PI: Self = Self(PI1_2);
+    const RAD_1_4_PI: Self = Self(PI1_4);
+
+    const DEG_180: Self = Self(PI);
+    const DEG_360: Self = Self(PI2_1);
+    const DEG_90: Self = Self(PI1_2);
+    const DEG_45: Self = Self(PI1_4);
+
     pub fn deg(deg: f64) -> Self {
         Self(deg * DEG_TO_RAD)
     }
@@ -41,6 +56,32 @@ impl Angle {
     pub fn tan(&self) -> f64 {
         self.0.tan()
     }
+
+    // Angle from `self` to `other` going counterclockwise
+    pub fn angle_ccw(&self, other: Self) -> Angle {
+        (other.normalize() - self.normalize()).normalize()
+    }
+
+    // Makes the angle always between 0 and 2pi
+    pub fn normalize(&self) -> Self {
+        let pi_2 = PI2_1;
+        let mut rads = self.0 % pi_2;
+        if rads < 0.0 {
+            rads += pi_2;
+        }
+
+        rad(rads)
+    }
+
+    fn normalize_cw(&self) -> Self {
+        let pi_2 = PI2_1;
+        let mut rads = self.0 % -pi_2;
+        if rads > 0.0 {
+            rads -= pi_2;
+        }
+
+        rad(rads)
+    }
 }
 impl From<Angle> for f64 {
     fn from(value: Angle) -> Self {
@@ -58,6 +99,7 @@ impl std::fmt::Display for Angle {
     }
 }
 
+impl_op_ex!(-|a: Angle| -> Angle { Angle::rad(-a.0) });
 impl_op_ex!(+|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 + b.0) });
 impl_op_ex!(-|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 - b.0) });
 impl_op_ex!(/|a: Angle, b: f64| -> Angle { Angle::rad(a.0 / b) });
@@ -69,6 +111,15 @@ mod tests {
     use std::f64::consts::PI;
 
     use crate::{deg, rad, Angle};
+
+    #[test]
+    fn angle_ccw() {
+        assert_cc!(deg(90.0), deg(315.0).angle_ccw(deg(45.0)));
+        assert_cc!(deg(270.0), deg(45.0).angle_ccw(deg(315.0)));
+        assert_cc!(deg(0.0), deg(45.0).angle_ccw(deg(45.0)));
+        assert_cc!(deg(0.0), deg(45.0).angle_ccw(deg(405.0)));
+        assert_cc!(deg(0.0), deg(405.0).angle_ccw(deg(765.0)));
+    }
 
     #[test]
     fn is_rad_internally() {

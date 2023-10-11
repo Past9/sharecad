@@ -11,7 +11,25 @@ use std::{num::NonZeroU64, sync::Arc};
 const RENDER_LABEL: Option<&'static str> = Some("Sketch");
 
 #[derive(Debug)]
+enum FanKind {
+    Start,
+    CcwTurn,
+    CwTurn,
+    End,
+}
+
+struct FanVerts {
+    verts: Vec<Vertex>,
+    indices: Vec<u32>,
+    left_start_idx: u32,
+    right_start_idx: u32,
+    left_end_idx: u32,
+    right_end_idx: u32,
+}
+
+#[derive(Debug)]
 struct Fan {
+    kind: FanKind,
     base: Point2,
     radius_center: Point2,
     radius: f64,
@@ -19,13 +37,21 @@ struct Fan {
     end: Angle,
 }
 impl Fan {
-    pub fn new(base: Point2, radius_center: Point2, radius: f64, start: Angle, end: Angle) -> Self {
+    pub fn new(
+        kind: FanKind,
+        base: Point2,
+        radius_center: Point2,
+        radius: f64,
+        start: Angle,
+        end: Angle,
+    ) -> Self {
         Self {
+            kind,
             base,
             radius_center,
             radius,
-            start,
-            end,
+            start: start.normalize(),
+            end: end.normalize(),
         }
     }
 
@@ -34,37 +60,85 @@ impl Fan {
         self.radius_center + self.radius * vec2(angle.cos(), angle.sin())
     }
 
-    pub fn verts(&self, max_angle: Angle) -> Vec<Vertex> {
+    pub fn verts(&self, max_angle: Angle) -> FanVerts {
+        println!("\n\nFAN VERTS FOR {:#?}", self);
         let mut vertices = vec![
             self.base.into(),
             self.point_at_angle_from_start(rad(0.0)).into(),
         ];
 
-        let angle = self.end - self.start;
+        let angle = self.start.angle_ccw(self.end);
 
-        println!(
-            "(end - start = angle) -> ({} - {} = {})",
-            self.end, self.start, angle
-        );
+        //println!("(end - start = angle) -> ({} - {} = {})", end, start, angle);
 
         if angle.radians() == 0.0 {
-            return vertices;
+            return FanVerts {
+                verts: vertices,
+                indices: vec![],
+                left_start_idx: 0,
+                right_start_idx: 1,
+                left_end_idx: 0,
+                right_end_idx: 1,
+            };
         }
 
         let steps = (angle / max_angle).ceil() as i32;
 
         let step = angle / steps as f64;
 
+        println!("steps = {}", steps);
         println!("step = {}", step.degrees());
 
-        for i in 0..steps {
+        for i in 1..=steps {
             let angle = step * i as f64;
-            vertices.push(self.point_at_angle_from_start(self.start + angle).into());
+            println!("step angle = {}", angle);
+            vertices.push(self.point_at_angle_from_start(angle).into());
         }
 
-        println!("fan verts {:#?}", vertices);
+        for v in vertices.iter() {
+            println!("{:?}", v.position);
+        }
 
-        vertices
+        let verts_len = vertices.len() as u32;
+
+        let indices = (0..verts_len - 2)
+            .flat_map(|i| [0, i as u32 + 1, i as u32 + 2])
+            .collect::<Vec<u32>>();
+
+        match self.kind {
+            FanKind::Start => FanVerts {
+                verts: vertices,
+                indices,
+                left_start_idx: 0,  // unused
+                right_start_idx: 0, // unused
+                left_end_idx: 0,
+                right_end_idx: verts_len - 1,
+            },
+            FanKind::CcwTurn => FanVerts {
+                verts: vertices,
+                indices,
+                left_start_idx: 0,
+                right_start_idx: 1,
+                left_end_idx: 0,
+                right_end_idx: verts_len - 1,
+            },
+            FanKind::CwTurn => FanVerts {
+                verts: vertices,
+                indices,
+                left_start_idx: todo!(),
+                right_start_idx: todo!(),
+                left_end_idx: todo!(),
+                right_end_idx: todo!(),
+            },
+            FanKind::End => FanVerts {
+                verts: vertices,
+                indices,
+                left_start_idx: verts_len - 1,
+                right_start_idx: 0,
+                left_end_idx: 0,  // unused
+                right_end_idx: 0, // unused
+            },
+        }
     }
 }
 
@@ -185,36 +259,12 @@ impl PolyLine {
                 Points::Middle(self.points[i - 1], self.points[i], self.points[i + 1])
             };
 
-            println!("[1.0, 0.0].angle() = {}", vec2(1.0, 0.0).angle().degrees());
-            println!("[1.0, 1.0].angle() = {}", vec2(1.0, 1.0).angle().degrees());
-            println!("[0.0, 1.0].angle() = {}", vec2(0.0, 1.0).angle().degrees());
-            println!(
-                "[-1.0, 1.0].angle() = {}",
-                vec2(-1.0, 1.0).angle().degrees()
-            );
-            println!(
-                "[-1.0, 0.0].angle() = {}",
-                vec2(-1.0, 0.0).angle().degrees()
-            );
-            println!(
-                "[-1.0, -1.0].angle() = {}",
-                vec2(-1.0, -1.0).angle().degrees()
-            );
-            println!(
-                "[0.0, -1.0].angle() = {}",
-                vec2(0.0, -1.0).angle().degrees()
-            );
-            println!(
-                "[1.0, -1.0].angle() = {}",
-                vec2(1.0, -1.0).angle().degrees()
-            );
-
             match points {
                 Points::FirstTwo(p0, p1) => {
                     // First fan
                     let offsets = Offsets::new(p0, p1, stroke.half_width);
-                    println!("first offsets {:#?}", offsets);
                     let fan = Fan::new(
+                        FanKind::Start,
                         offsets.s0.p0,
                         offsets.p0,
                         stroke.half_width,
@@ -232,6 +282,7 @@ impl PolyLine {
 
                     let fan = match turn {
                         TurnDir::Cw => Fan::new(
+                            FanKind::CwTurn,
                             match offsets0.s1.intersect(&offsets1.s1) {
                                 Some(intersection) => intersection,
                                 None => ((offsets0.s1.p1.into_vec() + offsets1.s1.p0.into_vec())
@@ -243,22 +294,39 @@ impl PolyLine {
                             offsets0.s0.p1.into_vec().angle(),
                             offsets1.s0.p0.into_vec().angle(),
                         ),
-                        TurnDir::Ccw => Fan::new(
-                            match offsets0.s0.intersect(&offsets1.s0) {
-                                Some(intersection) => intersection,
-                                None => ((offsets0.s0.p1.into_vec() + offsets0.s1.p0.into_vec())
-                                    / 2.0)
-                                    .into_point(),
-                            },
+                        TurnDir::Ccw => {
+                            println!(
+                                "angles = {}, {}",
+                                (-offsets0.orth).angle(),
+                                (-offsets1.orth).angle()
+                            );
+                            Fan::new(
+                                FanKind::CcwTurn,
+                                match offsets0.s0.intersect(&offsets1.s0) {
+                                    Some(intersection) => intersection,
+                                    None => ((offsets0.s0.p1.into_vec()
+                                        + offsets0.s1.p0.into_vec())
+                                        / 2.0)
+                                        .into_point(),
+                                },
+                                p1,
+                                stroke.half_width,
+                                (-offsets0.orth).angle(),
+                                (-offsets1.orth).angle(),
+                                //offsets0.s1.p1.into_vec().angle(),
+                                //offsets1.s1.p0.into_vec().angle(),
+                            )
+                        }
+                        TurnDir::Aligned => Fan::new(
+                            FanKind::CcwTurn,
+                            offsets0.s0.p1,
                             p1,
                             stroke.half_width,
-                            offsets0.s1.p1.into_vec().angle(),
-                            offsets1.s1.p0.into_vec().angle(),
+                            rad(0.0),
+                            rad(0.0),
                         ),
-                        TurnDir::Aligned => {
-                            Fan::new(offsets0.s0.p1, p1, stroke.half_width, rad(0.0), rad(0.0))
-                        }
                         TurnDir::Opposite => Fan::new(
+                            FanKind::CcwTurn,
                             match offsets0.s0.intersect(&offsets1.s0) {
                                 Some(intersection) => intersection,
                                 None => ((offsets0.s0.p1.into_vec() + offsets0.s1.p0.into_vec())
@@ -276,195 +344,94 @@ impl PolyLine {
                 Points::LastTwo(p0, p1) => {
                     // Last fan
                     let offsets = Offsets::new(p0, p1, stroke.half_width);
-                    println!("last offsets {:#?}", offsets);
                     let fan = Fan::new(
+                        FanKind::End,
                         offsets.s1.p1,
                         offsets.p1,
                         stroke.half_width,
-                        offsets.orth.angle(),
                         (-offsets.orth).angle(),
+                        offsets.orth.angle(),
                     );
                     fans.push(fan);
                 }
             };
         }
 
-        /*
-        for i in 2..self.points.len() {
-            let p0 = self.points[i - 2];
-            let p1 = self.points[i - 1];
-            let p2 = self.points[i];
-
-            let v0 = p1 - p0; // Vector of the first line
-            let v1 = p2 - p1; // Vector of the second line
-
-            // Direction of turn from first line to second line
-            let turn = v0.turn_dir(v1);
-
-            // Vectors orthonormal to the lines
-            let orth0 = v0.orthogonal().normalize() * stroke.half_width;
-            let orth1 = v1.orthogonal().normalize() * stroke.half_width;
-
-            // Offset segments of the first line
-            let s0 = Segment::new(p0 + orth0, p1 + orth0);
-            let s1 = Segment::new(p0 - orth0, p1 - orth0);
-
-            // Offset segments of the second line
-            let s2 = Segment::new(p1 + orth1, p2 + orth1);
-            let s3 = Segment::new(p1 - orth1, p2 - orth1);
-
-            // First fan
-            if i == 2 {
-                fans.push(Fan::new(
-                    s0.p0,
-                    p0,
-                    stroke.half_width,
-                    orth0.angle(),
-                    (-orth0).angle(),
-                ));
-            }
-
-            // Intermediate fans
-            let fan = match turn {
-                TurnDir::Cw => Fan::new(
-                    match s1.intersect(&s3) {
-                        Some(intersection) => intersection,
-                        None => ((s1.p1.into_vec() + s3.p0.into_vec()) / 2.0).into_point(),
-                    },
-                    p1,
-                    stroke.half_width,
-                    s0.p1.into_vec().angle(),
-                    s2.p0.into_vec().angle(),
-                ),
-                TurnDir::Ccw => Fan::new(
-                    match s0.intersect(&s2) {
-                        Some(intersection) => intersection,
-                        None => ((s0.p1.into_vec() + s1.p0.into_vec()) / 2.0).into_point(),
-                    },
-                    p1,
-                    stroke.half_width,
-                    s1.p1.into_vec().angle(),
-                    s3.p0.into_vec().angle(),
-                ),
-                TurnDir::Aligned => Fan::new(s0.p1, p1, stroke.half_width, rad(0.0), rad(0.0)),
-                TurnDir::Opposite => Fan::new(
-                    match s0.intersect(&s2) {
-                        Some(intersection) => intersection,
-                        None => ((s0.p1.into_vec() + s1.p0.into_vec()) / 2.0).into_point(),
-                    },
-                    p1,
-                    stroke.half_width,
-                    s1.p1.into_vec().angle(),
-                    s3.p0.into_vec().angle(),
-                ),
-            };
-
-            fans.push(fan);
-
-            // Last fan
-            if i == self.points.len() - 1 {
-                fans.push(Fan::new(
-                    s1.p1,
-                    p2,
-                    stroke.half_width,
-                    orth1.angle(),
-                    (-orth1).angle(),
-                ));
-            }
-        }
-         */
-
-        println!("fans {:#?}", fans);
-
         // Turns fans into vertices
         let mut vertices = vec![];
         let mut indices = vec![];
 
-        let max_angle = deg(22.5);
+        let max_angle = deg(45.0);
+
+        let mut prev_fan_verts = fans[0].verts(max_angle);
+        vertices.extend(prev_fan_verts.verts.clone());
+        indices.extend(prev_fan_verts.indices.clone());
+
+        println!("fans.len() = {}", fans.len());
 
         for i in 1..fans.len() {
-            let f0 = &fans[i - 1];
-            let f1 = &fans[i];
+            println!("ITER {}", i);
+            let verts_len = vertices.len() as u32;
+            let fan_verts = fans[i].verts(max_angle);
 
-            let f0_verts = f0.verts(max_angle);
-            let f1_verts = f1.verts(max_angle);
+            let prev_fan_index_start = verts_len - prev_fan_verts.verts.len() as u32;
 
-            let f0_verts_len = f0_verts.len();
+            indices.extend([
+                // Triangle 1
+                prev_fan_index_start + prev_fan_verts.left_end_idx,
+                prev_fan_index_start + prev_fan_verts.right_end_idx,
+                verts_len + fan_verts.left_start_idx,
+                // Triangle 2
+                verts_len + fan_verts.left_start_idx,
+                prev_fan_index_start + prev_fan_verts.right_end_idx,
+                verts_len + fan_verts.right_start_idx,
+            ]);
 
-            // First fan
-            if i == 1 {
-                for i in 0..f0_verts_len {
-                    let i = i as u32;
-                    indices.extend([0, i + 1, i + 2]);
-                }
-                vertices.extend(f0_verts);
+            vertices.extend(fan_verts.verts.clone());
+            indices.extend(fan_verts.indices.iter().map(|i| verts_len + i));
+
+            prev_fan_verts = fan_verts;
+        }
+
+        /*
+        for i in 0..fans.len() {
+            let next_index = vertices.len() as u32;
+            let fan = &fans[i];
+            let verts = fan.verts(max_angle);
+
+            println!("fan_verts.len() = {}", verts.verts.len());
+
+            let fan_indices = verts
+                .indices
+                .iter()
+                .map(|i| i + next_index)
+                .collect::<Vec<u32>>();
+
+            if let Some(last_fan_verts_len) = last_fan_verts_len {
+                indices.extend([
+                    // First triangle
+                    next_index - last_fan_verts_len,
+                    next_index - 1,
+                    next_index,
+                    // Second triangle
+                    next_index,
+                    next_index - 1,
+                    next_index + verts.len() as u32 - 1,
+                ]);
             }
 
-            // Remaining fans
-            let all_verts_len = vertices.len();
+            last_fan_verts_len = Some(verts.len() as u32);
 
-            // Build a quad between the last fan and the next
-            indices.extend([
-                (all_verts_len - f0_verts_len) as u32, //0
-                (all_verts_len) as u32,                // 2
-                (all_verts_len + 1) as u32,            // 3
-                (all_verts_len + 1) as u32,            // 3
-                (all_verts_len - 1) as u32,            // 1
-                (all_verts_len - f0_verts_len) as u32, // 0
-            ]);
-
-            // Add verts for next fan
-            vertices.extend(f1_verts);
+            vertices.extend(verts);
+            indices.extend(fan_indices);
         }
-
-        (vertices, indices)
-    }
-
-    pub fn to_vertices(&self) -> (Vec<Vertex>, Vec<u32>) {
-        /*
-        if self.points.len() < 2 {
-            return (vec![], vec![]);
-        }
-
-        let mut vertices = vec![];
-        let mut indices = vec![];
-
-        for i in 1..self.points.len() {
-            let p1 = self.points[i - 1];
-            let p2 = self.points[i];
-
-            let vec = p2 - p1;
-            let r = vec.orthogonal().normalize() * .half_width;
-
-            vertices.extend([
-                Vertex {
-                    position: (p1 + r).to_f32s(),
-                },
-                Vertex {
-                    position: (p1 - r).to_f32s(),
-                },
-                Vertex {
-                    position: (p2 + r).to_f32s(),
-                },
-                Vertex {
-                    position: (p2 - r).to_f32s(),
-                },
-            ]);
-
-            let i_start = (i - 1) as u32 * 4;
-            indices.extend([
-                i_start + 0,
-                i_start + 2,
-                i_start + 3,
-                i_start + 3,
-                i_start + 1,
-                i_start + 0,
-            ]);
-        }
-
-        (vertices, indices)
          */
-        todo!()
+
+        println!("vertices.len() = {}", vertices.len());
+
+        println!("indices = {:?}", indices);
+
+        (vertices, indices)
     }
 }
 
@@ -580,6 +547,9 @@ impl SketchState {
             points: vec![
                 point2(0.0, 0.0), //
                 point2(0.5, 0.0), //
+                point2(0.5, 0.5), //
+                point2(0.0, 0.5), //
+
                                   /*
                                   point2(0.4, 0.3), //
                                   point2(0.4, 0.5), //
@@ -588,29 +558,14 @@ impl SketchState {
                                   point2(0.2, 0.6), //
                                    */
             ],
-            //half_width: 0.06,
         };
-        let (vertices, indices) = line.to_verts(&Stroke::new(0.25));
-
-        println!("vertices {:#?}", vertices);
+        let (vertices, indices) = line.to_verts(&Stroke::new(0.2));
 
         Self {
             buffer_index,
             angle: 0.0,
             vertices,
             indices,
-            //
-            /*
-            vertices: VERTICES
-                .iter()
-                .map(|v| Vertex {
-                    position: [
-                        v.position[0] + rand::random::<f32>() * WOBBLE - WOBBLE / 2.0,
-                        v.position[1] + rand::random::<f32>() * WOBBLE - WOBBLE / 2.0,
-                    ],
-                })
-                .collect(),
-             */
         }
     }
 }
@@ -641,8 +596,6 @@ impl egui_wgpu::CallbackTrait for SketchState {
                     usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
                 },
             ));
-
-            println!("self.indices {:?}", self.indices);
 
             resources.index_buffers.push(device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {

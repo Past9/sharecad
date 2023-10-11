@@ -1,4 +1,4 @@
-use crate::{Mat33, Point2, Vec2};
+use crate::{Angle, Mat33, Point2, Vec2};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 
@@ -92,6 +92,12 @@ impl Coincidence<Point2> for Point2 {
     /// points must be separated by a distance near `0.0`
     fn cc(&self, other: Point2) -> bool {
         within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
+    }
+}
+
+impl Coincidence<Angle> for Angle {
+    fn cc(&self, other: Angle) -> bool {
+        within_tolerance_f64(self.radians(), other.radians(), COINCIDENT_TOL)
     }
 }
 
