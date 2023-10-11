@@ -125,10 +125,10 @@ impl Fan {
             FanKind::CwTurn => FanVerts {
                 verts: vertices,
                 indices,
-                left_start_idx: todo!(),
-                right_start_idx: todo!(),
-                left_end_idx: todo!(),
-                right_end_idx: todo!(),
+                left_start_idx: verts_len - 1,
+                right_start_idx: 0,
+                left_end_idx: 1,
+                right_end_idx: 0,
             },
             FanKind::End => FanVerts {
                 verts: vertices,
@@ -177,7 +177,7 @@ impl Segment {
 
         let den = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
 
-        let r = ((ax - cy) * (dx - cx) - (ax - cx) * (dy - cy)) / den;
+        let r = ((ay - cy) * (dx - cx) - (ax - cx) * (dy - cy)) / den;
 
         let s = ((ay - cy) * (bx - ax) - (ax - cx) * (by - ay)) / den;
 
@@ -197,11 +197,13 @@ impl Segment {
 
 struct Stroke {
     half_width: f64,
+    max_angle: Angle,
 }
 impl Stroke {
-    pub fn new(width: f64) -> Self {
+    pub fn new(width: f64, max_angle: Angle) -> Self {
         Self {
             half_width: width / 2.0,
+            max_angle,
         }
     }
 }
@@ -280,6 +282,8 @@ impl PolyLine {
 
                     let turn = offsets0.vec.turn_dir(offsets1.vec);
 
+                    println!("TURN = {:?}", turn);
+
                     let fan = match turn {
                         TurnDir::Cw => Fan::new(
                             FanKind::CwTurn,
@@ -291,32 +295,22 @@ impl PolyLine {
                             },
                             p1,
                             stroke.half_width,
-                            offsets0.s0.p1.into_vec().angle(),
-                            offsets1.s0.p0.into_vec().angle(),
+                            offsets1.orth.angle(),
+                            offsets0.orth.angle(),
                         ),
-                        TurnDir::Ccw => {
-                            println!(
-                                "angles = {}, {}",
-                                (-offsets0.orth).angle(),
-                                (-offsets1.orth).angle()
-                            );
-                            Fan::new(
-                                FanKind::CcwTurn,
-                                match offsets0.s0.intersect(&offsets1.s0) {
-                                    Some(intersection) => intersection,
-                                    None => ((offsets0.s0.p1.into_vec()
-                                        + offsets0.s1.p0.into_vec())
-                                        / 2.0)
-                                        .into_point(),
-                                },
-                                p1,
-                                stroke.half_width,
-                                (-offsets0.orth).angle(),
-                                (-offsets1.orth).angle(),
-                                //offsets0.s1.p1.into_vec().angle(),
-                                //offsets1.s1.p0.into_vec().angle(),
-                            )
-                        }
+                        TurnDir::Ccw => Fan::new(
+                            FanKind::CcwTurn,
+                            match offsets0.s0.intersect(&offsets1.s0) {
+                                Some(intersection) => intersection,
+                                None => ((offsets0.s0.p1.into_vec() + offsets1.s0.p0.into_vec())
+                                    / 2.0)
+                                    .into_point(),
+                            },
+                            p1,
+                            stroke.half_width,
+                            (-offsets0.orth).angle(),
+                            (-offsets1.orth).angle(),
+                        ),
                         TurnDir::Aligned => Fan::new(
                             FanKind::CcwTurn,
                             offsets0.s0.p1,
@@ -361,9 +355,7 @@ impl PolyLine {
         let mut vertices = vec![];
         let mut indices = vec![];
 
-        let max_angle = deg(45.0);
-
-        let mut prev_fan_verts = fans[0].verts(max_angle);
+        let mut prev_fan_verts = fans[0].verts(stroke.max_angle);
         vertices.extend(prev_fan_verts.verts.clone());
         indices.extend(prev_fan_verts.indices.clone());
 
@@ -372,7 +364,7 @@ impl PolyLine {
         for i in 1..fans.len() {
             println!("ITER {}", i);
             let verts_len = vertices.len() as u32;
-            let fan_verts = fans[i].verts(max_angle);
+            let fan_verts = fans[i].verts(stroke.max_angle);
 
             let prev_fan_index_start = verts_len - prev_fan_verts.verts.len() as u32;
 
@@ -541,25 +533,29 @@ struct SketchState {
 }
 impl SketchState {
     fn new(buffer_index: usize) -> Self {
-        const WOBBLE: f32 = 0.5;
-
         let line = PolyLine {
             points: vec![
-                point2(0.0, 0.0), //
-                point2(0.5, 0.0), //
-                point2(0.5, 0.5), //
-                point2(0.0, 0.5), //
+                point2(0.0, 0.0),   //
+                point2(0.2, 0.0),   //
+                point2(0.2, 0.2),   //
+                point2(0.0, 0.2),   //
+                point2(-0.2, -0.2), //
+                point2(0.0, -0.1),  //
+                point2(0.2, -0.4),  //
+                point2(0.2, -0.6),  //
+                point2(-0.2, -0.6), //
+                point2(0.6, -0.5),  //
 
-                                  /*
-                                  point2(0.4, 0.3), //
-                                  point2(0.4, 0.5), //
-                                  point2(0.2, 0.5), //
-                                  point2(0.5, 0.7), //
-                                  point2(0.2, 0.6), //
-                                   */
+                                    /*
+                                    point2(0.4, 0.3), //
+                                    point2(0.4, 0.5), //
+                                    point2(0.2, 0.5), //
+                                    point2(0.5, 0.7), //
+                                    point2(0.2, 0.6), //
+                                     */
             ],
         };
-        let (vertices, indices) = line.to_verts(&Stroke::new(0.2));
+        let (vertices, indices) = line.to_verts(&Stroke::new(0.075, deg(45.0)));
 
         Self {
             buffer_index,
