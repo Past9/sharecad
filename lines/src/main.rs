@@ -5,7 +5,7 @@ use eframe::{
     wgpu::{self, util::DeviceExt, BufferBinding, CommandBuffer, Features},
     Renderer,
 };
-use space::{deg, point2, Angle, Point2, Vec2};
+use space::point2;
 use std::{num::NonZeroU64, sync::Arc};
 
 const RENDER_LABEL: Option<&'static str> = Some("Sketch");

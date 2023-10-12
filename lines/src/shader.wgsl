@@ -59,7 +59,16 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, v: VertexIn) -> VertexOut {
     out.position = vec4<f32>(position, 0.0, 1.0);
     out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
+    // Use the flip flags to assign (u, v) coordinates to the vertices. We'll 
+    // use these in the fragment shader to make transparent rounded corners 
+    // so line segments blend together nicely. The u coordinate goes along 
+    // the (fully expanded) line's direction of travel and starts at -1.0 and 
+    // goes to 1.0. The v coordinate starts at -1.0 from the left of the 
+    // expanded line and goes to 1.0 on the right. 
     out.uv = vec2<f32>(flip_travel, flip_orth);
+
+    // Output the length of the original line. We'll need this to scale the
+    // UV coordinates in the fragment shader.
     out.length = length(v.dir);
 
     return out;
@@ -94,14 +103,6 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     if u > 0.0 && sqrt(pow(u, 2.0) + pow(v, 2.0)) > 1.0 {
         color.a = 0.0;
     }
-
-/*
-    color = vec4<f32>(u, 0.0, v, 0.5);
-    if u > 0.0 && sqrt(pow(u, 2.0) + pow(v, 2.0)) > 1.0 {
-        color.g = 1.0;
-    }
-    */
-
 
     return color;
 }
