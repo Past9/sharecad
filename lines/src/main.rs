@@ -5,225 +5,22 @@ use eframe::{
     wgpu::{self, util::DeviceExt, BufferBinding, CommandBuffer, Features},
     Renderer,
 };
-use space::{deg, point2, vec2, Angle, Point2, TurnDir, Vec2};
+use space::{deg, point2, Angle, Point2, Vec2};
 use std::{num::NonZeroU64, sync::Arc};
 
 const RENDER_LABEL: Option<&'static str> = Some("Sketch");
 
-#[derive(Debug)]
-struct Fan {
-    center: Point2,
-    radius: f64,
-    start: Angle,
-    end: Angle,
-}
-impl Fan {
-    pub fn new(center: Point2, radius: f64, start: Angle, end: Angle) -> Self {
-        Self {
-            center,
-            radius,
-            start: start.normalize(),
-            end: end.normalize(),
-        }
-    }
-
-    fn point_at_angle_from_start(&self, angle: Angle) -> Point2 {
-        let angle = self.start + angle;
-        self.center + self.radius * vec2(angle.cos(), angle.sin())
-    }
-
-    pub fn verts(&self, max_angle: Angle) -> (Vec<Vertex>, Vec<u32>) {
-        let mut vertices = vec![self.center.into()];
-
-        let angle = self.start.angle_ccw(self.end);
-        let steps = (angle / max_angle).ceil() as i32;
-        let step = angle / steps as f64;
-
-        for i in 0..=steps {
-            let angle = step * i as f64;
-            vertices.push(self.point_at_angle_from_start(angle).into());
-        }
-
-        let indices = (0..vertices.len() as u32 - 2)
-            .flat_map(|i| [0, i + 1, i + 2])
-            .collect::<Vec<u32>>();
-
-        (vertices, indices)
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Segment {
-    p0: Point2,
-    p1: Point2,
-}
-impl Segment {
-    fn new(p0: Point2, p1: Point2) -> Self {
-        Self { p0, p1 }
-    }
-}
-
-struct Stroke {
-    half_width: f64,
-    max_angle: Angle,
-}
-impl Stroke {
-    pub fn new(width: f64, max_angle: Angle) -> Self {
-        Self {
-            half_width: width / 2.0,
-            max_angle,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Offsets {
-    p0: Point2,
-    p1: Point2,
-    vec: Vec2,
-    orth: Vec2,
-    s0: Segment,
-    s1: Segment,
-}
-impl Offsets {
-    pub fn new(p0: Point2, p1: Point2, stroke_half_width: f64) -> Self {
-        let vec = p1 - p0;
-        let orth = vec.orthogonal().normalize() * stroke_half_width;
-        let s0 = Segment::new(p0 + orth, p1 + orth);
-        let s1 = Segment::new(p0 - orth, p1 - orth);
-
-        Self {
-            p0,
-            p1,
-            vec,
-            orth,
-            s0,
-            s1,
-        }
-    }
-}
-
-struct PolyLine {
-    points: Vec<Point2>,
-}
-impl PolyLine {
-    pub fn to_verts(&self, stroke: &Stroke) -> (Vec<Vertex>, Vec<u32>) {
-        // Vertex and index buffer data
-        let mut vertices = vec![];
-        let mut indices = vec![];
-
-        if self.points.len() < 2 {
-            return (vertices, indices);
-        }
-
-        let all_offsets = (1..self.points.len())
-            .map(|i| {
-                let p0 = self.points[i - 1];
-                let p1 = self.points[i];
-                Offsets::new(p0, p1, stroke.half_width)
-            })
-            .collect::<Vec<_>>();
-
-        for offsets in all_offsets.iter() {
-            let verts_len = vertices.len() as u32;
-            indices.extend([
-                verts_len + 0,
-                verts_len + 2,
-                verts_len + 1,
-                verts_len + 1,
-                verts_len + 2,
-                verts_len + 3,
-            ]);
-            vertices.extend([
-                Vertex::from(offsets.s0.p0),
-                Vertex::from(offsets.s0.p1),
-                Vertex::from(offsets.s1.p0),
-                Vertex::from(offsets.s1.p1),
-            ]);
-        }
-
-        let mut fans = vec![];
-
-        // Starting end cap
-        fans.push(Fan::new(
-            all_offsets[0].p0,
-            stroke.half_width,
-            all_offsets[0].orth.angle(),
-            (-all_offsets[0].orth).angle(),
-        ));
-
-        // Intermediate fans
-        for i in 1..all_offsets.len() {
-            let offsets0 = &all_offsets[i - 1];
-            let offsets1 = &all_offsets[i];
-
-            let turn = offsets0.vec.turn_dir(offsets1.vec);
-
-            match turn {
-                TurnDir::Cw => {
-                    fans.push(Fan::new(
-                        offsets0.p1,
-                        stroke.half_width,
-                        offsets1.orth.angle(),
-                        offsets0.orth.angle(),
-                    ));
-                }
-                TurnDir::Ccw => {
-                    fans.push(Fan::new(
-                        offsets0.p1,
-                        stroke.half_width,
-                        (-offsets0.orth).angle(),
-                        (-offsets1.orth).angle(),
-                    ));
-                }
-                TurnDir::Aligned => {
-                    //
-                }
-                TurnDir::Opposite => {
-                    fans.push(Fan::new(
-                        offsets0.p1,
-                        stroke.half_width,
-                        (-offsets0.orth).angle(),
-                        offsets0.orth.angle(),
-                    ));
-                }
-            };
-        }
-
-        // Finishing end cap
-        fans.push(Fan::new(
-            all_offsets[all_offsets.len() - 1].p1,
-            stroke.half_width,
-            (-all_offsets[all_offsets.len() - 1].orth).angle(),
-            all_offsets[all_offsets.len() - 1].orth.angle(),
-        ));
-
-        // Add fan geometry
-        for fan in fans {
-            let (fan_vertices, fan_indices) = fan.verts(stroke.max_angle);
-            indices.extend(fan_indices.iter().map(|i| vertices.len() as u32 + i));
-            vertices.extend(fan_vertices);
-        }
-
-        (vertices, indices)
-    }
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 struct Vertex {
-    position: [f32; 2],
+    pos: [f32; 2],
+    dir: [f32; 2],
 }
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![
-        0 => Float32x2
+    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
+        0 => Float32x2,
+        1 => Float32x2,
     ];
-
-    fn from_point(point: Point2) -> Self {
-        Self {
-            position: point.to_f32s(),
-        }
-    }
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -231,11 +28,6 @@ impl Vertex {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }
-    }
-}
-impl From<Point2> for Vertex {
-    fn from(value: Point2) -> Self {
-        Self::from_point(value)
     }
 }
 
@@ -303,24 +95,81 @@ struct SketchState {
 }
 impl SketchState {
     fn new(buffer_index: usize) -> Self {
-        let line = PolyLine {
-            points: vec![
-                point2(0.0, 0.0),   //
-                point2(0.2, 0.0),   //
-                point2(0.2, 0.2),   //
-                point2(0.0, 0.2),   //
-                point2(-0.2, -0.2), //
-                point2(0.0, -0.1),  //
-                point2(0.2, -0.4),  //
-                point2(0.2, -0.6),  //
-                point2(-0.2, -0.6), //
-                point2(0.6, -0.5),  //
-                point2(0.6, 0.5),   //
-                point2(0.6, 0.8),   //
-                point2(0.6, 0.3),   //
-            ],
-        };
-        let (vertices, indices) = line.to_verts(&Stroke::new(0.02, deg(15.0)));
+        /*
+        let points = vec![
+            point2(0.0, -0.7), //
+            point2(0.0, 0.7),  //
+            point2(0.5, 0.7),  //
+        ];
+        */
+
+        let points = vec![
+            point2(0.0, 0.0),   //
+            point2(0.2, 0.0),   //
+            point2(0.2, 0.2),   //
+            point2(0.0, 0.2),   //
+            point2(-0.2, -0.2), //
+            point2(0.0, -0.1),  //
+            point2(0.2, -0.4),  //
+            point2(0.2, -0.6),  //
+            point2(-0.2, -0.6), //
+            point2(0.6, -0.5),  //
+            point2(0.6, 0.5),   //
+            point2(0.6, 0.8),   //
+            point2(0.6, 0.3),   //
+        ];
+
+        let mut vertices = Vec::with_capacity((points.len() - 1) * 4);
+
+        for i in 1..points.len() {
+            let p0 = points[i - 1];
+            let p1 = points[i];
+            let line_dir = (p1 - p0).to_f32s();
+            let p0_pos = p0.to_f32s();
+            let p1_pos = p1.to_f32s();
+            vertices.extend([
+                Vertex {
+                    pos: p0_pos,
+                    dir: line_dir,
+                },
+                Vertex {
+                    pos: p0_pos,
+                    dir: line_dir,
+                },
+                Vertex {
+                    pos: p1_pos,
+                    dir: line_dir,
+                },
+                Vertex {
+                    pos: p1_pos,
+                    dir: line_dir,
+                },
+            ]);
+        }
+
+        println!("vertices = {:#?}", vertices);
+        println!("vertices.len() = {}", vertices.len());
+
+        let indices = (1..points.len())
+            .flat_map(|i| {
+                let i = (i as u32 - 1) * 4;
+                [
+                    // First triangle
+                    i + 2,
+                    i,
+                    i + 1,
+                    // Second triangle
+                    i + 2,
+                    i + 1,
+                    i + 3,
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        println!("indices = {:?}", indices);
+        println!("indices.len() = {}", indices.len());
+
+        //let (vertices, indices) = line.to_verts(&Stroke::new(0.02, deg(15.0)));
 
         Self {
             buffer_index,
@@ -465,10 +314,25 @@ fn init_sketch_pipeline(render_state: &RenderState) {
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            targets: &[Some(render_state.target_format.into())],
+            //targets: &[Some(render_state.target_format.into())],
+            targets: &[Some(wgpu::ColorTargetState {
+                format: render_state.target_format.into(),
+
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }),
+
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
         }),
         primitive: wgpu::PrimitiveState {
-            polygon_mode: wgpu::PolygonMode::Line,
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            polygon_mode: wgpu::PolygonMode::Fill,
             ..Default::default()
         },
         depth_stencil: None,

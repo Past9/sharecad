@@ -6,5 +6,6 @@ members = [
     "render2d",
     "space",
     "view2d",
+    "lines",
     #
 ]
