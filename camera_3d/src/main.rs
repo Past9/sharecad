@@ -1,4 +1,5 @@
 mod camera;
+mod instance;
 mod texture;
 mod window;
 
