@@ -14,11 +14,8 @@ impl Camera {
     }
 
     fn perspective_matrix(&self) -> Mat44 {
-        let fovy = self.fov;
-        let aspect = self.aspect_ratio;
-        let near = 
+        todo!()
     }
-
 }
 
 #[cfg(test)]
