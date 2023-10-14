@@ -25,9 +25,6 @@ pub struct State {
 
     pub obj_model: Model,
 
-    pub diffuse_bind_group: wgpu::BindGroup,
-    pub diffuse_texture: Texture,
-
     pub camera: Camera,
     pub camera_controller: CameraController,
     pub camera_uniform: CameraUniform,
@@ -99,11 +96,7 @@ impl State {
             view_formats: vec![],
         };
 
-        let (texture_bind_group_layout, diffuse_bind_group, diffuse_texture) = {
-            let diffuse_bytes = include_bytes!("happy-tree.png");
-            let diffuse_texture =
-                Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
+        let texture_bind_group_layout = {
             let texture_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: Some("texture_bind_group_layout"),
@@ -124,29 +117,26 @@ impl State {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
                     ],
                 });
 
-            let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("diffuse_bind_group"),
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                    },
-                ],
-            });
-
-            (
-                texture_bind_group_layout,
-                diffuse_bind_group,
-                diffuse_texture,
-            )
+            texture_bind_group_layout
         };
 
         let (
@@ -371,9 +361,6 @@ impl State {
             light_render_pipeline,
 
             obj_model,
-
-            diffuse_bind_group,
-            diffuse_texture,
 
             camera,
             camera_controller,
