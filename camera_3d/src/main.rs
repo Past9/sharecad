@@ -1,6 +1,8 @@
 mod camera;
 mod instance;
+mod light;
 mod model;
+mod pipeline;
 mod resources;
 mod state;
 mod texture;
