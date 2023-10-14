@@ -5,6 +5,7 @@ members = [
     "camera_3d",
     "geometry",
     "render2d",
+    "render3d",
     "space",
     "view2d",
     "lines",
