@@ -12,7 +12,8 @@ use crate::{
     texture::Texture,
 };
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
+const NUM_INSTANCES_PER_ROW: u32 = 11;
+const SPACE_BETWEEN: f32 = 3.0;
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -160,10 +161,10 @@ impl State {
              */
             let camera = Cam::new(
                 (0.0, 0.0, 0.0).into(),
-                10.0,
+                (NUM_INSTANCES_PER_ROW as f32 / 2.0) * SPACE_BETWEEN,
                 (0.0, 1.0, 2.0).into(),
                 cgmath::Vector3::unit_y(),
-                cgmath::Deg(45.0),
+                cgmath::Deg(5.0),
                 config.width as f32 / config.height as f32,
                 0.1,
                 100.0,
@@ -202,7 +203,7 @@ impl State {
                 }],
             });
 
-            let camera_controller = CameraController::new(0.2);
+            let camera_controller = CameraController::new(0.8);
 
             (
                 camera,
@@ -319,13 +320,13 @@ impl State {
         surface.configure(&device, &config);
 
         let (instances, instance_buffer) = {
-            const SPACE_BETWEEN: f32 = 3.0;
-
             let instances = (0..NUM_INSTANCES_PER_ROW)
                 .flat_map(|z| {
                     (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                        let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                        let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                        let x =
+                            SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
+                        let z =
+                            SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
 
                         let position = cgmath::Vector3 { x, y: 0.0, z };
 
@@ -405,6 +406,8 @@ impl State {
             self.surface.configure(&self.device, &self.config);
             self.depth_texture =
                 Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            self.camera
+                .set_aspect_ratio(self.config.width as f32 / self.config.height as f32)
         }
     }
 

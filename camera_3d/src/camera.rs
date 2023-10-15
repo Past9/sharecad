@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use cgmath::{point3, vec3, Angle, InnerSpace, Point3, Zero};
+use cgmath::{point3, vec3, Angle, InnerSpace, Matrix4, Point3, Rad, Zero};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 #[rustfmt::skip]
@@ -182,15 +182,16 @@ impl Cam {
     }
 
     pub fn eye(&self) -> Point3<f32> {
-        if self.half_fov > cgmath::Deg::zero() {
-            let eye_dist = self.target_radius / self.half_fov.sin();
-            point3(0.0, 0.0, 0.0) + (self.to_eye * eye_dist)
-        } else if self.half_fov == cgmath::Deg::zero() {
-            let eye_dist = self.target_radius;
-            point3(0.0, 0.0, 0.0) + (self.to_eye * eye_dist)
-        } else {
-            panic!("Negative FOV");
-        }
+        let eye_dist = match self.half_fov > cgmath::Deg::zero() {
+            true => self.target_radius / self.half_fov.sin(),
+            false => self.target_radius,
+        };
+
+        self.target + self.to_eye * eye_dist
+    }
+
+    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
+        self.aspect_ratio = aspect_ratio;
     }
 
     pub fn set_target_radius(&mut self, target_radius: f32) {
@@ -207,11 +208,9 @@ impl Cam {
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let (view, proj) = if self.half_fov > cgmath::Deg::zero() {
-            let eye_dist = self.target_radius / self.half_fov.sin();
-            let eye = point3(0.0, 0.0, 0.0) + (self.to_eye * eye_dist);
-            let view = cgmath::Matrix4::look_at_rh(eye, self.target, self.eye_up);
-            let proj = cgmath::perspective(
-                self.half_fov * 2.0,
+            let view = cgmath::Matrix4::look_at_rh(self.eye(), self.target, self.eye_up);
+            let proj = Self::perspective_matrix(
+                (self.half_fov * 2.0).into(),
                 self.aspect_ratio,
                 self.znear,
                 self.zfar,
@@ -219,9 +218,7 @@ impl Cam {
 
             (view, proj)
         } else if self.half_fov == cgmath::Deg::zero() {
-            let eye_dist = self.target_radius;
-            let eye = point3(0.0, 0.0, 0.0) + (self.to_eye * eye_dist);
-            let view = cgmath::Matrix4::look_at_rh(eye, self.target, self.eye_up);
+            let view = cgmath::Matrix4::look_at_rh(self.eye(), self.target, self.eye_up);
             let proj = cgmath::ortho(
                 -self.target_radius,
                 self.target_radius,
@@ -230,11 +227,50 @@ impl Cam {
                 -self.target_radius - self.znear,
                 self.target_radius + self.zfar,
             );
+
             (view, proj)
         } else {
             panic!("Negative FOV");
         };
 
         OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+
+    fn perspective_matrix(fovy: Rad<f32>, aspect: f32, near: f32, far: f32) -> Matrix4<f32> {
+        let f = Rad::cot(fovy / 2.0);
+
+        let c0r0 = match aspect > 1.0 {
+            true => f / aspect,
+            false => f,
+        };
+        let c0r1 = 0.0;
+        let c0r2 = 0.0;
+        let c0r3 = 0.0;
+
+        let c1r0 = 0.0;
+        let c1r1 = match aspect > 1.0 {
+            true => f,
+            false => f * aspect,
+        };
+        let c1r2 = 0.0;
+        let c1r3 = 0.0;
+
+        let c2r0 = 0.0;
+        let c2r1 = 0.0;
+        let c2r2 = (far + near) / (near - far);
+        let c2r3 = -1.0;
+
+        let c3r0 = 0.0;
+        let c3r1 = 0.0;
+        let c3r2 = (2.0 * far * near) / (near - far);
+        let c3r3 = 0.0;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Matrix4::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
     }
 }

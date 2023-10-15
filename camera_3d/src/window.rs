@@ -1,4 +1,5 @@
 use winit::{
+    dpi::{PhysicalSize, Size},
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
@@ -9,7 +10,13 @@ use crate::state::State;
 pub async fn run() {
     env_logger::init();
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_inner_size(Size::Physical(PhysicalSize {
+            width: 1500,
+            height: 1500,
+        }))
+        .build(&event_loop)
+        .unwrap();
 
     let mut state = State::new(window).await;
 
