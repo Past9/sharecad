@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController, CameraUniform},
+    camera::{Cam, Camera, CameraController, CameraUniform},
     instance::{Instance, InstanceRaw},
     light::{DrawLight, LightUniform},
     model::{DrawModel, Model, ModelVertex, Vertex},
@@ -25,7 +25,7 @@ pub struct State {
 
     pub obj_model: Model,
 
-    pub camera: Camera,
+    pub camera: Cam,
     pub camera_controller: CameraController,
     pub camera_uniform: CameraUniform,
     pub camera_buffer: wgpu::Buffer,
@@ -147,6 +147,7 @@ impl State {
             camera_buffer,
             camera_uniform,
         ) = {
+            /*
             let camera = Camera {
                 eye: (0.0, 1.0, 2.0).into(),
                 target: (0.0, 0.0, 0.0).into(),
@@ -156,12 +157,23 @@ impl State {
                 znear: 0.1,
                 zfar: 100.0,
             };
+             */
+            let camera = Cam::new(
+                (0.0, 0.0, 0.0).into(),
+                10.0,
+                (0.0, 1.0, 2.0).into(),
+                cgmath::Vector3::unit_y(),
+                cgmath::Deg(45.0),
+                config.width as f32 / config.height as f32,
+                0.1,
+                100.0,
+            );
 
             let mut camera_uniform = CameraUniform::new();
             camera_uniform.update_view_proj(&camera);
 
             let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Camer Buffer"),
+                label: Some("Camera Buffer"),
                 contents: bytemuck::cast_slice(&[camera_uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
