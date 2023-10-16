@@ -106,6 +106,8 @@ impl CameraController {
 pub struct CameraUniform {
     view_position: [f32; 4],
     view_proj: [[f32; 4]; 4],
+    zfar: f32,
+    _padding: [u32; 3],
 }
 impl CameraUniform {
     pub fn new() -> Self {
@@ -113,12 +115,16 @@ impl CameraUniform {
         Self {
             view_position: [0.0; 4],
             view_proj: cgmath::Matrix4::identity().into(),
+            zfar: 1.0,
+            _padding: [0; 3],
         }
     }
 
     pub fn update_view_proj(&mut self, camera: &Cam) {
         self.view_position = camera.eye().location.to_homogeneous().into();
         self.view_proj = camera.build_view_projection_matrix().into();
+        self.zfar = camera.far() - camera.near();
+        println!("zfar = {}", self.zfar);
     }
 }
 
@@ -183,7 +189,7 @@ impl Cam {
     }
 
     pub fn eye(&self) -> Eye {
-        let dist = match self.half_fov > cgmath::Deg::zero() {
+        let dist = match !self.is_ortho() {
             true => self.target_radius / self.half_fov.sin(),
             false => self.clip_radius,
         };
@@ -210,19 +216,37 @@ impl Cam {
         //
     }
 
+    pub fn near(&self) -> f32 {
+        match self.is_ortho() {
+            true => -self.clip_radius,
+            false => 0.1,
+        }
+    }
+
+    pub fn far(&self) -> f32 {
+        match self.is_ortho() {
+            true => self.clip_radius,
+            false => self.eye().dist + self.clip_radius,
+        }
+    }
+
+    pub fn is_ortho(&self) -> bool {
+        self.half_fov.is_zero()
+    }
+
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let eye = self.eye();
-        let (view, proj) = if self.half_fov > cgmath::Deg::zero() {
+        let (view, proj) = if !self.is_ortho() {
             let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
             let proj = Self::perspective_matrix(
                 (self.half_fov * 2.0).into(),
                 self.aspect_ratio,
-                0.1,
-                eye.dist + self.clip_radius,
+                self.near(),
+                self.far(),
             );
 
             (view, proj)
-        } else if self.half_fov == cgmath::Deg::zero() {
+        } else {
             let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
             let proj = Self::orthographic_matrix(
                 self.aspect_ratio,
@@ -230,16 +254,20 @@ impl Cam {
                 self.target_radius,
                 -self.target_radius,
                 self.target_radius,
-                -self.clip_radius,
-                self.clip_radius,
+                self.near(),
+                self.far(),
             );
 
             (view, proj)
-        } else {
-            panic!("Negative FOV");
         };
 
-        OPENGL_TO_WGPU_MATRIX * proj * view
+        let mat = OPENGL_TO_WGPU_MATRIX * proj * view;
+
+        println!("{:?}", mat * point3(0.0, 0.0, -1.0).to_homogeneous());
+        println!("{:?}", mat * point3(0.0, 0.0, 0.0).to_homogeneous());
+        println!("{:?}", mat * point3(0.0, 0.0, 1.0).to_homogeneous());
+
+        mat
     }
 
     fn orthographic_matrix(

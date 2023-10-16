@@ -28,6 +28,7 @@ struct VertexOutput {
 struct Camera {
     view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
+    zfar: f32,
 };
 
 @group(1) @binding(0)
@@ -79,6 +80,16 @@ fn vs_main(
     out.tangent_view_position = tangent_matrix * camera.view_pos.xyz;
     out.tangent_light_position = tangent_matrix * light.position;
 
+    let c = 1.0;
+
+    //out.clip_position.z = (out.clip_position.z / 100.0) * out.clip_position.w;
+    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
+
+    //out.clip_position.z = -(1.0 - log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0));
+
+    //out.clip_position.z = -(1.0 - log(c * out.clip_position.z + 1.0)) / (1.0 - log(c * 1.0 + 1.0)); // * out.clip_position.w;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * 6.0 + 1.0) * out.clip_position.w;
+
     return out;
 }
 
@@ -111,6 +122,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let specular_color = specular_strength * light.color;
 
     let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
+
+    let intensify = 1.0;
+    let val = in.clip_position.z * intensify;
+
+    //return vec4<f32>(val, val, val, val);
 
     return vec4<f32>(result, object_color.a);
 }

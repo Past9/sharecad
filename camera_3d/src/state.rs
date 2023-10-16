@@ -12,7 +12,7 @@ use crate::{
     texture::Texture,
 };
 
-const NUM_INSTANCES_PER_ROW: u32 = 11;
+const NUM_INSTANCES_PER_ROW: u32 = 110;
 const SPACE_BETWEEN: f32 = 3.0;
 
 pub struct State {
@@ -148,24 +148,13 @@ impl State {
             camera_buffer,
             camera_uniform,
         ) = {
-            /*
-            let camera = Camera {
-                eye: (0.0, 1.0, 2.0).into(),
-                target: (0.0, 0.0, 0.0).into(),
-                up: cgmath::Vector3::unit_y(),
-                aspect: config.width as f32 / config.height as f32,
-                fovy: 45.0,
-                znear: 0.1,
-                zfar: 100.0,
-            };
-             */
             let camera = Cam::new(
                 (0.0, 0.0, 0.0).into(),
                 16.0,
-                16.0 * 2f32.sqrt(),
-                (0.0, 1.0, 2.0).into(),
+                160.0 * 2f32.sqrt(),
+                (0.0, 1.0, 5.0).into(),
                 cgmath::Vector3::unit_y(),
-                cgmath::Deg(1.0),
+                cgmath::Deg(0.01),
                 config.width as f32 / config.height as f32,
             );
 
@@ -327,7 +316,7 @@ impl State {
                         let z =
                             SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
 
-                        println!("(x, z) = ({}, {})", x, z);
+                        //println!("(x, z) = ({}, {})", x, z);
 
                         let position = cgmath::Vector3 { x, y: 0.0, z };
 
