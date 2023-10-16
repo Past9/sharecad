@@ -161,13 +161,12 @@ impl State {
              */
             let camera = Cam::new(
                 (0.0, 0.0, 0.0).into(),
-                (NUM_INSTANCES_PER_ROW as f32 / 2.0) * SPACE_BETWEEN,
+                16.0,
+                16.0 * 2f32.sqrt(),
                 (0.0, 1.0, 2.0).into(),
                 cgmath::Vector3::unit_y(),
-                cgmath::Deg(5.0),
+                cgmath::Deg(1.0),
                 config.width as f32 / config.height as f32,
-                0.1,
-                100.0,
             );
 
             let mut camera_uniform = CameraUniform::new();
@@ -328,6 +327,8 @@ impl State {
                         let z =
                             SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
 
+                        println!("(x, z) = ({}, {})", x, z);
+
                         let position = cgmath::Vector3 { x, y: 0.0, z };
 
                         let rotation = if position.is_zero() {
@@ -353,6 +354,8 @@ impl State {
                     })
                 })
                 .collect::<Vec<_>>();
+
+            //panic!("STOP");
 
             let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
             let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -6,7 +6,7 @@ use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.5,
+    0.0, 0.0, 1.0, 0.0,
     0.0, 0.0, 0.0, 1.0,
 );
 
@@ -66,20 +66,21 @@ impl CameraController {
 
     pub fn update_camera(&self, camera: &mut Cam) {
         use cgmath::InnerSpace;
-        let forward = camera.target - camera.eye();
+        let eye = camera.eye();
+        let forward = camera.target - eye.location;
         let forward_norm = forward.normalize();
         let forward_mag = forward.magnitude();
 
         if self.is_forward_pressed && forward_mag > self.speed {
-            camera.set_to_eye(camera.eye() + forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+            camera.set_to_eye(eye.location + forward_norm * self.speed - point3(0.0, 0.0, 0.0));
         }
         if self.is_backward_pressed {
-            camera.set_to_eye(camera.eye() - forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+            camera.set_to_eye(eye.location - forward_norm * self.speed - point3(0.0, 0.0, 0.0));
         }
 
         let right = forward_norm.cross(camera.up());
 
-        let forward = camera.target - camera.eye();
+        let forward = camera.target - eye.location;
         let forward_mag = forward.magnitude();
 
         if self.is_right_pressed {
@@ -88,7 +89,6 @@ impl CameraController {
                     - (forward + right * self.speed).normalize() * forward_mag
                     - point3(0.0, 0.0, 0.0),
             );
-            //camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
         }
 
         if self.is_left_pressed {
@@ -97,7 +97,6 @@ impl CameraController {
                     - (forward - right * self.speed).normalize() * forward_mag
                     - point3(0.0, 0.0, 0.0),
             );
-            //camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
         }
     }
 }
@@ -118,7 +117,7 @@ impl CameraUniform {
     }
 
     pub fn update_view_proj(&mut self, camera: &Cam) {
-        self.view_position = camera.eye().to_homogeneous().into();
+        self.view_position = camera.eye().location.to_homogeneous().into();
         self.view_proj = camera.build_view_projection_matrix().into();
     }
 }
@@ -140,36 +139,38 @@ impl Camera {
     }
 }
 
+struct Eye {
+    dist: f32,
+    location: Point3<f32>,
+}
+
 pub struct Cam {
     target: cgmath::Point3<f32>,
     target_radius: f32,
+    clip_radius: f32,
     to_eye: cgmath::Vector3<f32>,
     eye_up: cgmath::Vector3<f32>,
     half_fov: cgmath::Deg<f32>,
     aspect_ratio: f32,
-    znear: f32,
-    zfar: f32,
 }
 impl Cam {
     pub fn new(
         target: cgmath::Point3<f32>,
         target_radius: f32,
+        clip_radius: f32,
         to_eye: cgmath::Vector3<f32>,
         eye_up: cgmath::Vector3<f32>,
         fov: cgmath::Deg<f32>,
         aspect_ratio: f32,
-        znear: f32,
-        zfar: f32,
     ) -> Self {
         Self {
             target,
             target_radius,
+            clip_radius,
             to_eye: to_eye.normalize(),
             eye_up,
             half_fov: fov / 2.0,
             aspect_ratio,
-            znear,
-            zfar,
         }
     }
 
@@ -181,13 +182,16 @@ impl Cam {
         self.to_eye = to_eye.normalize();
     }
 
-    pub fn eye(&self) -> Point3<f32> {
-        let eye_dist = match self.half_fov > cgmath::Deg::zero() {
+    pub fn eye(&self) -> Eye {
+        let dist = match self.half_fov > cgmath::Deg::zero() {
             true => self.target_radius / self.half_fov.sin(),
-            false => self.target_radius,
+            false => self.clip_radius,
         };
 
-        self.target + self.to_eye * eye_dist
+        Eye {
+            dist,
+            location: self.target + self.to_eye * dist,
+        }
     }
 
     pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
@@ -207,25 +211,27 @@ impl Cam {
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        let eye = self.eye();
         let (view, proj) = if self.half_fov > cgmath::Deg::zero() {
-            let view = cgmath::Matrix4::look_at_rh(self.eye(), self.target, self.eye_up);
+            let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
             let proj = Self::perspective_matrix(
                 (self.half_fov * 2.0).into(),
                 self.aspect_ratio,
-                self.znear,
-                self.zfar,
+                0.1,
+                eye.dist + self.clip_radius,
             );
 
             (view, proj)
         } else if self.half_fov == cgmath::Deg::zero() {
-            let view = cgmath::Matrix4::look_at_rh(self.eye(), self.target, self.eye_up);
-            let proj = cgmath::ortho(
+            let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
+            let proj = Self::orthographic_matrix(
+                self.aspect_ratio,
                 -self.target_radius,
                 self.target_radius,
                 -self.target_radius,
                 self.target_radius,
-                -self.target_radius - self.znear,
-                self.target_radius + self.zfar,
+                -self.clip_radius,
+                self.clip_radius,
             );
 
             (view, proj)
@@ -234,6 +240,50 @@ impl Cam {
         };
 
         OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+
+    fn orthographic_matrix(
+        aspect: f32,
+        left: f32,
+        right: f32,
+        bottom: f32,
+        top: f32,
+        near: f32,
+        far: f32,
+    ) -> Matrix4<f32> {
+        let c0r0 = match aspect > 1.0 {
+            true => 2.0 / (right - left) / aspect,
+            false => 2.0 / (right - left),
+        };
+        let c0r1 = 0.0;
+        let c0r2 = 0.0;
+        let c0r3 = 0.0;
+
+        let c1r0 = 0.0;
+        let c1r1 = match aspect > 1.0 {
+            true => 2.0 / (top - bottom),
+            false => aspect * 2.0 / (top - bottom),
+        };
+        let c1r2 = 0.0;
+        let c1r3 = 0.0;
+
+        let c2r0 = 0.0;
+        let c2r1 = 0.0;
+        let c2r2 = -1.0 / (far - near);
+        let c2r3 = 0.0;
+
+        let c3r0 = -(right + left) / (right - left);
+        let c3r1 = -(top + bottom) / (top - bottom);
+        let c3r2 = -(far + near) / (far - near);
+        let c3r3 = 1.0;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Matrix4::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
     }
 
     fn perspective_matrix(fovy: Rad<f32>, aspect: f32, near: f32, far: f32) -> Matrix4<f32> {
