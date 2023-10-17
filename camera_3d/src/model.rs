@@ -1,8 +1,6 @@
-use std::ops::Range;
-
+use crate::texture::Texture;
 use bytemuck::{Pod, Zeroable};
-
-use crate::{resources::load_binary, texture::Texture};
+use std::{ops::Range, sync::Arc};
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -18,12 +16,13 @@ pub struct ModelVertex {
     pub bitangent: [f32; 3],
 }
 impl ModelVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
         0 => Float32x3,
         1 => Float32x2,
         2 => Float32x3,
         3 => Float32x3,
-        4 => Float32x3
+        4 => Float32x3,
+        5 => Float32x2
     ];
 }
 impl Vertex for ModelVertex {
@@ -36,16 +35,18 @@ impl Vertex for ModelVertex {
     }
 }
 
+#[derive(Clone)]
 pub struct Model {
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
 }
 
+#[derive(Clone)]
 pub struct Material {
     pub name: String,
     pub diffuse_texture: Texture,
     pub normal_texture: Texture,
-    pub bind_group: wgpu::BindGroup,
+    pub bind_group: Arc<wgpu::BindGroup>,
 }
 impl Material {
     pub fn new(
@@ -82,15 +83,16 @@ impl Material {
             name: String::from(name),
             diffuse_texture,
             normal_texture,
-            bind_group,
+            bind_group: Arc::new(bind_group),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct Mesh {
     pub name: String,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
+    pub vertex_buffer: Arc<wgpu::Buffer>,
+    pub index_buffer: Arc<wgpu::Buffer>,
     pub num_elements: u32,
     pub material: usize,
 }

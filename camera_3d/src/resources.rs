@@ -1,11 +1,13 @@
-use std::io::{BufReader, Cursor};
-
-use cfg_if::cfg_if;
+use std::{
+    io::{BufReader, Cursor},
+    sync::Arc,
+};
 use wgpu::util::DeviceExt;
 
 use crate::{
     model::{Material, Mesh, Model, ModelVertex},
     texture::Texture,
+    vertex,
 };
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
@@ -178,8 +180,8 @@ pub async fn load_model(
 
             Mesh {
                 name: file_name.to_string(),
-                vertex_buffer,
-                index_buffer,
+                vertex_buffer: Arc::new(vertex_buffer),
+                index_buffer: Arc::new(index_buffer),
                 num_elements: m.mesh.indices.len() as u32,
                 material: m.mesh.material_id.unwrap_or(0),
             }

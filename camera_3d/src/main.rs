@@ -4,6 +4,7 @@ mod light;
 mod model;
 mod pipeline;
 mod resources;
+mod scene;
 mod state;
 mod texture;
 mod vertex;

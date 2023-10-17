@@ -3,6 +3,7 @@
 struct Camera {
     view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
+    zfar: f32,
 }
 @group(0) @binding(0)
 var<uniform> camera: Camera;
@@ -31,6 +32,10 @@ fn vs_main(
     var out: VertexOutput;
     out.clip_position = camera.view_proj * vec4<f32>(model.position * scale + light.position, 1.0);
     out.color = light.color;
+
+    let c = 1.0;
+    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
+    
     return out;
 }
 

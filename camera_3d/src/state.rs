@@ -1,23 +1,26 @@
+use std::sync::Arc;
+
 use cgmath::{InnerSpace, Rotation3, Zero};
 use wgpu::util::DeviceExt;
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Cam, Camera, CameraController, CameraUniform},
-    instance::{Instance, InstanceRaw},
+    camera::{Cam, CameraController, CameraUniform},
+    instance::{CubeInstance, InstanceRaw, VertexBuffer},
     light::{DrawLight, LightUniform},
-    model::{DrawModel, Model, ModelVertex, Vertex},
+    model::{Model, ModelVertex, Vertex},
     pipeline::create_render_pipeline,
     resources::load_model,
+    scene::{DrawVisualScene, Instance, InstanceId, MeshVertex, Scene},
     texture::Texture,
 };
 
-const NUM_INSTANCES_PER_ROW: u32 = 110;
+const NUM_INSTANCES_PER_ROW: u32 = 11;
 const SPACE_BETWEEN: f32 = 3.0;
 
 pub struct State {
     pub surface: wgpu::Surface,
-    pub device: wgpu::Device,
+    pub device: Arc<wgpu::Device>,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
@@ -32,14 +35,13 @@ pub struct State {
     pub camera_buffer: wgpu::Buffer,
     pub camera_bind_group: wgpu::BindGroup,
 
-    pub instances: Vec<Instance>,
-    pub instance_buffer: wgpu::Buffer,
-
     pub depth_texture: Texture,
 
     pub light_uniform: LightUniform,
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
+
+    pub scene: Scene,
 
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
@@ -77,6 +79,8 @@ impl State {
             )
             .await
             .unwrap();
+
+        let device = Arc::new(device);
 
         let surface_caps = surface.get_capabilities(&adapter);
 
@@ -154,7 +158,7 @@ impl State {
                 160.0 * 2f32.sqrt(),
                 (0.0, 1.0, 5.0).into(),
                 cgmath::Vector3::unit_y(),
-                cgmath::Deg(0.01),
+                cgmath::Deg(0.00),
                 config.width as f32 / config.height as f32,
             );
 
@@ -277,7 +281,8 @@ impl State {
                 &render_pipeline_layout,
                 config.format,
                 Some(Texture::DEPTH_FORMAT),
-                &[ModelVertex::desc(), InstanceRaw::desc()],
+                //&[ModelVertex::desc(), InstanceRaw::desc()],
+                &[MeshVertex::desc(), InstanceRaw::desc()],
                 shader,
             );
 
@@ -311,6 +316,7 @@ impl State {
             let instances = (0..NUM_INSTANCES_PER_ROW)
                 .flat_map(|z| {
                     (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                        let id = InstanceId(z * NUM_INSTANCES_PER_ROW + x);
                         let x =
                             SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
                         let z =
@@ -339,14 +345,21 @@ impl State {
                         );
                           */
 
-                        Instance { position, rotation }
+                        CubeInstance {
+                            id,
+                            position,
+                            rotation,
+                        }
                     })
                 })
                 .collect::<Vec<_>>();
 
             //panic!("STOP");
 
-            let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            let instance_data = instances
+                .iter()
+                .map(|inst| inst.to_raw())
+                .collect::<Vec<_>>();
             let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Instance Buffer"),
                 contents: bytemuck::cast_slice(&instance_data),
@@ -354,6 +367,53 @@ impl State {
             });
 
             (instances, instance_buffer)
+        };
+
+        let scene = {
+            let mut scene = Scene::new(device.clone());
+
+            let instances = (0..NUM_INSTANCES_PER_ROW)
+                .flat_map(|z| {
+                    (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                        let id = InstanceId(z * NUM_INSTANCES_PER_ROW + x);
+                        let x =
+                            SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
+                        let z =
+                            SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
+
+                        let position = cgmath::Vector3 { x, y: 0.0, z };
+
+                        let rotation = if position.is_zero() {
+                            cgmath::Quaternion::from_axis_angle(
+                                cgmath::Vector3::unit_z(),
+                                cgmath::Deg(0.0),
+                            )
+                        } else {
+                            cgmath::Quaternion::from_axis_angle(
+                                position.normalize(),
+                                cgmath::Deg(45.0),
+                            )
+                        };
+
+                        CubeInstance {
+                            id,
+                            position,
+                            rotation,
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            scene
+                .load_model_file::<CubeInstance>(
+                    "cube.obj",
+                    &queue,
+                    &texture_bind_group_layout,
+                    vec![instances.clone()],
+                )
+                .await;
+
+            scene
         };
 
         Self {
@@ -373,14 +433,13 @@ impl State {
             camera_buffer,
             camera_bind_group,
 
-            instances,
-            instance_buffer,
-
             depth_texture,
 
             light_bind_group,
             light_buffer,
             light_uniform,
+
+            scene,
 
             window,
         }
@@ -466,8 +525,6 @@ impl State {
                 }),
             });
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
                 &self.obj_model,
@@ -476,12 +533,7 @@ impl State {
             );
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
-                &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-                &self.light_bind_group,
-            );
+            render_pass.draw_visual(&self.scene, &self.camera_bind_group, &self.light_bind_group);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

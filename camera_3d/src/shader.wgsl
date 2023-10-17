@@ -4,17 +4,18 @@ struct VertexInput {
     @location(2) normal: vec3<f32>,
     @location(3) tangent: vec3<f32>,
     @location(4) bitangent: vec3<f32>,
+    @location(5) param_coords: vec2<f32>,
 };
 
 struct InstanceInput {
-    @location(5) model_matrix_0: vec4<f32>,
-    @location(6) model_matrix_1: vec4<f32>,
-    @location(7) model_matrix_2: vec4<f32>,
-    @location(8) model_matrix_3: vec4<f32>,
+    @location(6) model_matrix_0: vec4<f32>,
+    @location(7) model_matrix_1: vec4<f32>,
+    @location(8) model_matrix_2: vec4<f32>,
+    @location(9) model_matrix_3: vec4<f32>,
 
-    @location(9) normal_matrix_0: vec3<f32>,
-    @location(10) normal_matrix_1: vec3<f32>,
-    @location(11) normal_matrix_2: vec3<f32>,
+    @location(10) normal_matrix_0: vec3<f32>,
+    @location(11) normal_matrix_1: vec3<f32>,
+    @location(12) normal_matrix_2: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -80,15 +81,9 @@ fn vs_main(
     out.tangent_view_position = tangent_matrix * camera.view_pos.xyz;
     out.tangent_light_position = tangent_matrix * light.position;
 
+    // Apply logarithmic depth buffer 
     let c = 1.0;
-
-    //out.clip_position.z = (out.clip_position.z / 100.0) * out.clip_position.w;
     out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
-
-    //out.clip_position.z = -(1.0 - log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0));
-
-    //out.clip_position.z = -(1.0 - log(c * out.clip_position.z + 1.0)) / (1.0 - log(c * 1.0 + 1.0)); // * out.clip_position.w;
-    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * 6.0 + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -123,10 +118,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
 
-    let intensify = 1.0;
-    let val = in.clip_position.z * intensify;
-
-    //return vec4<f32>(val, val, val, val);
 
     return vec4<f32>(result, object_color.a);
 }

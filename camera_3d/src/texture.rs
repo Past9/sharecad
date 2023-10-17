@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use anyhow::*;
 use image::GenericImageView;
 
+#[derive(Debug, Clone)]
 pub struct Texture {
-    pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
+    pub texture: Arc<wgpu::Texture>,
+    pub view: Arc<wgpu::TextureView>,
+    pub sampler: Arc<wgpu::Sampler>,
 }
 impl Texture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -48,9 +51,9 @@ impl Texture {
         });
 
         Self {
-            texture,
-            view,
-            sampler,
+            texture: Arc::new(texture),
+            view: Arc::new(view),
+            sampler: Arc::new(sampler),
         }
     }
 
@@ -61,7 +64,7 @@ impl Texture {
         label: &str,
         is_normal_map: bool,
     ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
+        let img = image::load_from_memory(bytes).unwrap();
         Self::from_image(device, queue, &img, Some(label), is_normal_map)
     }
 
@@ -125,9 +128,9 @@ impl Texture {
         });
 
         Ok(Self {
-            texture,
-            view,
-            sampler,
+            texture: Arc::new(texture),
+            view: Arc::new(view),
+            sampler: Arc::new(sampler),
         })
     }
 }
