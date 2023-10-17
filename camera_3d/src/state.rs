@@ -11,7 +11,7 @@ use crate::{
     model::{Model, ModelVertex, Vertex},
     pipeline::create_render_pipeline,
     resources::load_model,
-    scene::{DrawVisualScene, Instance, InstanceId, MeshVertex, Scene},
+    scene::{DrawVisualScene, InstanceId, MeshVertex, Scene},
     texture::Texture,
 };
 
@@ -281,7 +281,6 @@ impl State {
                 &render_pipeline_layout,
                 config.format,
                 Some(Texture::DEPTH_FORMAT),
-                //&[ModelVertex::desc(), InstanceRaw::desc()],
                 &[MeshVertex::desc(), InstanceRaw::desc()],
                 shader,
             );
@@ -289,7 +288,6 @@ impl State {
             render_pipeline
         };
 
-        // lib.rs
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
@@ -311,63 +309,6 @@ impl State {
         };
 
         surface.configure(&device, &config);
-
-        let (instances, instance_buffer) = {
-            let instances = (0..NUM_INSTANCES_PER_ROW)
-                .flat_map(|z| {
-                    (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                        let id = InstanceId(z * NUM_INSTANCES_PER_ROW + x);
-                        let x =
-                            SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
-                        let z =
-                            SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
-
-                        //println!("(x, z) = ({}, {})", x, z);
-
-                        let position = cgmath::Vector3 { x, y: 0.0, z };
-
-                        let rotation = if position.is_zero() {
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_z(),
-                                cgmath::Deg(0.0),
-                            )
-                        } else {
-                            cgmath::Quaternion::from_axis_angle(
-                                position.normalize(),
-                                cgmath::Deg(45.0),
-                            )
-                        };
-
-                        /*
-                        let rotation = cgmath::Quaternion::from_axis_angle(
-                            (0.0, 1.0, 0.0).into(),
-                            cgmath::Deg(180.0),
-                        );
-                          */
-
-                        CubeInstance {
-                            id,
-                            position,
-                            rotation,
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            //panic!("STOP");
-
-            let instance_data = instances
-                .iter()
-                .map(|inst| inst.to_raw())
-                .collect::<Vec<_>>();
-            let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-
-            (instances, instance_buffer)
-        };
 
         let scene = {
             let mut scene = Scene::new(device.clone());
