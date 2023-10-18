@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use wgpu::util::DeviceExt;
 use winit::window::Window;
@@ -7,6 +7,7 @@ use crate::{
     camera::CameraUniform,
     light::LightUniform,
     model::{InstanceRaw, MeshVertex},
+    scene::Scene,
     texture::Texture,
 };
 
@@ -17,7 +18,9 @@ pub struct VisualRenderer {
     queue: wgpu::Queue,
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
+    size: (u32, u32),
 
+    texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: Texture,
 
     camera_buffer: wgpu::Buffer,
@@ -30,7 +33,10 @@ pub struct VisualRenderer {
 }
 impl VisualRenderer {
     pub async fn new(window: &Window) -> Self {
-        let size = window.inner_size();
+        let size = {
+            let size = window.inner_size();
+            (size.width, size.height)
+        };
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -72,12 +78,14 @@ impl VisualRenderer {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width,
-            height: size.height,
+            width: size.0,
+            height: size.1,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
         };
+
+        surface.configure(&device, &config);
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -190,7 +198,7 @@ impl VisualRenderer {
             (light_buffer, light_bind_group_layout, light_bind_group)
         };
 
-        let depth_texture = Texture::depth("depth_texture");
+        let depth_texture = Texture::depth("Depth texture");
 
         let render_pipeline = {
             let render_pipeline_layout =
@@ -203,11 +211,6 @@ impl VisualRenderer {
                     ],
                     push_constant_ranges: &[],
                 });
-
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            };
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Visual shader"),
@@ -266,7 +269,9 @@ impl VisualRenderer {
             queue,
             surface,
             config,
+            size,
 
+            texture_bind_group_layout,
             depth_texture,
 
             camera_bind_group,
@@ -279,7 +284,17 @@ impl VisualRenderer {
         }
     }
 
-    pub fn render(&self) -> Result<(), wgpu::SurfaceError> {
+    pub fn resize(&mut self, new_size: (u32, u32)) {
+        if new_size.0 > 0 || new_size.1 > 0 {
+            self.size = new_size;
+            self.config.width = new_size.0;
+            self.config.height = new_size.1;
+            self.surface.configure(&self.device, &self.config);
+            self.depth_texture = Texture::depth("Depth texture");
+        }
+    }
+
+    pub fn render(&self, scene: &Scene) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -290,6 +305,26 @@ impl VisualRenderer {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Visual render encoder"),
             });
+
+        let material_bind_groups = {
+            let mut material_bind_groups = HashMap::new();
+
+            for object in scene.objects().iter() {
+                let material = scene.material(&object.material_id()).expect(&format!(
+                    "Could not find material {:?}",
+                    object.material_id()
+                ));
+                let material_bind_group = material.bind_group(
+                    &self.device,
+                    &self.queue,
+                    &self.config,
+                    &self.texture_bind_group_layout,
+                );
+                material_bind_groups.insert(object.material_id(), material_bind_group);
+            }
+
+            material_bind_groups
+        };
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -321,6 +356,33 @@ impl VisualRenderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+
+            for object in scene.objects().iter() {
+                let mesh = object.mesh();
+                let material = scene.material(&object.material_id()).expect(&format!(
+                    "Could not find material {:?}",
+                    object.material_id()
+                ));
+                render_pass.set_vertex_buffer(1, object.instance_buffer(&self.device).slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(&self.device).slice(..));
+                render_pass.set_index_buffer(
+                    mesh.index_buffer(&self.device).slice(..),
+                    wgpu::IndexFormat::Uint32,
+                );
+
+                render_pass.set_bind_group(
+                    0,
+                    &material_bind_groups.get(&object.material_id()).unwrap(),
+                    &[],
+                );
+                {
+                    // TODO: Move these out of the loop? Probably don't need to set these for
+                    // every object since they don't change.
+                    render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+                    render_pass.set_bind_group(2, &self.light_bind_group, &[]);
+                }
+                render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

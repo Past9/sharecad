@@ -84,7 +84,7 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        //
+        self.visual_render.resize((new_size.width, new_size.height));
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -97,6 +97,6 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.visual_render.render()
+        self.visual_render.render(&self.scene)
     }
 }

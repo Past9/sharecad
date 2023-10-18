@@ -48,6 +48,14 @@ impl Scene {
         }
     }
 
+    pub fn objects(&self) -> &[Box<dyn SceneObject>] {
+        &self.objects
+    }
+
+    pub fn material(&self, id: &MaterialId) -> Option<&Material> {
+        self.materials.get(id)
+    }
+
     pub fn set_light(&mut self, light: Light) {
         self.light = light;
     }
