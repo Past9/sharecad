@@ -1,53 +1,41 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use cgmath::{point3, InnerSpace, Rotation3, Zero};
 use wgpu::util::DeviceExt;
-use winit::{event::*, window::Window};
+use winit::window::Window;
 
 use crate::{
-    camera::{Cam, CameraController, CameraUniform},
-    instance::{InstanceRaw, PositionedInstance, VertexBuffer},
-    light::DrawLight,
-    model::{Model, ModelVertex, Vertex},
+    camera::{Cam, CameraUniform},
+    instance::{InstanceRaw, VertexBuffer},
     pipeline::create_render_pipeline,
-    resources::load_model,
-    scene::{DrawVisualScene, InstanceId, Light, LightUniform, MeshVertex, Scene},
+    scene::{LightUniform, MaterialId, MeshVertex, Scene},
     texture::Texture,
 };
 
-const NUM_INSTANCES_PER_ROW: u32 = 11;
-const SPACE_BETWEEN: f32 = 3.0;
-
-pub struct State {
-    pub surface: wgpu::Surface,
-    pub device: Arc<wgpu::Device>,
-    pub queue: wgpu::Queue,
-    pub config: wgpu::SurfaceConfiguration,
-    pub size: winit::dpi::PhysicalSize<u32>,
-    pub render_pipeline: wgpu::RenderPipeline,
-    pub light_render_pipeline: wgpu::RenderPipeline,
-
-    pub obj_model: Model,
-
-    pub camera: Cam,
-    pub camera_controller: CameraController,
-    pub camera_uniform: CameraUniform,
-    pub camera_buffer: wgpu::Buffer,
-    pub camera_bind_group: wgpu::BindGroup,
-
-    pub depth_texture: Texture,
-
-    pub light_buffer: wgpu::Buffer,
-    pub light_bind_group: wgpu::BindGroup,
-
-    pub scene: Scene,
-
-    // The window must be declared after the surface so
-    // it gets dropped after it as the surface contains
-    // unsafe references to the window's resources.
-    pub window: Window,
+pub trait Renderer {
+    fn render(&mut self, camera: &Cam, scene: &Scene);
 }
-impl State {
+
+struct VisualRenderer {
+    device: Arc<wgpu::Device>,
+    queue: wgpu::Queue,
+
+    surface: wgpu::Surface,
+    config: wgpu::SurfaceConfiguration,
+
+    render_pipeline: wgpu::RenderPipeline,
+    light_render_pipeline: wgpu::RenderPipeline,
+
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+
+    depth_texture: Texture,
+
+    light_buffer: wgpu::Buffer,
+    light_bind_group: wgpu::BindGroup,
+
+    material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
+}
+impl VisualRenderer {
     pub async fn new(window: Window) -> Self {
         let size = window.inner_size();
 
@@ -100,70 +88,46 @@ impl State {
             view_formats: vec![],
         };
 
-        let texture_bind_group_layout = {
-            let texture_bind_group_layout =
-                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("texture_bind_group_layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            },
-                            count: None,
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("texture_bind_group_layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 3,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
 
-            texture_bind_group_layout
-        };
-
-        let (
-            camera,
-            camera_controller,
-            camera_bind_group_layout,
-            camera_bind_group,
-            camera_buffer,
-            camera_uniform,
-        ) = {
-            let camera = Cam::new(
-                (0.0, 0.0, 0.0).into(),
-                16.0,
-                160.0 * 2f32.sqrt(),
-                (0.0, 1.0, 5.0).into(),
-                cgmath::Vector3::unit_y(),
-                cgmath::Deg(0.00),
-                config.width as f32 / config.height as f32,
-            );
-
-            let mut camera_uniform = CameraUniform::new();
-            camera_uniform.update_view_proj(&camera);
-
+        let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {
             let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Camera Buffer"),
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraUniform>()]),
@@ -194,65 +158,7 @@ impl State {
                 }],
             });
 
-            let camera_controller = CameraController::new(0.8);
-
-            (
-                camera,
-                camera_controller,
-                camera_bind_group_layout,
-                camera_bind_group,
-                camera_buffer,
-                camera_uniform,
-            )
-        };
-
-        let scene = {
-            let mut scene = Scene::new(device.clone());
-
-            let instances = (0..NUM_INSTANCES_PER_ROW)
-                .flat_map(|z| {
-                    (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                        let id = InstanceId(z * NUM_INSTANCES_PER_ROW + x);
-                        let x =
-                            SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
-                        let z =
-                            SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0 + 0.5);
-
-                        let position = cgmath::Vector3 { x, y: 0.0, z };
-
-                        let rotation = if position.is_zero() {
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_z(),
-                                cgmath::Deg(0.0),
-                            )
-                        } else {
-                            cgmath::Quaternion::from_axis_angle(
-                                position.normalize(),
-                                cgmath::Deg(45.0),
-                            )
-                        };
-
-                        PositionedInstance {
-                            id,
-                            position,
-                            rotation,
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            scene
-                .load_model_file::<PositionedInstance>(
-                    "cube.obj",
-                    &queue,
-                    &texture_bind_group_layout,
-                    vec![instances.clone()],
-                )
-                .await;
-
-            scene.set_light(Light::new(point3(2.0, 2.0, 2.0), [1.0, 1.0, 1.0]));
-
-            scene
+            (camera_bind_group_layout, camera_bind_group, camera_buffer)
         };
 
         let (light_buffer, light_bind_group_layout, light_bind_group) = {
@@ -290,10 +196,6 @@ impl State {
         };
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
-
-        let obj_model = load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
-            .await
-            .unwrap();
 
         let render_pipeline = {
             let render_pipeline_layout =
@@ -339,7 +241,7 @@ impl State {
                 &layout,
                 config.format,
                 Some(Texture::DEPTH_FORMAT),
-                &[ModelVertex::desc()],
+                &[MeshVertex::desc()],
                 shader,
             )
         };
@@ -347,19 +249,15 @@ impl State {
         surface.configure(&device, &config);
 
         Self {
-            surface,
             device,
             queue,
+
+            surface,
             config,
-            size,
+
             render_pipeline,
             light_render_pipeline,
 
-            obj_model,
-
-            camera,
-            camera_controller,
-            camera_uniform,
             camera_buffer,
             camera_bind_group,
 
@@ -368,59 +266,13 @@ impl State {
             light_bind_group,
             light_buffer,
 
-            scene,
-
-            window,
+            material_bind_groups: HashMap::new(),
         }
     }
-
-    pub fn window(&self) -> &Window {
-        &self.window
-    }
-
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-            self.depth_texture =
-                Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
-            self.camera
-                .set_aspect_ratio(self.config.width as f32 / self.config.height as f32)
-        }
-    }
-
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
-    }
-
-    pub fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_uniform.update_view_proj(&self.camera);
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
-        );
-
-        // Update the light
-        let mut light = self.scene.light().clone();
-        light.position = point3(0.0, 0.0, 0.0)
-            + (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
-                * (light.position - point3(0.0, 0.0, 0.0)));
-
-        self.scene.set_light(light);
-
-        self.queue.write_buffer(
-            &self.light_buffer,
-            0,
-            bytemuck::cast_slice(&[self.scene.light().to_raw()]),
-        );
-    }
-
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
+}
+impl Renderer for VisualRenderer {
+    fn render(&mut self, camera: &Cam, scene: &Scene) {
+        let output = self.surface.get_current_texture().unwrap();
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -469,7 +321,5 @@ impl State {
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
-
-        Ok(())
     }
 }

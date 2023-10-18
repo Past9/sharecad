@@ -1,8 +1,10 @@
 use crate::{
-    instance::{CubeInstance, InstanceRaw, VertexBuffer},
+    instance::{PositionedInstance, VertexBuffer},
     texture::Texture,
+    IdSeries,
 };
 use bytemuck::{Pod, Zeroable};
+use cgmath::{point3, Point3};
 use std::{
     cell::OnceCell,
     collections::HashMap,
@@ -13,9 +15,19 @@ use wgpu::util::DeviceExt;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaterialId(pub u32);
+impl From<u32> for MaterialId {
+    fn from(id: u32) -> Self {
+        MaterialId(id)
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct InstanceId(pub u32);
+impl From<u32> for InstanceId {
+    fn from(id: u32) -> Self {
+        InstanceId(id)
+    }
+}
 
 pub trait Object: std::fmt::Debug {
     fn mesh(&self) -> &Mesh;
@@ -67,11 +79,52 @@ impl<'a> DrawVisualScene<'a> for wgpu::RenderPass<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Light {
+    pub position: Point3<f32>,
+    pub color: [f32; 3],
+}
+impl Light {
+    pub fn new(position: Point3<f32>, color: [f32; 3]) -> Self {
+        Self { position, color }
+    }
+
+    pub fn to_raw(&self) -> LightUniform {
+        LightUniform {
+            position: [self.position.x, self.position.y, self.position.z],
+            _padding: 0,
+            color: self.color,
+            _padding2: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct LightUniform {
+    pub position: [f32; 3],
+    pub _padding: u32,
+    pub color: [f32; 3],
+    pub _padding2: u32,
+}
+impl Default for LightUniform {
+    fn default() -> Self {
+        Self {
+            position: Default::default(),
+            _padding: Default::default(),
+            color: Default::default(),
+            _padding2: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Scene {
     device: Arc<wgpu::Device>,
     objects: Vec<Box<dyn Object>>,
     materials: HashMap<MaterialId, Material>,
+    material_ids: IdSeries<MaterialId>,
+    light: Light,
 }
 impl Scene {
     pub fn new(device: Arc<wgpu::Device>) -> Self {
@@ -79,7 +132,20 @@ impl Scene {
             device,
             objects: vec![],
             materials: HashMap::new(),
+            material_ids: IdSeries::new(),
+            light: Light {
+                position: point3(0.0, 0.0, 0.0),
+                color: [0.0; 3],
+            },
         }
+    }
+
+    pub fn light(&self) -> &Light {
+        &self.light
+    }
+
+    pub fn set_light(&mut self, light: Light) {
+        self.light = light;
     }
 
     pub fn materials(&self) -> &HashMap<MaterialId, Material> {
@@ -136,7 +202,7 @@ impl Scene {
         .await
         .unwrap();
 
-        for (id, m) in obj_materials.unwrap().into_iter().enumerate() {
+        for m in obj_materials.unwrap().into_iter() {
             let diffuse_texture = self.load_texture(&m.diffuse_texture, false, queue).await;
             let normal_texture = self.load_texture(&m.normal_texture, true, queue).await;
 
@@ -148,7 +214,7 @@ impl Scene {
                 layout,
             );
 
-            self.materials.insert(MaterialId(id as u32 + 1), material);
+            self.materials.insert(self.material_ids.next(), material);
         }
 
         for m in models.into_iter() {
@@ -234,7 +300,7 @@ impl Scene {
             // Average the tangents/bitangents
             for (i, n) in triangles_included.into_iter().enumerate() {
                 let denom = 1.0 / n as f32;
-                let mut v = &mut vertices[i];
+                let v = &mut vertices[i];
                 v.tangent = (cgmath::Vector3::from(v.tangent) * denom).into();
                 v.bitangent = (cgmath::Vector3::from(v.bitangent) * denom).into();
             }
@@ -323,6 +389,13 @@ impl Mesh {
             vertex_buffer: OnceCell::new(),
             index_buffer: OnceCell::new(),
         }
+    }
+
+    pub fn unit_cube(device: Arc<wgpu::Device>, name: &str) -> Self {
+        let vertices = vec![];
+        let indices = vec![];
+
+        Self::new(device, name, vertices, indices)
     }
 
     pub fn vertex_buffer(&self) -> &wgpu::Buffer {

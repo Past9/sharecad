@@ -4,15 +4,6 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::model::{Mesh, Model};
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone, Pod, Zeroable)]
-pub struct LightUniform {
-    pub position: [f32; 3],
-    pub _padding: u32,
-    pub color: [f32; 3],
-    pub _padding2: u32,
-}
-
 // model.rs
 pub trait DrawLight<'a> {
     fn draw_light_mesh(

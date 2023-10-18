@@ -1,16 +1,12 @@
+use crate::scene::{Instance, InstanceId};
 use bytemuck::{Pod, Zeroable};
-
-use crate::{
-    model::Vertex,
-    scene::{Instance, InstanceId},
-};
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
 }
 
 #[derive(Debug, Clone)]
-pub struct CubeInstance {
+pub struct PositionedInstance {
     pub id: InstanceId,
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
@@ -27,7 +23,7 @@ impl CubeInstance {
     }
 }
 */
-impl Instance for CubeInstance {
+impl Instance for PositionedInstance {
     type RawBuffer = InstanceRaw;
 
     fn id(&self) -> crate::scene::InstanceId {

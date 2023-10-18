@@ -1,14 +1,12 @@
+use crate::{
+    model::{Material, Mesh, Model, ModelVertex},
+    texture::Texture,
+};
 use std::{
     io::{BufReader, Cursor},
     sync::Arc,
 };
 use wgpu::util::DeviceExt;
-
-use crate::{
-    model::{Material, Mesh, Model, ModelVertex},
-    texture::Texture,
-    vertex,
-};
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     let path = std::path::Path::new(env!("OUT_DIR"))

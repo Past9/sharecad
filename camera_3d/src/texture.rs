@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use anyhow::*;
 use image::GenericImageView;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Texture {
