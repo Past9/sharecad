@@ -94,6 +94,22 @@ impl From<Point2> for Vec2 {
         }
     }
 }
+impl From<[f64; 2]> for Vec2 {
+    fn from(floats: [f64; 2]) -> Self {
+        Self {
+            x: floats[0],
+            y: floats[1],
+        }
+    }
+}
+impl From<[f32; 2]> for Vec2 {
+    fn from(floats: [f32; 2]) -> Self {
+        Self {
+            x: floats[0] as f64,
+            y: floats[1] as f64,
+        }
+    }
+}
 impl std::fmt::Display for Vec2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}]", self.x, self.y))

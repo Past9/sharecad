@@ -4,9 +4,12 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Texture {
+    /*
     pub texture: Arc<wgpu::Texture>,
     pub view: Arc<wgpu::TextureView>,
     pub sampler: Arc<wgpu::Sampler>,
+     */
+    image: image::DynamicImage,
 }
 impl Texture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -57,18 +60,16 @@ impl Texture {
     }
 
     pub fn from_bytes(
-        device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
         label: &str,
         is_normal_map: bool,
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes).unwrap();
-        Self::from_image(device, queue, &img, Some(label), is_normal_map)
+        Self::from_image(queue, &img, Some(label), is_normal_map)
     }
 
     pub fn from_image(
-        device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
         label: Option<&str>,

@@ -1,61 +1,314 @@
-use space::{rad, Angle, Mat44, Point3, Vec2, Vec3};
+use bytemuck::{Pod, Zeroable};
+use space::{point3, Angle, Mat44, Point3, Vec3};
+use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
-pub struct Camera {
+pub struct CameraController {
+    speed: f64,
+    is_forward_pressed: bool,
+    is_backward_pressed: bool,
+    is_left_pressed: bool,
+    is_right_pressed: bool,
+}
+impl CameraController {
+    pub fn new(speed: f64) -> Self {
+        Self {
+            speed,
+            is_forward_pressed: false,
+            is_backward_pressed: false,
+            is_left_pressed: false,
+            is_right_pressed: false,
+        }
+    }
+
+    pub fn process_events(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state,
+                        virtual_keycode: Some(keycode),
+                        ..
+                    },
+                ..
+            } => {
+                let is_pressed = *state == ElementState::Pressed;
+                match keycode {
+                    VirtualKeyCode::W | VirtualKeyCode::Up => {
+                        self.is_forward_pressed = is_pressed;
+                        true
+                    }
+                    VirtualKeyCode::A | VirtualKeyCode::Left => {
+                        self.is_left_pressed = is_pressed;
+                        true
+                    }
+                    VirtualKeyCode::S | VirtualKeyCode::Down => {
+                        self.is_backward_pressed = is_pressed;
+                        true
+                    }
+                    VirtualKeyCode::D | VirtualKeyCode::Right => {
+                        self.is_right_pressed = is_pressed;
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub fn update_camera(&self, camera: &mut Cam) {
+        let eye = camera.eye();
+        let forward = camera.target - eye.location;
+        let forward_norm = forward.normalize();
+        let forward_mag = forward.magnitude();
+
+        if self.is_forward_pressed && forward_mag > self.speed {
+            camera.set_to_eye(eye.location + forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+        }
+        if self.is_backward_pressed {
+            camera.set_to_eye(eye.location - forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+        }
+
+        let right = forward_norm.cross(camera.up());
+
+        let forward = camera.target - eye.location;
+        let forward_mag = forward.magnitude();
+
+        if self.is_right_pressed {
+            camera.set_to_eye(
+                camera.target
+                    - (forward + right * self.speed).normalize() * forward_mag
+                    - point3(0.0, 0.0, 0.0),
+            );
+        }
+
+        if self.is_left_pressed {
+            camera.set_to_eye(
+                camera.target
+                    - (forward - right * self.speed).normalize() * forward_mag
+                    - point3(0.0, 0.0, 0.0),
+            );
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+pub struct CameraUniform {
+    view_position: [f32; 4],
+    view_proj: [[f32; 4]; 4],
+    zfar: f32,
+    _padding: [u32; 3],
+}
+impl CameraUniform {
+    pub fn new() -> Self {
+        Self {
+            view_position: [0.0; 4],
+            view_proj: Mat44::IDENTITY.into(),
+            zfar: 1.0,
+            _padding: [0; 3],
+        }
+    }
+
+    pub fn update_view_proj(&mut self, camera: &Cam, aspect: f64) {
+        let eye_pos = camera.eye().location;
+        self.view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
+        self.view_proj = camera.build_view_projection_matrix(aspect).into();
+        self.zfar = (camera.far() - camera.near()) as f32;
+    }
+}
+
+pub struct Eye {
+    pub dist: f64,
+    pub location: Point3,
+}
+
+pub struct Cam {
     target: Point3,
-    to_eye: Vec3,
     target_radius: f64,
-    fov: f64,
-    aspect_ratio: f64,
+    clip_radius: f64,
+    to_eye: Vec3,
+    eye_up: Vec3,
+    half_fov: Angle,
 }
-impl Camera {
-    fn projection_matrix(&self) -> Mat44 {
-        //
-        todo!()
+impl Cam {
+    pub fn new(
+        target: Point3,
+        target_radius: f64,
+        clip_radius: f64,
+        to_eye: Vec3,
+        eye_up: Vec3,
+        fov: Angle,
+    ) -> Self {
+        Self {
+            target,
+            target_radius,
+            clip_radius,
+            to_eye: to_eye.normalize(),
+            eye_up,
+            half_fov: fov / 2.0,
+        }
     }
 
-    fn perspective_matrix(&self) -> Mat44 {
-        todo!()
+    pub fn up(&self) -> Vec3 {
+        self.eye_up
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use space::{point3, vec3, Mat44, Vec2};
+    pub fn set_to_eye(&mut self, to_eye: Vec3) {
+        self.to_eye = to_eye.normalize();
+    }
 
-    use super::*;
-
-    #[test]
-    fn projects_points() {
-        let points = vec![
-            // Front face, starting top left and going clockwise (relative to camera)
-            point3(-2.0, 2.0, -2.0),
-            point3(2.0, 2.0, -2.0),
-            point3(2.0, -2.0, -2.0),
-            point3(-2.0, -2.0, -2.0),
-            // Back face, starting top left and going clockwise (relative to camera)
-            point3(-2.0, 2.0, 2.0),
-            point3(2.0, 2.0, 2.0),
-            point3(2.0, -2.0, 2.0),
-            point3(-2.0, -2.0, 2.0),
-        ];
-
-        let camera = Camera {
-            target: point3(0.0, 0.0, 0.0),
-            to_eye: vec3(0.0, 0.0, -1.0),
-            target_radius: 6.0,
-            aspect_ratio: 1.0,
-            fov: 90.0,
+    pub fn eye(&self) -> Eye {
+        let dist = match !self.is_ortho() {
+            true => self.target_radius / self.half_fov.sin(),
+            false => self.clip_radius,
         };
 
-        let matrix = Mat44::IDENTITY;
-
-        let projected = points
-            .iter()
-            .map(|p| p.transform(matrix))
-            .collect::<Vec<_>>();
-
-        for i in 0..points.len() {
-            println!("{:?} => {:?}", points[i], projected[i]);
+        Eye {
+            dist,
+            location: self.target + self.to_eye * dist,
         }
+    }
+
+    pub fn set_target_radius(&mut self, target_radius: f64) {
+        self.target_radius = target_radius;
+    }
+
+    pub fn set_fov(&mut self, fov: Angle) {
+        //
+    }
+
+    pub fn set_min_target_depth(&mut self, min_target_depth: f32) {
+        //
+    }
+
+    pub fn near(&self) -> f64 {
+        match self.is_ortho() {
+            true => -self.clip_radius,
+            false => 0.1,
+        }
+    }
+
+    pub fn far(&self) -> f64 {
+        match self.is_ortho() {
+            true => self.clip_radius,
+            false => self.eye().dist + self.clip_radius,
+        }
+    }
+
+    pub fn is_ortho(&self) -> bool {
+        self.half_fov.is_zero()
+    }
+
+    pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
+        let eye = self.eye();
+        let (view, proj) = if !self.is_ortho() {
+            let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
+            let proj = Self::perspective_matrix(
+                (self.half_fov * 2.0).into(),
+                aspect,
+                self.near(),
+                self.far(),
+            );
+
+            (view, proj)
+        } else {
+            let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
+            let proj = Self::orthographic_matrix(
+                aspect,
+                -self.target_radius,
+                self.target_radius,
+                -self.target_radius,
+                self.target_radius,
+                self.near(),
+                self.far(),
+            );
+
+            (view, proj)
+        };
+
+        proj * view
+    }
+
+    fn orthographic_matrix(
+        aspect: f64,
+        left: f64,
+        right: f64,
+        bottom: f64,
+        top: f64,
+        near: f64,
+        far: f64,
+    ) -> Mat44 {
+        let c0r0 = match aspect > 1.0 {
+            true => 2.0 / (right - left) / aspect,
+            false => 2.0 / (right - left),
+        };
+        let c0r1 = 0.0;
+        let c0r2 = 0.0;
+        let c0r3 = 0.0;
+
+        let c1r0 = 0.0;
+        let c1r1 = match aspect > 1.0 {
+            true => 2.0 / (top - bottom),
+            false => aspect * 2.0 / (top - bottom),
+        };
+        let c1r2 = 0.0;
+        let c1r3 = 0.0;
+
+        let c2r0 = 0.0;
+        let c2r1 = 0.0;
+        let c2r2 = -1.0 / (far - near);
+        let c2r3 = 0.0;
+
+        let c3r0 = -(right + left) / (right - left);
+        let c3r1 = -(top + bottom) / (top - bottom);
+        let c3r2 = -(far + near) / (far - near);
+        let c3r3 = 1.0;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
+    }
+
+    fn perspective_matrix(fovy: Angle, aspect: f64, near: f64, far: f64) -> Mat44 {
+        let f = (fovy / 2.0).cot();
+
+        let c0r0 = match aspect > 1.0 {
+            true => f / aspect,
+            false => f,
+        };
+        let c0r1 = 0.0;
+        let c0r2 = 0.0;
+        let c0r3 = 0.0;
+
+        let c1r0 = 0.0;
+        let c1r1 = match aspect > 1.0 {
+            true => f,
+            false => f * aspect,
+        };
+        let c1r2 = 0.0;
+        let c1r3 = 0.0;
+
+        let c2r0 = 0.0;
+        let c2r1 = 0.0;
+        let c2r2 = (far + near) / (near - far);
+        let c2r3 = -1.0;
+
+        let c3r0 = 0.0;
+        let c3r1 = 0.0;
+        let c3r2 = (2.0 * far * near) / (near - far);
+        let c3r3 = 0.0;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
     }
 }

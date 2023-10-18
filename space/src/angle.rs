@@ -29,6 +29,10 @@ impl Angle {
     const DEG_90: Self = Self(PI1_2);
     const DEG_45: Self = Self(PI1_4);
 
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0.0
+    }
+
     pub fn deg(deg: f64) -> Self {
         Self(deg * DEG_TO_RAD)
     }
@@ -55,6 +59,10 @@ impl Angle {
 
     pub fn tan(&self) -> f64 {
         self.0.tan()
+    }
+
+    pub fn cot(&self) -> f64 {
+        self.0.recip().tan()
     }
 
     // Angle from `self` to `other` going counterclockwise

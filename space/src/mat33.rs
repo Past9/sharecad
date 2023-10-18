@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use auto_ops::impl_op_ex;
 
-use crate::{rad, vec2, Angle, Vec2};
+use crate::{rad, vec2, Angle, Vec2, Quat};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -79,6 +79,59 @@ impl Index<usize> for Mat33 {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+impl From<Mat33> for [[f64; 3]; 3] {
+    fn from(mat: Mat33) -> Self {
+        mat.0
+    }
+}
+impl From<Mat33> for [[f32; 3]; 3] {
+    fn from(mat: Mat33) -> Self {
+        let m = mat.0;
+        [
+            [
+                m[0][0] as f32,
+                m[0][1] as f32,
+                m[0][2] as f32,
+            ],
+            [
+                m[1][0] as f32,
+                m[1][1] as f32,
+                m[1][2] as f32,
+            ],
+            [
+                m[2][0] as f32,
+                m[2][1] as f32,
+                m[2][2] as f32,
+            ],
+        ]
+    }
+}
+impl From<Quat> for Mat33 {
+    fn from(quat: Quat) -> Self {
+        let x2 = quat.v.x + quat.v.x;
+        let y2 = quat.v.y + quat.v.y;
+        let z2 = quat.v.z + quat.v.z;
+
+        let xx2 = x2 * quat.v.x;
+        let xy2 = x2 * quat.v.y;
+        let xz2 = x2 * quat.v.z;
+
+        let yy2 = y2 * quat.v.y;
+        let yz2 = y2 * quat.v.z;
+        let zz2 = z2 * quat.v.z;
+
+        let sy2 = y2 * quat.s;
+        let sz2 = z2 * quat.s;
+        let sx2 = x2 * quat.s;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat33::new(
+            1.0 - yy2 - zz2, xy2 + sz2, xz2 - sy2, 
+            xy2 - sz2, 1.0 - xx2 - zz2, yz2 + sx2, 
+            xz2 + sy2, yz2 - sx2, 1.0 - xx2 - yy2, 
+        )
     }
 }
 impl std::fmt::Debug for Mat33 {

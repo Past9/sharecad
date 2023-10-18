@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use auto_ops::impl_op_ex;
 
-use crate::{rad, vec2, Angle, Vec2, Vec3};
+use crate::{rad, vec2, Angle, Point3, Quat, Vec2, Vec3};
 
 #[derive(Copy, Clone)]
 pub struct Mat44(pub [[f64; 4]; 4]);
@@ -43,12 +43,94 @@ impl Mat44 {
             [0.0, 0.0, 0.0, 1.0],   //
         ])
     }
+
+    pub fn look_to_rh(eye: Point3, dir: Vec3, up: Vec3) -> Self {
+        let eye: Vec3 = eye.into();
+        let f = dir.normalize();
+        let s = f.cross(up).normalize();
+        let u = s.cross(f);
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            s.x, u.x, -f.x, 0.0, //
+            s.y, u.y, -f.y, 0.0, //
+            s.z, u.z, -f.z, 0.0, //
+            -eye.dot(s), -eye.dot(u), eye.dot(f), 1.0, //
+        )
+    }
+
+    pub fn look_at_rh(eye: Point3, center: Point3, up: Vec3) -> Self {
+        Self::look_to_rh(eye, center - eye, up)
+    }
 }
 impl Index<usize> for Mat44 {
     type Output = [f64; 4];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+impl From<Mat44> for [[f64; 4]; 4] {
+    fn from(mat: Mat44) -> Self {
+        mat.0
+    }
+}
+impl From<Mat44> for [[f32; 4]; 4] {
+    fn from(mat: Mat44) -> Self {
+        let m = mat.0;
+        [
+            [
+                m[0][0] as f32,
+                m[0][1] as f32,
+                m[0][2] as f32,
+                m[0][3] as f32,
+            ],
+            [
+                m[1][0] as f32,
+                m[1][1] as f32,
+                m[1][2] as f32,
+                m[1][3] as f32,
+            ],
+            [
+                m[2][0] as f32,
+                m[2][1] as f32,
+                m[2][2] as f32,
+                m[2][3] as f32,
+            ],
+            [
+                m[3][0] as f32,
+                m[3][1] as f32,
+                m[3][2] as f32,
+                m[3][3] as f32,
+            ],
+        ]
+    }
+}
+impl From<Quat> for Mat44 {
+    fn from(quat: Quat) -> Self {
+        let x2 = quat.v.x + quat.v.x;
+        let y2 = quat.v.y + quat.v.y;
+        let z2 = quat.v.z + quat.v.z;
+
+        let xx2 = x2 * quat.v.x;
+        let xy2 = x2 * quat.v.y;
+        let xz2 = x2 * quat.v.z;
+
+        let yy2 = y2 * quat.v.y;
+        let yz2 = y2 * quat.v.z;
+        let zz2 = z2 * quat.v.z;
+
+        let sy2 = y2 * quat.s;
+        let sz2 = z2 * quat.s;
+        let sx2 = x2 * quat.s;
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            1.0 - yy2 - zz2, xy2 + sz2, xz2 - sy2, 0.0,
+            xy2 - sz2, 1.0 - xx2 - zz2, yz2 + sx2, 0.0,
+            xz2 + sy2, yz2 - sx2, 1.0 - xx2 - yy2, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        )
     }
 }
 impl std::fmt::Debug for Mat44 {

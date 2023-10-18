@@ -49,6 +49,14 @@ impl Vec3 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
+    pub fn cross(&self, other: Vec3) -> Self {
+        Self {
+            x: (self.y * other.z) - (self.z * other.y),
+            y: (self.z * other.x) - (self.x * other.z),
+            z: (self.x * other.y) - (self.y * other.x),
+        }
+    }
+
     pub fn normalize(&self) -> Self {
         let mag = self.magnitude();
         Self {
@@ -76,6 +84,24 @@ impl From<Point3> for Vec3 {
             x: point.x,
             y: point.y,
             z: point.z,
+        }
+    }
+}
+impl From<[f64; 3]> for Vec3 {
+    fn from(floats: [f64; 3]) -> Self {
+        Self {
+            x: floats[0],
+            y: floats[1],
+            z: floats[2],
+        }
+    }
+}
+impl From<[f32; 3]> for Vec3 {
+    fn from(floats: [f32; 3]) -> Self {
+        Self {
+            x: floats[0] as f64,
+            y: floats[1] as f64,
+            z: floats[2] as f64,
         }
     }
 }

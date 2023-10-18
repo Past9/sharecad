@@ -120,7 +120,7 @@ impl Default for LightUniform {
 
 #[derive(Debug)]
 pub struct Scene {
-    device: Arc<wgpu::Device>,
+    //device: Arc<wgpu::Device>,
     objects: Vec<Box<dyn Object>>,
     materials: HashMap<MaterialId, Material>,
     material_ids: IdSeries<MaterialId>,
@@ -129,7 +129,7 @@ pub struct Scene {
 impl Scene {
     pub fn new(device: Arc<wgpu::Device>) -> Self {
         Self {
-            device,
+            //device,
             objects: vec![],
             materials: HashMap::new(),
             material_ids: IdSeries::new(),
@@ -181,7 +181,7 @@ impl Scene {
         queue: &wgpu::Queue,
     ) -> Texture {
         let data = Self::load_binary(file_name).await;
-        Texture::from_bytes(&self.device, queue, &data, file_name, is_normal_map).unwrap()
+        Texture::from_bytes(queue, &data, file_name, is_normal_map).unwrap()
     }
 
     pub async fn load_model_file<T: Instance>(
