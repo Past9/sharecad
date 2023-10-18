@@ -11,7 +11,7 @@ impl From<u32> for InstanceId {
     }
 }
 
-pub trait Instance: std::fmt::Debug + 'static {
+pub trait SceneObjectInstance: std::fmt::Debug + 'static {
     type RawBuffer: VertexBuffer;
 
     fn id(&self) -> InstanceId;
@@ -24,7 +24,7 @@ pub struct PositionedInstance {
     pub position: Vec3,
     pub rotation: Quat,
 }
-impl Instance for PositionedInstance {
+impl SceneObjectInstance for PositionedInstance {
     type RawBuffer = InstanceRaw;
 
     fn id(&self) -> InstanceId {

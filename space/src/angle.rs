@@ -49,20 +49,32 @@ impl Angle {
         self.0
     }
 
-    pub fn cos(&self) -> f64 {
-        self.0.cos()
-    }
-
     pub fn sin(&self) -> f64 {
         self.0.sin()
+    }
+
+    pub fn cos(&self) -> f64 {
+        self.0.cos()
     }
 
     pub fn tan(&self) -> f64 {
         self.0.tan()
     }
 
+    pub fn csc(&self) -> f64 {
+        self.0.recip().sin()
+    }
+
+    pub fn sec(&self) -> f64 {
+        self.0.recip().cos()
+    }
+
     pub fn cot(&self) -> f64 {
         self.0.recip().tan()
+    }
+
+    pub fn sin_cos(&self) -> (f64, f64) {
+        self.0.sin_cos()
     }
 
     // Angle from `self` to `other` going counterclockwise

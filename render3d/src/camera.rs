@@ -56,7 +56,7 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&self, camera: &mut Cam) {
+    pub fn update_camera(&self, camera: &mut Camera) {
         let eye = camera.eye();
         let forward = camera.target - eye.location;
         let forward_norm = forward.normalize();
@@ -110,7 +110,7 @@ impl CameraUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Cam, aspect: f64) {
+    pub fn update_view_proj(&mut self, camera: &Camera, aspect: f64) {
         let eye_pos = camera.eye().location;
         self.view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
         self.view_proj = camera.build_view_projection_matrix(aspect).into();
@@ -123,7 +123,7 @@ pub struct Eye {
     pub location: Point3,
 }
 
-pub struct Cam {
+pub struct Camera {
     target: Point3,
     target_radius: f64,
     clip_radius: f64,
@@ -131,7 +131,7 @@ pub struct Cam {
     eye_up: Vec3,
     half_fov: Angle,
 }
-impl Cam {
+impl Camera {
     pub fn new(
         target: Point3,
         target_radius: f64,

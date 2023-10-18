@@ -12,10 +12,3 @@ pub trait SceneObject: std::fmt::Debug {
     fn material_id(&self) -> MaterialId;
     fn num_instances(&self) -> u32;
 }
-
-pub trait SceneObjectInstance: std::fmt::Debug + 'static {
-    type RawBuffer: VertexBuffer;
-
-    fn id(&self) -> InstanceId;
-    fn to_raw(&self) -> Self::RawBuffer;
-}

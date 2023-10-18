@@ -4,9 +4,10 @@ use std::{
     marker::PhantomData,
 };
 
-use space::{Vec2, Vec3};
+use space::{Point3, Vec2, Vec3};
 
 use crate::{
+    light::Light,
     material::{Material, MaterialId},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
     texture::{ImageTextureKind, Texture},
@@ -35,8 +36,22 @@ pub struct Scene {
     objects: Vec<Box<dyn SceneObject>>,
     materials: HashMap<MaterialId, Material>,
     material_ids: IdSeries<MaterialId>,
+    light: Light,
 }
 impl Scene {
+    pub fn new() -> Self {
+        Self {
+            objects: vec![],
+            materials: HashMap::new(),
+            material_ids: IdSeries::new(),
+            light: Light::new(Point3::ZERO, [0.0; 3]),
+        }
+    }
+
+    pub fn set_light(&mut self, light: Light) {
+        self.light = light;
+    }
+
     async fn load_string(file_name: &str) -> String {
         let path = std::path::Path::new(env!("OUT_DIR"))
             .join("res")
@@ -59,8 +74,6 @@ impl Scene {
     pub async fn load_model_file<T: SceneObjectInstance>(
         &mut self,
         file_name: &str,
-        queue: &wgpu::Queue,
-        layout: &wgpu::BindGroupLayout,
         mut instances: Vec<Vec<T>>,
     ) {
         let obj_text = Self::load_string(file_name).await;

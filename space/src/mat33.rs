@@ -17,6 +17,15 @@ impl Mat33 {
         Self([[a, b, c], [d, e, f], [g, h, i]])
     }
 
+    pub fn transpose(&self) -> Self {
+        let m = self.0;
+        Self([
+            [m[0][0], m[1][0], m[2][0]],
+            [m[0][1], m[1][1], m[2][1]],
+            [m[0][2], m[1][2], m[2][2]],
+        ])
+    }
+
     pub fn translation(vec: Vec2) -> Self {
         Self([
             [1.0, 0.0, vec.x], //

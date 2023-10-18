@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 use crate::{
     camera::CameraUniform,
+    light::LightUniform,
     model::{InstanceRaw, MeshVertex},
     texture::Texture,
 };
@@ -15,11 +18,18 @@ pub struct VisualRenderer {
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
 
+    depth_texture: Texture,
+
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+
+    light_buffer: wgpu::Buffer,
+    light_bind_group: wgpu::BindGroup,
+
+    render_pipeline: wgpu::RenderPipeline,
 }
 impl VisualRenderer {
-    pub async fn new(window: Window) -> Self {
+    pub async fn new(window: &Window) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -146,13 +156,51 @@ impl VisualRenderer {
             (camera_bind_group_layout, camera_bind_group, camera_buffer)
         };
 
+        let (light_buffer, light_bind_group_layout, light_bind_group) = {
+            let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Light VB"),
+                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<LightUniform>()]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+            let light_bind_group_layout =
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                    label: None,
+                });
+
+            let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &light_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: light_buffer.as_entire_binding(),
+                }],
+                label: None,
+            });
+
+            (light_buffer, light_bind_group_layout, light_bind_group)
+        };
+
         let depth_texture = Texture::depth("depth_texture");
 
         let render_pipeline = {
             let render_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                    bind_group_layouts: &[
+                        &texture_bind_group_layout,
+                        &camera_bind_group_layout,
+                        &light_bind_group_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
 
@@ -161,16 +209,56 @@ impl VisualRenderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             };
 
-            let render_pipeline = create_render_pipeline(
-                &device,
-                &render_pipeline_layout,
-                config.format,
-                Some(Texture::DEPTH_FORMAT),
-                &[MeshVertex::desc(), InstanceRaw::desc()],
-                shader,
-            );
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Visual shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
 
-            Arc::new(render_pipeline)
+            let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render pipeline"),
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+
+            render_pipeline
         };
 
         Self {
@@ -179,8 +267,65 @@ impl VisualRenderer {
             surface,
             config,
 
+            depth_texture,
+
             camera_bind_group,
             camera_buffer,
+
+            light_bind_group,
+            light_buffer,
+
+            render_pipeline,
         }
+    }
+
+    pub fn render(&self) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Visual render encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self
+                        .depth_texture
+                        .resources(&self.device, &self.queue, &self.config)
+                        .view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            render_pass.set_pipeline(&self.render_pipeline);
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
     }
 }

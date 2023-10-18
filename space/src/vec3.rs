@@ -33,6 +33,10 @@ impl Vec3 {
         z: 1.0,
     };
 
+    pub fn is_zero(&self) -> bool {
+        self.x == 0.0 && self.y == 0.0 && self.z == 0.0
+    }
+
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
