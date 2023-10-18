@@ -119,9 +119,9 @@ impl CameraUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Cam) {
+    pub fn update_view_proj(&mut self, camera: &Cam, aspect: f32) {
         self.view_position = camera.eye().location.to_homogeneous().into();
-        self.view_proj = camera.build_view_projection_matrix().into();
+        self.view_proj = camera.build_view_projection_matrix(aspect).into();
         self.zfar = camera.far() - camera.near();
     }
 }
@@ -138,7 +138,6 @@ pub struct Cam {
     to_eye: cgmath::Vector3<f32>,
     eye_up: cgmath::Vector3<f32>,
     half_fov: cgmath::Deg<f32>,
-    aspect_ratio: f32,
 }
 impl Cam {
     pub fn new(
@@ -148,7 +147,6 @@ impl Cam {
         to_eye: cgmath::Vector3<f32>,
         eye_up: cgmath::Vector3<f32>,
         fov: cgmath::Deg<f32>,
-        aspect_ratio: f32,
     ) -> Self {
         Self {
             target,
@@ -157,7 +155,6 @@ impl Cam {
             to_eye: to_eye.normalize(),
             eye_up,
             half_fov: fov / 2.0,
-            aspect_ratio,
         }
     }
 
@@ -179,10 +176,6 @@ impl Cam {
             dist,
             location: self.target + self.to_eye * dist,
         }
-    }
-
-    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
-        self.aspect_ratio = aspect_ratio;
     }
 
     pub fn set_target_radius(&mut self, target_radius: f32) {
@@ -215,13 +208,13 @@ impl Cam {
         self.half_fov.is_zero()
     }
 
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    pub fn build_view_projection_matrix(&self, aspect: f32) -> cgmath::Matrix4<f32> {
         let eye = self.eye();
         let (view, proj) = if !self.is_ortho() {
             let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
             let proj = Self::perspective_matrix(
                 (self.half_fov * 2.0).into(),
-                self.aspect_ratio,
+                aspect,
                 self.near(),
                 self.far(),
             );
@@ -230,7 +223,7 @@ impl Cam {
         } else {
             let view = cgmath::Matrix4::look_at_rh(eye.location, self.target, self.eye_up);
             let proj = Self::orthographic_matrix(
-                self.aspect_ratio,
+                aspect,
                 -self.target_radius,
                 self.target_radius,
                 -self.target_radius,

@@ -12,17 +12,18 @@ use crate::{
 };
 
 pub trait Renderer {
-    fn render(&mut self, camera: &Cam, scene: &Scene);
+    fn render(&mut self, scene: &Scene, camera: &Cam);
+    fn resize(&mut self, new_size: (u32, u32));
 }
 
-struct VisualRenderer {
+pub struct VisualRenderer {
     device: Arc<wgpu::Device>,
     queue: wgpu::Queue,
 
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
 
-    render_pipeline: wgpu::RenderPipeline,
+    render_pipeline: Arc<wgpu::RenderPipeline>,
     light_render_pipeline: wgpu::RenderPipeline,
 
     camera_buffer: wgpu::Buffer,
@@ -32,6 +33,8 @@ struct VisualRenderer {
 
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
+
+    texture_bind_group_layout: wgpu::BindGroupLayout,
 
     material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
 }
@@ -223,7 +226,7 @@ impl VisualRenderer {
                 shader,
             );
 
-            render_pipeline
+            Arc::new(render_pipeline)
         };
 
         let light_render_pipeline = {
@@ -266,12 +269,35 @@ impl VisualRenderer {
             light_bind_group,
             light_buffer,
 
+            texture_bind_group_layout,
+
             material_bind_groups: HashMap::new(),
+        }
+    }
+
+    pub fn draw<'a>(&'a self, scene: &'a Scene, mut render_pass: wgpu::RenderPass<'a>) {
+        for object in scene.objects().iter() {
+            let mesh = object.mesh();
+            let material = scene.material(object.material_id()).expect(&format!(
+                "Could not find material {:?}",
+                object.material_id()
+            ));
+            render_pass.set_vertex_buffer(1, object.instance_buffer().slice(..));
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+            render_pass.set_index_buffer(mesh.index_buffer().slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_bind_group(0, &material.bind_group, &[]);
+            {
+                // TODO: Move these out of the loop? Probably don't need to set these for
+                // every object since they don't change.
+                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+                render_pass.set_bind_group(2, &self.light_bind_group, &[]);
+            }
+            render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
         }
     }
 }
 impl Renderer for VisualRenderer {
-    fn render(&mut self, camera: &Cam, scene: &Scene) {
+    fn render(&mut self, scene: &Scene, camera: &Cam) {
         let output = self.surface.get_current_texture().unwrap();
         let view = output
             .texture
@@ -283,6 +309,7 @@ impl Renderer for VisualRenderer {
             });
 
         {
+            let tex_view = self.depth_texture.view.clone();
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -299,7 +326,7 @@ impl Renderer for VisualRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
+                    view: &tex_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: true,
@@ -308,18 +335,32 @@ impl Renderer for VisualRenderer {
                 }),
             });
 
+            /*
             render_pass.set_pipeline(&self.light_render_pipeline);
+
             render_pass.draw_light_model(
                 &self.obj_model,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
+             */
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_visual(&self.scene, &self.camera_bind_group, &self.light_bind_group);
+            self.draw(scene, render_pass);
+            //render_pass.draw_visual(scene, &self.camera_bind_group, &self.light_bind_group);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+    }
+
+    fn resize(&mut self, new_size: (u32, u32)) {
+        if new_size.0 > 0 && new_size.1 > 0 {
+            self.config.width = new_size.0;
+            self.config.height = new_size.1;
+            self.surface.configure(&self.device, &self.config);
+            self.depth_texture =
+                Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+        }
     }
 }

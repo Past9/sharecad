@@ -140,6 +140,14 @@ impl Scene {
         }
     }
 
+    pub fn objects(&self) -> &[Box<dyn Object>] {
+        &self.objects
+    }
+
+    pub fn material(&self, id: MaterialId) -> Option<&Material> {
+        self.materials.get(&id)
+    }
+
     pub fn light(&self) -> &Light {
         &self.light
     }

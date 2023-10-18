@@ -10,6 +10,7 @@ use crate::{
     light::DrawLight,
     model::{Model, ModelVertex, Vertex},
     pipeline::create_render_pipeline,
+    render::{Renderer, VisualRenderer},
     resources::load_model,
     scene::{DrawVisualScene, InstanceId, Light, LightUniform, MeshVertex, Scene},
     texture::Texture,
@@ -19,6 +20,7 @@ const NUM_INSTANCES_PER_ROW: u32 = 11;
 const SPACE_BETWEEN: f32 = 3.0;
 
 pub struct State {
+    /*
     pub surface: wgpu::Surface,
     pub device: Arc<wgpu::Device>,
     pub queue: wgpu::Queue,
@@ -26,21 +28,24 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub render_pipeline: wgpu::RenderPipeline,
     pub light_render_pipeline: wgpu::RenderPipeline,
-
+     */
     pub obj_model: Model,
 
     pub camera: Cam,
     pub camera_controller: CameraController,
+    /*
     pub camera_uniform: CameraUniform,
     pub camera_buffer: wgpu::Buffer,
     pub camera_bind_group: wgpu::BindGroup,
-
+     */
     pub depth_texture: Texture,
 
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
 
     pub scene: Scene,
+
+    pub visual_renderer: VisualRenderer,
 
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
@@ -49,6 +54,7 @@ pub struct State {
 }
 impl State {
     pub async fn new(window: Window) -> Self {
+        /*
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -142,14 +148,17 @@ impl State {
 
             texture_bind_group_layout
         };
+         */
 
         let (
             camera,
             camera_controller,
+            /*
+            camera_uniform,
             camera_bind_group_layout,
             camera_bind_group,
             camera_buffer,
-            camera_uniform,
+             */
         ) = {
             let camera = Cam::new(
                 (0.0, 0.0, 0.0).into(),
@@ -158,9 +167,9 @@ impl State {
                 (0.0, 1.0, 5.0).into(),
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.00),
-                config.width as f32 / config.height as f32,
             );
 
+            /*
             let mut camera_uniform = CameraUniform::new();
             camera_uniform.update_view_proj(&camera);
 
@@ -193,16 +202,19 @@ impl State {
                     resource: camera_buffer.as_entire_binding(),
                 }],
             });
+            */
 
             let camera_controller = CameraController::new(0.8);
 
             (
                 camera,
                 camera_controller,
+                /*
                 camera_bind_group_layout,
                 camera_bind_group,
                 camera_buffer,
                 camera_uniform,
+                 */
             )
         };
 
@@ -255,6 +267,7 @@ impl State {
             scene
         };
 
+        /*
         let (light_buffer, light_bind_group_layout, light_bind_group) = {
             let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Light VB"),
@@ -294,7 +307,9 @@ impl State {
         let obj_model = load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
             .await
             .unwrap();
+         */
 
+        /*
         let render_pipeline = {
             let render_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -345,8 +360,10 @@ impl State {
         };
 
         surface.configure(&device, &config);
+             */
 
         Self {
+            /*
             surface,
             device,
             queue,
@@ -354,21 +371,24 @@ impl State {
             size,
             render_pipeline,
             light_render_pipeline,
-
+             */
             obj_model,
 
             camera,
             camera_controller,
+            /*
             camera_uniform,
             camera_buffer,
             camera_bind_group,
-
+             */
             depth_texture,
 
             light_bind_group,
             light_buffer,
 
             scene,
+
+            visual_renderer,
 
             window,
         }
@@ -379,6 +399,8 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.visual_renderer.resize(new_size);
+        /*
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
@@ -389,6 +411,7 @@ impl State {
             self.camera
                 .set_aspect_ratio(self.config.width as f32 / self.config.height as f32)
         }
+         */
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
