@@ -97,6 +97,6 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.visual_render.render(&self.scene)
+        self.visual_render.render(&self.scene, &self.camera)
     }
 }

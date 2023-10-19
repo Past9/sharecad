@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 use crate::{
-    camera::CameraUniform,
+    camera::{Camera, CameraUniform},
     light::LightUniform,
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
@@ -294,7 +294,17 @@ impl VisualRenderer {
         }
     }
 
-    pub fn render(&self, scene: &Scene) -> Result<(), wgpu::SurfaceError> {
+    pub fn aspect(&self) -> f64 {
+        self.size.0 as f64 / self.size.1 as f64
+    }
+
+    pub fn render(&self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
+        );
+
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture

@@ -34,8 +34,8 @@ impl SceneObjectInstance for PositionedInstance {
     fn to_raw(&self) -> Self::RawBuffer {
         let model = Mat44::translation(self.position) * Mat44::from(self.rotation);
         InstanceRaw {
-            model: model.into(),
-            normal: Mat33::from(self.rotation).into(),
+            model: model.transpose().into(),
+            normal: Mat33::from(self.rotation).transpose().into(),
         }
     }
 }

@@ -113,7 +113,10 @@ impl CameraUniform {
     pub fn update_view_proj(&mut self, camera: &Camera, aspect: f64) {
         let eye_pos = camera.eye().location;
         self.view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
-        self.view_proj = camera.build_view_projection_matrix(aspect).into();
+        self.view_proj = camera
+            .build_view_projection_matrix(aspect)
+            .transpose()
+            .into();
         self.zfar = (camera.far() - camera.near()) as f32;
     }
 }
@@ -198,6 +201,21 @@ impl Camera {
 
     pub fn is_ortho(&self) -> bool {
         self.half_fov.is_zero()
+    }
+
+    pub fn to_raw(&self, aspect: f64) -> CameraUniform {
+        let eye_pos = self.eye().location;
+
+        let view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
+        let view_proj = self.build_view_projection_matrix(aspect).transpose().into();
+        let zfar = (self.far() - self.near()) as f32;
+
+        CameraUniform {
+            view_position,
+            view_proj,
+            zfar,
+            _padding: [0; 3],
+        }
     }
 
     pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
