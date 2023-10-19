@@ -369,10 +369,6 @@ impl VisualRenderer {
 
             for object in scene.objects().iter() {
                 let mesh = object.mesh();
-                let material = scene.material(&object.material_id()).expect(&format!(
-                    "Could not find material {:?}",
-                    object.material_id()
-                ));
                 render_pass.set_vertex_buffer(1, object.instance_buffer(&self.device).slice(..));
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer(&self.device).slice(..));
                 render_pass.set_index_buffer(

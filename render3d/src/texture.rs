@@ -7,18 +7,35 @@ pub enum TextureImage {
     Diffuse(image::DynamicImage),
     NormalMap(image::DynamicImage),
 }
+impl std::fmt::Debug for TextureImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Depth => write!(f, "Depth"),
+            Self::Diffuse(image) => {
+                let dims = image.dimensions();
+                f.write_fmt(format_args!("Diffuse(<{}x{} image>)", dims.0, dims.1))
+            }
+            Self::NormalMap(image) => {
+                let dims = image.dimensions();
+                f.write_fmt(format_args!("NormalMap(<{}x{} image>)", dims.0, dims.1))
+            }
+        }
+    }
+}
 
 pub enum ImageTextureKind {
     Diffuse,
     NormalMap,
 }
 
+#[derive(Debug)]
 pub struct TextureResources {
     pub texture: Arc<wgpu::Texture>,
     pub view: Arc<wgpu::TextureView>,
     pub sampler: Arc<wgpu::Sampler>,
 }
 
+#[derive(Debug)]
 pub struct Texture {
     pub image: TextureImage,
     pub label: String,

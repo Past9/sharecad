@@ -32,6 +32,7 @@ impl<T: From<u32>> IdSeries<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct Scene {
     objects: Vec<Box<dyn SceneObject>>,
     materials: HashMap<MaterialId, Material>,

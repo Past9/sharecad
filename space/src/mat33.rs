@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use auto_ops::impl_op_ex;
 
-use crate::{rad, vec2, Angle, Vec2, Quat};
+use crate::{rad, vec2, Angle, Quat, Vec2};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -99,21 +99,9 @@ impl From<Mat33> for [[f32; 3]; 3] {
     fn from(mat: Mat33) -> Self {
         let m = mat.0;
         [
-            [
-                m[0][0] as f32,
-                m[0][1] as f32,
-                m[0][2] as f32,
-            ],
-            [
-                m[1][0] as f32,
-                m[1][1] as f32,
-                m[1][2] as f32,
-            ],
-            [
-                m[2][0] as f32,
-                m[2][1] as f32,
-                m[2][2] as f32,
-            ],
+            [m[0][0] as f32, m[0][1] as f32, m[0][2] as f32],
+            [m[1][0] as f32, m[1][1] as f32, m[1][2] as f32],
+            [m[2][0] as f32, m[2][1] as f32, m[2][2] as f32],
         ]
     }
 }
@@ -137,9 +125,9 @@ impl From<Quat> for Mat33 {
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat33::new(
-            1.0 - yy2 - zz2, xy2 + sz2, xz2 - sy2, 
-            xy2 - sz2, 1.0 - xx2 - zz2, yz2 + sx2, 
-            xz2 + sy2, yz2 - sx2, 1.0 - xx2 - yy2, 
+            1.0 - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,        
+            xy2 + sz2,        1.0 - xx2 - zz2,  yz2 - sx2,        
+            xz2 - sy2,        yz2 + sx2,        1.0 - xx2 - yy2,  
         )
     }
 }
@@ -148,13 +136,6 @@ impl std::fmt::Debug for Mat33 {
         f.write_fmt(format_args!("{:?}", self.0))
     }
 }
-/*
-impl From<Coord2> for Mat33 {
-    fn from(coord: Coord2) -> Self {
-        coord.to_mat33()
-    }
-}
- */
 
 impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
     Self([

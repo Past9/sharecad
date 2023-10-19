@@ -12,6 +12,7 @@ impl From<u32> for MaterialId {
     }
 }
 
+#[derive(Debug)]
 pub struct Material {
     pub name: String,
     pub diffuse: Texture,

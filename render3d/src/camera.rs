@@ -92,40 +92,12 @@ impl CameraController {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone, Pod, Zeroable)]
-pub struct CameraUniform {
-    view_position: [f32; 4],
-    view_proj: [[f32; 4]; 4],
-    zfar: f32,
-    _padding: [u32; 3],
-}
-impl CameraUniform {
-    pub fn new() -> Self {
-        Self {
-            view_position: [0.0; 4],
-            view_proj: Mat44::IDENTITY.into(),
-            zfar: 1.0,
-            _padding: [0; 3],
-        }
-    }
-
-    pub fn update_view_proj(&mut self, camera: &Camera, aspect: f64) {
-        let eye_pos = camera.eye().location;
-        self.view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
-        self.view_proj = camera
-            .build_view_projection_matrix(aspect)
-            .transpose()
-            .into();
-        self.zfar = (camera.far() - camera.near()) as f32;
-    }
-}
-
 pub struct Eye {
     pub dist: f64,
     pub location: Point3,
 }
 
+#[derive(Debug)]
 pub struct Camera {
     target: Point3,
     target_radius: f64,
@@ -283,12 +255,22 @@ impl Camera {
         let c3r2 = -(far + near) / (far - near);
         let c3r3 = 1.0;
 
+        /*
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat44::new(
             c0r0, c0r1, c0r2, c0r3,
             c1r0, c1r1, c1r2, c1r3,
             c2r0, c2r1, c2r2, c2r3,
             c3r0, c3r1, c3r2, c3r3,
+        )
+        */
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            c0r0, c1r0, c2r0, c3r0,
+            c0r1, c1r1, c2r1, c3r1,
+            c0r2, c1r2, c2r2, c3r2,
+            c0r3, c1r3, c2r3, c3r3,
         )
     }
 
@@ -321,6 +303,7 @@ impl Camera {
         let c3r2 = (2.0 * far * near) / (near - far);
         let c3r3 = 0.0;
 
+        /*
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat44::new(
             c0r0, c0r1, c0r2, c0r3,
@@ -328,5 +311,23 @@ impl Camera {
             c2r0, c2r1, c2r2, c2r3,
             c3r0, c3r1, c3r2, c3r3,
         )
+         */
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            c0r0, c1r0, c2r0, c3r0,
+            c0r1, c1r1, c2r1, c3r1,
+            c0r2, c1r2, c2r2, c3r2,
+            c0r3, c1r3, c2r3, c3r3,
+        )
     }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+pub struct CameraUniform {
+    view_position: [f32; 4],
+    view_proj: [[f32; 4]; 4],
+    zfar: f32,
+    _padding: [u32; 3],
 }
