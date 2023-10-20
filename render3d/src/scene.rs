@@ -57,6 +57,10 @@ impl Scene {
         self.materials.get(id)
     }
 
+    pub fn light(&self) -> &Light {
+        &self.light
+    }
+
     pub fn set_light(&mut self, light: Light) {
         self.light = light;
     }

@@ -305,6 +305,12 @@ impl VisualRenderer {
             bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
         );
 
+        self.queue.write_buffer(
+            &self.light_buffer,
+            0,
+            bytemuck::cast_slice(&[scene.light().to_raw()]),
+        );
+
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
