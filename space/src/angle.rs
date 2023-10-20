@@ -62,15 +62,15 @@ impl Angle {
     }
 
     pub fn csc(&self) -> f64 {
-        self.0.recip().sin()
+        self.0.sin().recip()
     }
 
     pub fn sec(&self) -> f64 {
-        self.0.recip().cos()
+        self.0.cos().recip()
     }
 
     pub fn cot(&self) -> f64 {
-        self.0.recip().tan()
+        self.0.tan().recip()
     }
 
     pub fn sin_cos(&self) -> (f64, f64) {

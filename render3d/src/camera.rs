@@ -63,10 +63,10 @@ impl CameraController {
         let forward_mag = forward.magnitude();
 
         if self.is_forward_pressed && forward_mag > self.speed {
-            camera.set_to_eye(eye.location + forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+            camera.set_to_eye((eye.location + forward_norm * self.speed).into_vec());
         }
         if self.is_backward_pressed {
-            camera.set_to_eye(eye.location - forward_norm * self.speed - point3(0.0, 0.0, 0.0));
+            camera.set_to_eye((eye.location - forward_norm * self.speed).into_vec());
         }
 
         let right = forward_norm.cross(camera.up());
@@ -192,29 +192,23 @@ impl Camera {
 
     pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
         let eye = self.eye();
-        let (view, proj) = if !self.is_ortho() {
-            let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
-            let proj = Self::perspective_matrix(
+        let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
+        let proj = match self.is_ortho() {
+            true => Self::orthographic_matrix(
+                aspect,
+                -self.target_radius,
+                self.target_radius,
+                -self.target_radius,
+                self.target_radius,
+                self.near(),
+                self.far(),
+            ),
+            false => Self::perspective_matrix(
                 (self.half_fov * 2.0).into(),
                 aspect,
                 self.near(),
                 self.far(),
-            );
-
-            (view, proj)
-        } else {
-            let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
-            let proj = Self::orthographic_matrix(
-                aspect,
-                -self.target_radius,
-                self.target_radius,
-                -self.target_radius,
-                self.target_radius,
-                self.near(),
-                self.far(),
-            );
-
-            (view, proj)
+            ),
         };
 
         proj * view

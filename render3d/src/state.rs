@@ -4,7 +4,7 @@ use space::{deg, point3, vec3, Quat, Vec3};
 use winit::{event::WindowEvent, window::Window};
 
 use crate::{
-    camera::Camera,
+    camera::{Camera, CameraController},
     light::Light,
     model::{InstanceId, PositionedInstance},
     render::VisualRenderer,
@@ -17,6 +17,7 @@ const SPACE_BETWEEN: f64 = 3.0;
 pub struct State {
     visual_render: VisualRenderer,
     camera: Camera,
+    camera_controller: CameraController,
     scene: Scene,
     window: Window,
 }
@@ -30,8 +31,10 @@ impl State {
             160.0 * 2f64.sqrt(),
             vec3(0.0, 1.0, 5.0),
             Vec3::UNIT_Y,
-            deg(0.0),
+            deg(45.0),
         );
+
+        let camera_controller = CameraController::new(0.2);
 
         let scene = {
             let mut scene = Scene::new();
@@ -74,6 +77,7 @@ impl State {
         Self {
             visual_render,
             camera,
+            camera_controller,
             scene,
             window,
         }
@@ -88,11 +92,12 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        //
-        false
+        self.camera_controller.process_events(event)
     }
 
     pub fn update(&mut self) {
+        self.camera_controller.update_camera(&mut self.camera);
+
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
 
