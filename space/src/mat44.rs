@@ -64,18 +64,63 @@ impl Mat44 {
     }
 
     pub fn look_to_rh(eye: Point3, dir: Vec3, up: Vec3) -> Self {
+        let eye = eye.into_vec();
+        let z = dir.normalize();
+        let y = up.normalize();
+        let x = y.cross(z).normalize();
+
+        //println!("eye = {:?}", eye);
+        //println!("x = {:?}", x);
+        //println!("y = {:?}", y);
+        //println!("z = {:?}", z);
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        let rotation = Mat44::new(
+            x.x, x.y, x.z, 0.0,
+            y.x, y.y, y.z, 0.0,
+            z.x, z.y, z.z, 0.0,
+            0.0, 0.0, 0.0, 1.0
+        );
+
+        let translation = Mat44::new(
+            1.0, 0.0, 0.0, -eye.x,
+            0.0, 1.0, 0.0, -eye.y,
+            0.0, 0.0, 1.0, -eye.z,
+            0.0, 0.0, 0.0, 1.0,
+        );
+
+        let mat = rotation * translation;
+
+        //println!("mat = {:?}", mat);
+
+        mat
+
+        /*
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Mat44::new(
+            x.x, x.y, x.z, -eye.dot(x),
+            y.x, y.y, y.z, -eye.dot(y),
+            z.x, z.y, z.z, -eye.dot(z),
+            0.0, 0.0, 0.0, 1.0
+        )
+         */
+
+
+        /*
         let eye: Vec3 = eye.into();
-        let f = dir.normalize();
-        let s = f.cross(up).normalize();
-        let u = s.cross(f);
+        let z = dir.normalize();
+        let y = up.normalize();
+        let s = z.cross(y).normalize();
+        let u = s.cross(z);
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat44::new(
             s.x,   s.y,   s.z,   -eye.dot(s),
             u.x,   u.y,   u.z,   -eye.dot(u),
-            -f.x,  -f.y,  -f.z,  eye.dot(f),
+            -z.x,  -z.y,  -z.z,  eye.dot(z),
             0.0,   0.0,   0.0,   1.0
         )
+         */
     }
 
     pub fn look_at_rh(eye: Point3, center: Point3, up: Vec3) -> Self {

@@ -82,8 +82,8 @@ fn vs_main(
     out.tangent_light_position = tangent_matrix * light.position;
 
     // Apply logarithmic depth buffer 
-    let c = 1.0;
-    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
+    //let c = 1.0;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }

@@ -215,6 +215,8 @@ impl Camera {
             ),
         };
 
+        println!("proj = {:?}", proj);
+
         proj * view
     }
 
@@ -245,7 +247,7 @@ impl Camera {
 
         let c2r0 = 0.0;
         let c2r1 = 0.0;
-        let c2r2 = -1.0 / (far - near);
+        let c2r2 = 1.0 / (far - near);
         let c2r3 = 0.0;
 
         let c3r0 = -(right + left) / (right - left);
@@ -293,23 +295,13 @@ impl Camera {
 
         let c2r0 = 0.0;
         let c2r1 = 0.0;
-        let c2r2 = (far + near) / (near - far);
-        let c2r3 = -1.0;
+        let c2r2 = (far + near) / (far - near);
+        let c2r3 = 1.0;
 
         let c3r0 = 0.0;
         let c3r1 = 0.0;
-        let c3r2 = (2.0 * far * near) / (near - far);
-        let c3r3 = 0.0;
-
-        /*
-        #[cfg_attr(rustfmt, rustfmt_skip)]
-        Mat44::new(
-            c0r0, c0r1, c0r2, c0r3,
-            c1r0, c1r1, c1r2, c1r3,
-            c2r0, c2r1, c2r2, c2r3,
-            c3r0, c3r1, c3r2, c3r3,
-        )
-         */
+        let c3r2 = (2.0 * far * near) / (far - near);
+        let c3r3 = 1.0;
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat44::new(

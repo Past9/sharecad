@@ -125,13 +125,13 @@ impl Scene {
             let mut vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| MeshVertex {
                     position: [
-                        m.mesh.positions[i * 3],
+                        -m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
                         m.mesh.positions[i * 3 + 2],
                     ],
                     tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
                     normal: [
-                        m.mesh.normals[i * 3],
+                        -m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
                         m.mesh.normals[i * 3 + 2],
                     ],
