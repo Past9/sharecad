@@ -61,21 +61,25 @@ impl CameraController {
     pub fn update_camera(&self, camera: &mut Camera) {
         let mut rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
 
-        if self.is_right_pressed {
+        if self.is_left_pressed {
             rotation += Quat::from_axis_angle(camera.up, deg(0.1));
         }
 
-        if self.is_left_pressed {
+        if self.is_right_pressed {
             rotation += Quat::from_axis_angle(camera.up, -deg(0.1));
         }
 
         if self.is_forward_pressed {
-            rotation += Quat::from_axis_angle(camera.right(), -deg(0.1));
+            rotation += Quat::from_axis_angle(camera.right(), deg(0.1));
         }
 
         if self.is_backward_pressed {
-            rotation += Quat::from_axis_angle(camera.right(), deg(0.1));
+            rotation += Quat::from_axis_angle(camera.right(), -deg(0.1));
         }
+
+        println!("camera.forward() = {:?}", camera.forward());
+        println!("camera.up() = {:?}", camera.up());
+        println!("camera.right() = {:?}", camera.right());
 
         camera.rotate_around(self.orbit, rotation);
     }
@@ -121,12 +125,16 @@ impl Camera {
         self.up = rotation * self.up;
     }
 
+    pub fn forward(&self) -> Vec3 {
+        -self.to_eye
+    }
+
     pub fn up(&self) -> Vec3 {
         self.up
     }
 
     pub fn right(&self) -> Vec3 {
-        (-self.to_eye).cross(self.up)
+        self.up.cross(self.forward())
     }
 
     pub fn set_target(&mut self, target: Point3) {
