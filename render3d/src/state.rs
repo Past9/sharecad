@@ -66,7 +66,10 @@ impl State {
                 .collect::<Vec<_>>();
 
             scene
-                .load_model_file::<PositionedInstance>("rounded-cube.obj", vec![instances])
+                .load_model_file::<PositionedInstance>(
+                    "rounded-cube/rounded-cube.obj",
+                    vec![instances],
+                )
                 .await;
 
             scene.set_light(Light::new(point3(2.0, 2.0, 2.0), [1.0, 1.0, 1.0]));
