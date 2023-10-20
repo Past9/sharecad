@@ -54,6 +54,15 @@ impl Mat44 {
         ])
     }
 
+    pub fn scale(vec: Vec3) -> Self {
+        Self([
+            [vec.x, 0.0, 0.0, 0.0], //
+            [0.0, vec.y, 0.0, 0.0], //
+            [0.0, 0.0, vec.z, 0.0], //
+            [0.0, 0.0, 0.0, 1.0],   //
+        ])
+    }
+
     pub fn look_to_rh(eye: Point3, dir: Vec3, up: Vec3) -> Self {
         let eye: Vec3 = eye.into();
         let f = dir.normalize();

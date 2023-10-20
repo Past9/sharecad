@@ -1,4 +1,4 @@
-use auto_ops::impl_op_ex;
+use auto_ops::{impl_op, impl_op_ex};
 
 use crate::{vec3, Angle, Mat33, Mat44, Point3, Vec3};
 
@@ -30,7 +30,10 @@ impl Quat {
     }
 }
 
+// Unary
 impl_op_ex!(-|q: Quat| -> Quat { Quat::from_sv(-q.s, -q.v) });
+
+// Binary non-commutative
 impl_op_ex!(*|q: Quat, s: f64| -> Quat { Quat::from_sv(q.s * s, q.v * s) });
 impl_op_ex!(/|q: Quat, s: f64| -> Quat { Quat::from_sv(q.s / s, q.v / s) });
 impl_op_ex!(+|a: Quat, b: Quat| -> Quat { Quat::from_sv(a.s + b.s, a.v + b.v) });
@@ -40,6 +43,16 @@ impl_op_ex!(*|q: Quat, v: Vec3| -> Vec3 {
     (q.v.cross(tmp) * 2.0) + v
 });
 impl_op_ex!(*|q: Quat, p: Point3| -> Point3 { (q * p.into_vec()).into_point() });
+
+// Assignment
+impl_op_ex!(+= |a: &mut Quat, b: Quat| {
+   a.s += b.s;
+   a.v += b.v;
+});
+impl_op_ex!(-= |a: &mut Quat, b: Quat| {
+   a.s -= b.s;
+   a.v -= b.v;
+});
 
 /*
 impl_operator!(<S: BaseFloat> Mul<S> for Quaternion<S> {

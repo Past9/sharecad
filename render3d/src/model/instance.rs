@@ -19,12 +19,13 @@ pub trait SceneObjectInstance: std::fmt::Debug + 'static {
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionedInstance {
+pub struct TransformedInstance {
     pub id: InstanceId,
-    pub position: Vec3,
+    pub scale: Vec3,
     pub rotation: Quat,
+    pub position: Vec3,
 }
-impl SceneObjectInstance for PositionedInstance {
+impl SceneObjectInstance for TransformedInstance {
     type RawBuffer = InstanceRaw;
 
     fn id(&self) -> InstanceId {
@@ -32,7 +33,9 @@ impl SceneObjectInstance for PositionedInstance {
     }
 
     fn to_raw(&self) -> Self::RawBuffer {
-        let model = Mat44::translation(self.position) * Mat44::from(self.rotation);
+        let model = Mat44::translation(self.position)
+            * Mat44::from(self.rotation)
+            * Mat44::scale(self.scale);
         InstanceRaw {
             model: model.transpose().into(),
             normal: Mat33::from(self.rotation).transpose().into(),

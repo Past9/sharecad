@@ -2,7 +2,6 @@
 resolver = "2"
 
 members = [
-    "camera_3d",
     "geometry",
     "render2d",
     "render3d",

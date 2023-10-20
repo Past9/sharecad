@@ -120,11 +120,28 @@ impl std::fmt::Debug for Vec3 {
     }
 }
 
+// Unary
 impl_op_ex!(-|a: Vec3| -> Vec3 { vec3(-a.x, -a.y, -a.z) });
+
+// Binary non-commutative
 impl_op_ex!(+|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x + b.x, a.y + b.y, a.z + b.z) });
 impl_op_ex!(-|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
 impl_op_ex!(*|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x * b.x, a.y * b.y, a.y * b.y) });
 impl_op_ex!(/|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x / b.x, a.y / b.y, a.y / b.y) });
+
+// Assignment
+impl_op_ex!(+= |a: &mut Vec3, b: Vec3| {
+   a.x += b.x;
+   a.y += b.y;
+   a.z += b.z;
+});
+impl_op_ex!(-= |a: &mut Vec3, b: Vec3| {
+   a.x -= b.x;
+   a.y -= b.y;
+   a.z -= b.z;
+});
+
+// Binary commutative
 impl_op_ex_commutative!(*|v: Vec3, s: f64| -> Vec3 { vec3(v.x * s, v.y * s, v.z * s) });
 impl_op_ex_commutative!(/|v: Vec3, s: f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
 

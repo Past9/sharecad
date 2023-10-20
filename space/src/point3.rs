@@ -17,6 +17,7 @@ impl Point3 {
         y: 0.0,
         z: 0.0,
     };
+    pub const ORIGIN: Self = Point3::ZERO;
 
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }

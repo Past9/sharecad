@@ -1,8 +1,9 @@
 use bytemuck::{Pod, Zeroable};
-use space::{point3, Angle, Mat44, Point3, Vec3};
+use space::{deg, point3, Angle, Mat44, Point3, Quat, Vec3};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 pub struct CameraController {
+    orbit: Point3,
     speed: f64,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
@@ -10,8 +11,9 @@ pub struct CameraController {
     is_right_pressed: bool,
 }
 impl CameraController {
-    pub fn new(speed: f64) -> Self {
+    pub fn new(orbit: Point3, speed: f64) -> Self {
         Self {
+            orbit,
             speed,
             is_forward_pressed: false,
             is_backward_pressed: false,
@@ -57,38 +59,25 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
-        let eye = camera.eye();
-        let forward = camera.target - eye.location;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
-
-        if self.is_forward_pressed && forward_mag > self.speed {
-            camera.set_to_eye((eye.location + forward_norm * self.speed).into_vec());
-        }
-        if self.is_backward_pressed {
-            camera.set_to_eye((eye.location - forward_norm * self.speed).into_vec());
-        }
-
-        let right = forward_norm.cross(camera.up());
-
-        let forward = camera.target - eye.location;
-        let forward_mag = forward.magnitude();
+        let mut rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
 
         if self.is_right_pressed {
-            camera.set_to_eye(
-                camera.target
-                    - (forward + right * self.speed).normalize() * forward_mag
-                    - point3(0.0, 0.0, 0.0),
-            );
+            rotation += Quat::from_axis_angle(camera.up, deg(0.1));
         }
 
         if self.is_left_pressed {
-            camera.set_to_eye(
-                camera.target
-                    - (forward - right * self.speed).normalize() * forward_mag
-                    - point3(0.0, 0.0, 0.0),
-            );
+            rotation += Quat::from_axis_angle(camera.up, -deg(0.1));
         }
+
+        if self.is_forward_pressed {
+            rotation += Quat::from_axis_angle(camera.right(), -deg(0.1));
+        }
+
+        if self.is_backward_pressed {
+            rotation += Quat::from_axis_angle(camera.right(), deg(0.1));
+        }
+
+        camera.rotate_around(self.orbit, rotation);
     }
 }
 
@@ -103,7 +92,7 @@ pub struct Camera {
     target_radius: f64,
     clip_radius: f64,
     to_eye: Vec3,
-    eye_up: Vec3,
+    up: Vec3,
     half_fov: Angle,
 }
 impl Camera {
@@ -112,7 +101,7 @@ impl Camera {
         target_radius: f64,
         clip_radius: f64,
         to_eye: Vec3,
-        eye_up: Vec3,
+        up: Vec3,
         fov: Angle,
     ) -> Self {
         Self {
@@ -120,13 +109,28 @@ impl Camera {
             target_radius,
             clip_radius,
             to_eye: to_eye.normalize(),
-            eye_up,
+            up: up.normalize(),
             half_fov: fov / 2.0,
         }
     }
 
+    pub fn rotate_around(&mut self, orbit: Point3, rotation: Quat) {
+        let orbit_to_target = self.target - orbit;
+        self.set_target(orbit + rotation * orbit_to_target);
+        self.set_to_eye(rotation * self.to_eye);
+        self.up = rotation * self.up;
+    }
+
     pub fn up(&self) -> Vec3 {
-        self.eye_up
+        self.up
+    }
+
+    pub fn right(&self) -> Vec3 {
+        (-self.to_eye).cross(self.up)
+    }
+
+    pub fn set_target(&mut self, target: Point3) {
+        self.target = target;
     }
 
     pub fn set_to_eye(&mut self, to_eye: Vec3) {
@@ -192,7 +196,7 @@ impl Camera {
 
     pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
         let eye = self.eye();
-        let view = Mat44::look_at_rh(eye.location, self.target, self.eye_up);
+        let view = Mat44::look_at_rh(eye.location, self.target, self.up);
         let proj = match self.is_ortho() {
             true => Self::orthographic_matrix(
                 aspect,
