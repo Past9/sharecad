@@ -93,7 +93,10 @@ impl State {
     }
 
     pub fn update(&mut self) {
-        //
+        let mut light = self.scene.light().clone();
+        light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
+
+        self.scene.set_light(light);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

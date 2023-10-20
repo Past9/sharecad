@@ -1,4 +1,6 @@
-use crate::{vec3, Angle, Vec3};
+use auto_ops::impl_op_ex;
+
+use crate::{vec3, Angle, Mat33, Mat44, Point3, Vec3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Quat {
@@ -18,4 +20,31 @@ impl Quat {
         let (sin, cos) = (angle * 0.5).sin_cos();
         Self::from_sv(cos, axis * sin)
     }
+
+    pub fn to_mat33(&self) -> Mat33 {
+        (*self).into()
+    }
+
+    pub fn to_mat44(&self) -> Mat44 {
+        (*self).into()
+    }
 }
+
+impl_op_ex!(-|q: Quat| -> Quat { Quat::from_sv(-q.s, -q.v) });
+impl_op_ex!(*|q: Quat, s: f64| -> Quat { Quat::from_sv(q.s * s, q.v * s) });
+impl_op_ex!(/|q: Quat, s: f64| -> Quat { Quat::from_sv(q.s / s, q.v / s) });
+impl_op_ex!(+|a: Quat, b: Quat| -> Quat { Quat::from_sv(a.s + b.s, a.v + b.v) });
+impl_op_ex!(-|a: Quat, b: Quat| -> Quat { Quat::from_sv(a.s - b.s, a.v - b.v) });
+impl_op_ex!(*|q: Quat, v: Vec3| -> Vec3 {
+    let tmp = q.v.cross(v) + (v * q.s);
+    (q.v.cross(tmp) * 2.0) + v
+});
+impl_op_ex!(*|q: Quat, p: Point3| -> Point3 { (q * p.into_vec()).into_point() });
+
+/*
+impl_operator!(<S: BaseFloat> Mul<S> for Quaternion<S> {
+    fn mul(lhs, rhs) -> Quaternion<S> {
+        Quaternion::from_sv(lhs.s * rhs, lhs.v * rhs)
+    }
+});
+ */
