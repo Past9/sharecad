@@ -1,15 +1,21 @@
 use image::GenericImageView;
 use std::{cell::OnceCell, sync::Arc};
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TextureId(pub u32);
+impl From<u32> for TextureId {
+    fn from(id: u32) -> Self {
+        TextureId(id)
+    }
+}
+
 pub enum TextureImage {
-    Depth,
     Diffuse(image::DynamicImage),
     NormalMap(image::DynamicImage),
 }
 impl std::fmt::Debug for TextureImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Depth => write!(f, "Depth"),
             Self::Diffuse(image) => {
                 let dims = image.dimensions();
                 f.write_fmt(format_args!("Diffuse(<{}x{} image>)", dims.0, dims.1))
@@ -41,26 +47,7 @@ pub struct Texture {
     resources: OnceCell<TextureResources>,
 }
 impl Texture {
-    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-    pub fn depth(label: &str) -> Self {
-        Self {
-            image: TextureImage::Depth,
-            label: label.into(),
-            resources: OnceCell::new(),
-        }
-    }
-
     pub fn from_image(image: image::DynamicImage, label: &str, kind: ImageTextureKind) -> Self {
-        let rgba = image.to_rgba8();
-        let dimensions = image.dimensions();
-
-        let size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
-            depth_or_array_layers: 1,
-        };
-
         Self {
             image: match kind {
                 ImageTextureKind::Diffuse => TextureImage::Diffuse(image),
@@ -76,14 +63,8 @@ impl Texture {
         Self::from_image(image, label, kind)
     }
 
-    pub fn resources(
-        &self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        size: (u32, u32),
-    ) -> &TextureResources {
+    pub fn resources(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> &TextureResources {
         self.resources.get_or_init(|| match &self.image {
-            TextureImage::Depth => Self::create_depth_texture(device, size, &self.label),
             TextureImage::Diffuse(image) => Self::create_image_texture(
                 device,
                 queue,
@@ -99,48 +80,6 @@ impl Texture {
                 ImageTextureKind::NormalMap,
             ),
         })
-    }
-
-    fn create_depth_texture(
-        device: &wgpu::Device,
-        size: (u32, u32),
-        label: &str,
-    ) -> TextureResources {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some(label),
-            size: wgpu::Extent3d {
-                width: size.0,
-                height: size.1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 100.0,
-            ..Default::default()
-        });
-
-        TextureResources {
-            texture: Arc::new(texture),
-            view: Arc::new(view),
-            sampler: Arc::new(sampler),
-        }
     }
 
     fn create_image_texture(

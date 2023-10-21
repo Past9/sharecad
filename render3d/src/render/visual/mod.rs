@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{cell::OnceCell, collections::HashMap, sync::Arc};
 use wgpu::util::DeviceExt;
 
 use crate::{
@@ -12,11 +12,59 @@ use crate::{
 
 use super::{RenderTarget, VertexBuffer};
 
+#[derive(Debug)]
+struct TextureResources {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
+}
+impl TextureResources {
+    const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+    fn depth(device: &wgpu::Device, size: (u32, u32)) -> Self {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 100.0,
+            ..Default::default()
+        });
+
+        Self {
+            texture,
+            view,
+            sampler,
+        }
+    }
+}
+
 pub struct VisualRenderer {
     target: RenderTarget,
 
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    depth_texture: Texture,
+    depth_texture: OnceCell<TextureResources>,
 
     material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
 
@@ -143,8 +191,6 @@ impl VisualRenderer {
             (light_buffer, light_bind_group_layout, light_bind_group)
         };
 
-        let depth_texture = Texture::depth("Depth texture");
-
         let mesh_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Mesh Render Pipeline Layout"),
@@ -192,7 +238,7 @@ impl VisualRenderer {
                         conservative: false,
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
-                        format: Texture::DEPTH_FORMAT,
+                        format: TextureResources::DEPTH_FORMAT,
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
@@ -213,7 +259,7 @@ impl VisualRenderer {
             target,
 
             texture_bind_group_layout,
-            depth_texture,
+            depth_texture: OnceCell::new(),
 
             material_bind_groups: HashMap::new(),
 
@@ -233,13 +279,8 @@ impl VisualRenderer {
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
-            /*
-            self.size = new_size;
-            self.config.width = new_size.0;
-            self.config.height = new_size.1;
-             */
             self.target.resize(new_size);
-            self.depth_texture = Texture::depth("Depth texture");
+            self.depth_texture = OnceCell::new()
         }
     }
 
@@ -252,7 +293,6 @@ impl VisualRenderer {
 
         let device = self.target.device();
         let queue = self.target.queue();
-        let size = self.target.size();
         let frame = self.target.frame();
         let view = frame.view();
 
@@ -289,7 +329,7 @@ impl VisualRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.resources(device, queue, size).view,
+                    view: &self.depth_texture().view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: true,
@@ -336,8 +376,13 @@ impl VisualRenderer {
         Ok(())
     }
 
+    fn depth_texture(&self) -> &TextureResources {
+        self.depth_texture
+            .get_or_init(|| TextureResources::depth(self.target.device(), self.target.size()))
+    }
+
     fn build_material_bind_groups(&mut self, scene: &Scene) {
-        for (id, material) in scene.materials() {
+        for (_, material) in scene.materials() {
             self.create_material_bind_group(material)
         }
     }
@@ -348,10 +393,9 @@ impl VisualRenderer {
             .or_insert_with(|| {
                 let device = self.target.device();
                 let queue = self.target.queue();
-                let size = self.target.size();
 
-                let diffuse = material.diffuse.resources(device, queue, size);
-                let normal = material.normal.resources(device, queue, size);
+                let diffuse = material.diffuse.resources(device, queue);
+                let normal = material.normal.resources(device, queue);
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     layout: &self.texture_bind_group_layout,
