@@ -33,7 +33,7 @@ impl State {
             vec3(0.0, 2.0, -5.0),
             vec3(0.0, 5.0, 2.0),
              */
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));

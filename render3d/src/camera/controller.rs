@@ -166,6 +166,7 @@ impl CameraController {
 
         let radius = camera.target_radius();
 
+        // Calculate a zoom factor. The target radius will be multiplied by this.
         let zoom = if self.scroll_delta > 0.0 {
             (1.0 - ZOOM_SENSITIVITY).powf(self.scroll_delta.abs())
         } else if self.scroll_delta < 0.0 {
