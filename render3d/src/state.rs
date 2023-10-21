@@ -28,7 +28,7 @@ impl State {
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
-            10.0,
+            6.0,
             50.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,

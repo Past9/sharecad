@@ -1,10 +1,9 @@
 mod visual;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
 
 pub use visual::*;
-use wgpu::Dx12Compiler;
 use winit::window::Window;
 
 pub trait VertexBuffer: Pod + Zeroable {
@@ -158,15 +157,12 @@ impl RenderTarget {
                 let view = surface_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
-                RenderFrame {
-                    view,
-                    surface_texture: Some(surface_texture),
-                }
+                RenderFrame::new(view, Some(surface_texture))
             }
-            TargetInner::Texture(texture) => RenderFrame {
-                view: texture.create_view(&wgpu::TextureViewDescriptor::default()),
-                surface_texture: None,
-            },
+            TargetInner::Texture(texture) => RenderFrame::new(
+                texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                None,
+            ),
         }
     }
 }
@@ -176,6 +172,13 @@ pub struct RenderFrame {
     surface_texture: Option<wgpu::SurfaceTexture>,
 }
 impl RenderFrame {
+    fn new(view: wgpu::TextureView, surface_texture: Option<wgpu::SurfaceTexture>) -> Self {
+        Self {
+            view,
+            surface_texture,
+        }
+    }
+
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }
