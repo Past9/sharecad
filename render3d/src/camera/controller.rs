@@ -1,6 +1,6 @@
-use space::{deg, Mat44, Point3, Quat, Vec3};
+use space::{deg, Point3, Quat};
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::PhysicalPosition,
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
@@ -84,18 +84,12 @@ impl CameraController {
                     _ => false,
                 }
             }
-            WindowEvent::CursorMoved {
-                device_id,
-                position,
-                ..
-            } => {
+            WindowEvent::CursorMoved { position, .. } => {
                 self.mouse_pos = position.cast();
 
                 // Orbit dragging with RMB
                 if let DragState::Dragging {
-                    params,
-                    last_pos,
-                    current_pos,
+                    params, last_pos, ..
                 } = &self.rmb_drag_state
                 {
                     self.rmb_drag_state = DragState::Dragging {
@@ -107,9 +101,7 @@ impl CameraController {
 
                 // Pan dragging with MMB
                 if let DragState::Dragging {
-                    params,
-                    last_pos,
-                    current_pos,
+                    params, last_pos, ..
                 } = &self.mmb_drag_state
                 {
                     self.mmb_drag_state = DragState::Dragging {
@@ -121,12 +113,7 @@ impl CameraController {
 
                 true
             }
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-                ..
-            } => {
+            WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Right {
                     self.rmb_drag_state = match state {
                         ElementState::Pressed => DragState::Dragging {
@@ -151,12 +138,7 @@ impl CameraController {
 
                 true
             }
-            WindowEvent::MouseWheel {
-                device_id,
-                delta,
-                phase,
-                ..
-            } => {
+            WindowEvent::MouseWheel { delta, .. } => {
                 self.scroll_delta = match delta {
                     winit::event::MouseScrollDelta::LineDelta(_, y) => *y as f64,
                     winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x: _, y }) => {
@@ -171,8 +153,9 @@ impl CameraController {
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
-        self.update_mouse_orbit(camera);
         self.update_mouse_zoom(camera);
+
+        self.update_mouse_orbit(camera);
         self.update_mouse_pan(camera, dimensions);
     }
 
