@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use wgpu::util::DeviceExt;
 
 use crate::{
     camera::{Camera, CameraUniform},
     light::LightUniform,
+    material::{Material, MaterialId},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
     texture::Texture,
@@ -16,6 +17,8 @@ pub struct VisualRenderer {
 
     texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: Texture,
+
+    material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
 
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -212,6 +215,8 @@ impl VisualRenderer {
             texture_bind_group_layout,
             depth_texture,
 
+            material_bind_groups: HashMap::new(),
+
             camera_bind_group,
             camera_buffer,
 
@@ -242,7 +247,9 @@ impl VisualRenderer {
         self.target.aspect()
     }
 
-    pub fn render(&self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
+        self.build_material_bind_groups(scene);
+
         let device = self.target.device();
         let queue = self.target.queue();
         let size = self.target.size();
@@ -264,22 +271,6 @@ impl VisualRenderer {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Visual render encoder"),
         });
-
-        let material_bind_groups = {
-            let mut material_bind_groups = HashMap::new();
-
-            for object in scene.objects().iter() {
-                let material = scene.material(&object.material_id()).expect(&format!(
-                    "Could not find material {:?}",
-                    object.material_id()
-                ));
-                let material_bind_group =
-                    material.bind_group(&device, &queue, size, &self.texture_bind_group_layout);
-                material_bind_groups.insert(object.material_id(), material_bind_group);
-            }
-
-            material_bind_groups
-        };
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -318,9 +309,15 @@ impl VisualRenderer {
                     wgpu::IndexFormat::Uint32,
                 );
 
+                let mbg = self
+                    .material_bind_groups
+                    .get(&object.material_id())
+                    .unwrap();
+
                 render_pass.set_bind_group(
                     0,
-                    &material_bind_groups.get(&object.material_id()).unwrap(),
+                    mbg,
+                    //&material_bind_groups.get(&object.material_id()).unwrap(),
                     &[],
                 );
                 {
@@ -337,5 +334,47 @@ impl VisualRenderer {
         frame.finish();
 
         Ok(())
+    }
+
+    fn build_material_bind_groups(&mut self, scene: &Scene) {
+        for (id, material) in scene.materials() {
+            self.create_material_bind_group(material)
+        }
+    }
+
+    fn create_material_bind_group(&mut self, material: &Material) {
+        self.material_bind_groups
+            .entry(material.id)
+            .or_insert_with(|| {
+                let device = self.target.device();
+                let queue = self.target.queue();
+                let size = self.target.size();
+
+                let diffuse = material.diffuse.resources(device, queue, size);
+                let normal = material.normal.resources(device, queue, size);
+
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &self.texture_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&diffuse.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&diffuse.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(&normal.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: wgpu::BindingResource::Sampler(&normal.sampler),
+                        },
+                    ],
+                    label: None,
+                })
+            });
     }
 }

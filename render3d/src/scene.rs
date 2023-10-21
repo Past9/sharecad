@@ -57,6 +57,10 @@ impl Scene {
         self.materials.get(id)
     }
 
+    pub fn materials(&self) -> &HashMap<MaterialId, Material> {
+        &self.materials
+    }
+
     pub fn light(&self) -> &Light {
         &self.light
     }
@@ -116,9 +120,14 @@ impl Scene {
                 .load_texture(&m.normal_texture, ImageTextureKind::Diffuse)
                 .await;
 
-            let material = Material::new(&m.name, diffuse_texture, normal_texture);
+            let material = Material::new(
+                self.material_ids.next(),
+                &m.name,
+                diffuse_texture,
+                normal_texture,
+            );
 
-            self.materials.insert(self.material_ids.next(), material);
+            self.materials.insert(material.id, material);
         }
 
         for m in models.into_iter() {
