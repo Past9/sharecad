@@ -1,4 +1,4 @@
-use space::{deg, Point3, Quat};
+use space::{deg, vec2, Point3, Quat};
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
@@ -6,7 +6,7 @@ use winit::{
 
 use super::Camera;
 
-const ZOOM_SENSITIVITY: f64 = 0.1;
+const ZOOM_SENSITIVITY: f64 = 0.2;
 const ORBIT_SENSITIVITY: f64 = 0.1;
 
 #[derive(Debug, Clone)]
@@ -153,13 +153,17 @@ impl CameraController {
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
-        self.update_mouse_zoom(camera);
+        self.update_mouse_zoom(camera, dimensions);
 
         self.update_mouse_orbit(camera);
         self.update_mouse_pan(camera, dimensions);
     }
 
-    fn update_mouse_zoom(&mut self, camera: &mut Camera) {
+    fn update_mouse_zoom(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
+        if self.scroll_delta == 0.0 {
+            return;
+        }
+
         let radius = camera.target_radius();
 
         let zoom = if self.scroll_delta > 0.0 {
@@ -170,9 +174,43 @@ impl CameraController {
             1.0
         };
 
-        let new_target_radius = radius * zoom;
+        // Adjust the target position so that the object under the mouse pointer
+        // at the target distance stays in the same spot on the screen after zooming
+        {
+            let (w, h) = (dimensions.0 as f64, dimensions.1 as f64);
 
-        camera.set_target_radius(new_target_radius);
+            // The radius of `ptr` in pixels.
+            let ptr_pixels = match w < h {
+                true => w,
+                false => h,
+            };
+
+            // X and Y mouse position with respect to an origin (0, 0) at
+            // the center of the screen, positive X to the right and positive Y up.
+            // Distances are expressed as fractions of the camera's planar_target_radius;
+            let mouse = vec2(
+                2.0 * (self.mouse_pos.x - w / 2.0) / ptr_pixels,
+                -2.0 * (self.mouse_pos.y - h / 2.0) / ptr_pixels,
+            );
+
+            // The distance in world space to move the target so the point under the mouse pointer
+            // at the target distance remains in the same spot on the screen.
+            let target_move_dist = mouse.magnitude() * camera.planar_target_radius() * (1.0 - zoom);
+
+            // Generate a vector by which to move the target point by going that distance
+            // along the direction from the center of the screen to the mouse pointer
+            let target_move = target_move_dist * mouse.normalize();
+
+            // Translation vectors to move relative to the camera's local coordinate system
+            let move_x = target_move.x * camera.local_x();
+            let move_y = target_move.y * camera.local_y();
+
+            // Move the camera
+            camera.set_target(camera.target() + move_x + move_y);
+        }
+
+        // Now zoom the camera
+        camera.set_target_radius(radius * zoom);
 
         self.scroll_delta = 0.0;
     }
@@ -190,26 +228,26 @@ impl CameraController {
             // X and Y mouse movement in pixels
             let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
-            // Radius of the target area in world coordinates. This is the radius
+            // Diameter of the target area in world coordinates. This is the radius
             // (in world coordinates) of a circle at the target distance that is
             // circumscribed by the display area.
-            let ptr = camera.planar_target_radius() * 2.0;
+            let ptd = camera.planar_target_radius() * 2.0;
 
             // The radius of `ptr` in pixels.
-            let ptr_pixels = match w < h {
+            let ptd_pixels = match w < h {
                 true => w,
                 false => h,
             };
 
-            // What fraction of the planar target radius the mouse have moved in X and Y
+            // What fraction of the planar target radius the mouse has moved in X and Y
             // directions (in camera local coordinates)
-            let ptr_frac_x = x / ptr_pixels;
-            let ptr_frac_y = y / ptr_pixels;
+            let ptd_frac_x = x / ptd_pixels;
+            let ptd_frac_y = y / ptd_pixels;
 
             // Vectors to move the camera so that objexts at the target distance stay with
             // the mouse pointer
-            let move_x = -ptr_frac_x * ptr * camera.local_x();
-            let move_y = ptr_frac_y * ptr * camera.local_y();
+            let move_x = -ptd_frac_x * ptd * camera.local_x();
+            let move_y = ptd_frac_y * ptd * camera.local_y();
 
             // Move the camera
             camera.set_target(camera.target() + move_x + move_y);

@@ -25,10 +25,14 @@ impl State {
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
-            5.0,
+            10.0,
             50.0 * 2f64.sqrt(),
+            -Vec3::UNIT_Z,
+            Vec3::UNIT_Y,
+            /*
             vec3(0.0, 2.0, -5.0),
             vec3(0.0, 5.0, 2.0),
+             */
             deg(45.0),
         );
 
