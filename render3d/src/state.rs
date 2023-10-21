@@ -65,13 +65,6 @@ impl State {
                                 SPACE_BETWEEN
                                     * (z as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
                             );
-                            /*
-                            let rotation = if position.is_zero() {
-                                Quat::from_axis_angle(Vec3::UNIT_Z, deg(0.0))
-                            } else {
-                                Quat::from_axis_angle(position.normalize(), deg(45.0))
-                            };
-                             */
 
                             TransformedInstance {
                                 id,

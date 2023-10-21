@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, Backends};
 use winit::window::Window;
 
 use crate::{
@@ -47,7 +47,7 @@ impl VisualRenderer {
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
