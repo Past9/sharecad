@@ -170,7 +170,9 @@ impl CameraController {
             1.0
         };
 
-        camera.set_target_radius(radius * zoom);
+        let new_target_radius = radius * zoom;
+
+        camera.set_target_radius(new_target_radius);
 
         self.scroll_delta = 0.0;
     }
@@ -182,23 +184,37 @@ impl CameraController {
             ..
         } = self.mmb_drag_state
         {
+            // Size in pixels of the displayed scene
             let (w, h) = (dimensions.0 as f64, dimensions.1 as f64);
+
+            // X and Y mouse movement in pixels
             let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
+
+            // Radius of the target area in world coordinates. This is the radius
+            // (in world coordinates) of a circle at the target distance that is
+            // circumscribed by the display area.
             let ptr = camera.planar_target_radius() * 2.0;
 
+            // The radius of `ptr` in pixels.
             let ptr_pixels = match w < h {
                 true => w,
                 false => h,
             };
 
+            // What fraction of the planar target radius the mouse have moved in X and Y
+            // directions (in camera local coordinates)
             let ptr_frac_x = x / ptr_pixels;
             let ptr_frac_y = y / ptr_pixels;
 
-            let move_x = ptr_frac_x * ptr * camera.local_x();
+            // Vectors to move the camera so that objexts at the target distance stay with
+            // the mouse pointer
+            let move_x = -ptr_frac_x * ptr * camera.local_x();
             let move_y = ptr_frac_y * ptr * camera.local_y();
 
-            camera.set_target(camera.target() - move_x + move_y);
+            // Move the camera
+            camera.set_target(camera.target() + move_x + move_y);
 
+            // Update the DragState so we don't use this mouse movement more than once
             *last_pos = current_pos;
         }
     }

@@ -1,6 +1,5 @@
-use auto_ops::{impl_op, impl_op_ex};
-
 use crate::{vec3, Angle, Mat33, Mat44, Point3, Vec3};
+use auto_ops::impl_op_ex;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Quat {
