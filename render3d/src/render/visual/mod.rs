@@ -11,15 +11,17 @@ use crate::{
     texture::Texture,
 };
 
-use super::VertexBuffer;
+use super::{RenderTarget, VertexBuffer};
 
 pub struct VisualRenderer {
+    target: RenderTarget,
+    /*
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
     size: (u32, u32),
-
+     */
     texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: Texture,
 
@@ -32,7 +34,8 @@ pub struct VisualRenderer {
     mesh_render_pipeline: wgpu::RenderPipeline,
 }
 impl VisualRenderer {
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(target: RenderTarget) -> Self {
+        /*
         let size = {
             let size = window.inner_size();
             (size.width, size.height)
@@ -86,6 +89,9 @@ impl VisualRenderer {
         };
 
         surface.configure(&device, &config);
+         */
+
+        let device = target.device();
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -229,7 +235,7 @@ impl VisualRenderer {
                         module: &shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: config.format,
+                            format: target.format(),
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -288,7 +294,7 @@ impl VisualRenderer {
                     module: &shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
+                        format: target.format(),
                         blend: Some(wgpu::BlendState {
                             alpha: wgpu::BlendComponent::REPLACE,
                             color: wgpu::BlendComponent::REPLACE,
@@ -325,11 +331,14 @@ impl VisualRenderer {
         };
 
         Self {
+            /*
             device,
             queue,
             surface,
             config,
             size,
+             */
+            target,
 
             texture_bind_group_layout,
             depth_texture,
@@ -345,46 +354,47 @@ impl VisualRenderer {
     }
 
     pub fn size(&self) -> (u32, u32) {
-        self.size
+        self.target.size()
     }
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
+            /*
             self.size = new_size;
             self.config.width = new_size.0;
             self.config.height = new_size.1;
-            self.surface.configure(&self.device, &self.config);
+             */
+            self.target.resize(new_size);
             self.depth_texture = Texture::depth("Depth texture");
         }
     }
 
     pub fn aspect(&self) -> f64 {
-        self.size.0 as f64 / self.size.1 as f64
+        self.target.aspect()
     }
 
     pub fn render(&self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
-        self.queue.write_buffer(
+        let device = self.target.device();
+        let queue = self.target.queue();
+        let size = self.target.size();
+        let frame = self.target.frame();
+        let view = frame.view();
+
+        queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
         );
 
-        self.queue.write_buffer(
+        queue.write_buffer(
             &self.light_buffer,
             0,
             bytemuck::cast_slice(&[scene.light().to_raw()]),
         );
 
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Visual render encoder"),
-            });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Visual render encoder"),
+        });
 
         let material_bind_groups = {
             let mut material_bind_groups = HashMap::new();
@@ -394,12 +404,8 @@ impl VisualRenderer {
                     "Could not find material {:?}",
                     object.material_id()
                 ));
-                let material_bind_group = material.bind_group(
-                    &self.device,
-                    &self.queue,
-                    &self.config,
-                    &self.texture_bind_group_layout,
-                );
+                let material_bind_group =
+                    material.bind_group(&device, &queue, size, &self.texture_bind_group_layout);
                 material_bind_groups.insert(object.material_id(), material_bind_group);
             }
 
@@ -423,10 +429,7 @@ impl VisualRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self
-                        .depth_texture
-                        .resources(&self.device, &self.queue, &self.config)
-                        .view,
+                    view: &self.depth_texture.resources(device, queue, size).view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: true,
@@ -439,10 +442,10 @@ impl VisualRenderer {
 
             for object in scene.objects().iter() {
                 let mesh = object.mesh();
-                render_pass.set_vertex_buffer(1, object.instance_buffer(&self.device).slice(..));
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(&self.device).slice(..));
+                render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
                 render_pass.set_index_buffer(
-                    mesh.index_buffer(&self.device).slice(..),
+                    mesh.index_buffer(device).slice(..),
                     wgpu::IndexFormat::Uint32,
                 );
 
@@ -461,8 +464,8 @@ impl VisualRenderer {
             }
         }
 
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
+        queue.submit(std::iter::once(encoder.finish()));
+        frame.finish();
 
         Ok(())
     }

@@ -33,13 +33,13 @@ impl Material {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        config: &wgpu::SurfaceConfiguration,
+        size: (u32, u32),
         layout: &wgpu::BindGroupLayout,
     ) -> Arc<BindGroup> {
         self.bind_group
             .get_or_init(|| {
-                let diffuse = self.diffuse.resources(device, queue, config);
-                let normal = self.normal.resources(device, queue, config);
+                let diffuse = self.diffuse.resources(device, queue, size);
+                let normal = self.normal.resources(device, queue, size);
 
                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                     layout,

@@ -80,10 +80,10 @@ impl Texture {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        config: &wgpu::SurfaceConfiguration,
+        size: (u32, u32),
     ) -> &TextureResources {
         self.resources.get_or_init(|| match &self.image {
-            TextureImage::Depth => Self::create_depth_texture(device, config, &self.label),
+            TextureImage::Depth => Self::create_depth_texture(device, size, &self.label),
             TextureImage::Diffuse(image) => Self::create_image_texture(
                 device,
                 queue,
@@ -103,14 +103,14 @@ impl Texture {
 
     fn create_depth_texture(
         device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        size: (u32, u32),
         label: &str,
     ) -> TextureResources {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(label),
             size: wgpu::Extent3d {
-                width: config.width,
-                height: config.height,
+                width: size.0,
+                height: size.1,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,

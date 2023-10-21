@@ -5,7 +5,7 @@ use crate::{
     camera::{Camera, CameraController},
     light::Light,
     model::{InstanceId, TransformedInstance},
-    render::VisualRenderer,
+    render::{RenderContext, VisualRenderer},
     scene::Scene,
 };
 
@@ -21,7 +21,10 @@ pub struct State {
 }
 impl State {
     pub async fn new(window: Window) -> Self {
-        let visual_render = VisualRenderer::new(&window).await;
+        let render_context = RenderContext::new().await;
+        let render_target = render_context.on_window(&window);
+
+        let visual_render = VisualRenderer::new(render_target).await;
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
