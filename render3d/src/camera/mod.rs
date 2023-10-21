@@ -73,7 +73,14 @@ impl Camera {
         self.target_radius
     }
 
-    pub fn target(&mut self) -> Point3 {
+    pub fn planar_target_radius(&self) -> f64 {
+        match self.is_ortho() {
+            true => self.target_radius,
+            false => self.eye_dist() * self.half_fov.tan(),
+        }
+    }
+
+    pub fn target(&self) -> Point3 {
         self.target
     }
 
@@ -85,12 +92,15 @@ impl Camera {
         self.to_eye = to_eye.normalize();
     }
 
-    pub fn eye(&self) -> Eye {
-        let dist = match !self.is_ortho() {
-            true => self.target_radius / self.half_fov.sin(),
-            false => self.clip_radius,
-        };
+    pub fn eye_dist(&self) -> f64 {
+        match self.is_ortho() {
+            true => self.clip_radius,
+            false => self.target_radius / self.half_fov.sin(),
+        }
+    }
 
+    pub fn eye(&self) -> Eye {
+        let dist = self.eye_dist();
         Eye {
             dist,
             location: self.target + self.to_eye * dist,
@@ -99,6 +109,10 @@ impl Camera {
 
     pub fn set_target_radius(&mut self, target_radius: f64) {
         self.target_radius = target_radius;
+    }
+
+    pub fn fov(&self) -> Angle {
+        self.half_fov * 2.0
     }
 
     pub fn set_fov(&mut self, fov: Angle) {

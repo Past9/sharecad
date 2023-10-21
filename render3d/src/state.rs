@@ -29,7 +29,7 @@ impl State {
             50.0 * 2f64.sqrt(),
             vec3(0.0, 0.0, -5.0),
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
@@ -114,7 +114,8 @@ impl State {
     }
 
     pub fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_controller
+            .update_camera(&mut self.camera, self.visual_render.size());
 
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;

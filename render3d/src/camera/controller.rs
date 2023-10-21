@@ -1,6 +1,6 @@
-use space::{deg, Point3, Quat, Vec3};
+use space::{deg, Mat44, Point3, Quat, Vec3};
 use winit::{
-    dpi::PhysicalPosition,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
@@ -35,6 +35,7 @@ pub struct CameraController {
     scroll_delta: f64,
     mouse_pos: PhysicalPosition<f64>,
     rmb_drag_state: DragState<OrbitParams>,
+    mmb_drag_state: DragState<()>,
 }
 impl CameraController {
     pub fn new(orbit: Point3) -> Self {
@@ -47,6 +48,7 @@ impl CameraController {
             scroll_delta: 0.0,
             mouse_pos: PhysicalPosition::new(0.0, 0.0),
             rmb_drag_state: DragState::None,
+            mmb_drag_state: DragState::None,
         }
     }
 
@@ -103,6 +105,20 @@ impl CameraController {
                     };
                 }
 
+                // Pan dragging with MMB
+                if let DragState::Dragging {
+                    params,
+                    last_pos,
+                    current_pos,
+                } = &self.mmb_drag_state
+                {
+                    self.mmb_drag_state = DragState::Dragging {
+                        params: params.clone(),
+                        last_pos: *last_pos,
+                        current_pos: self.mouse_pos,
+                    };
+                }
+
                 true
             }
             WindowEvent::MouseInput {
@@ -122,7 +138,17 @@ impl CameraController {
                         },
                         ElementState::Released => DragState::None,
                     };
+                } else if *button == MouseButton::Middle {
+                    self.mmb_drag_state = match state {
+                        ElementState::Pressed => DragState::Dragging {
+                            params: (),
+                            last_pos: self.mouse_pos,
+                            current_pos: self.mouse_pos,
+                        },
+                        ElementState::Released => DragState::None,
+                    };
                 }
+
                 true
             }
             WindowEvent::MouseWheel {
@@ -137,18 +163,20 @@ impl CameraController {
                         *y as f64
                     }
                 };
+
                 true
             }
             _ => false,
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera) {
+    pub fn update_camera(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
         self.update_mouse_orbit(camera);
-        self.update_zoom(camera)
+        self.update_mouse_zoom(camera);
+        self.update_mouse_pan(camera, dimensions);
     }
 
-    fn update_zoom(&mut self, camera: &mut Camera) {
+    fn update_mouse_zoom(&mut self, camera: &mut Camera) {
         let radius = camera.target_radius();
 
         let zoom = if self.scroll_delta > 0.0 {
@@ -162,6 +190,34 @@ impl CameraController {
         camera.set_target_radius(radius * zoom);
 
         self.scroll_delta = 0.0;
+    }
+
+    fn update_mouse_pan(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
+        if let DragState::Dragging {
+            ref mut last_pos,
+            current_pos,
+            ..
+        } = self.mmb_drag_state
+        {
+            let (w, h) = (dimensions.0 as f64, dimensions.1 as f64);
+            let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
+            let ptr = camera.planar_target_radius() * 2.0;
+
+            let ptr_pixels = match w < h {
+                true => w,
+                false => h,
+            };
+
+            let ptr_frac_x = x / ptr_pixels;
+            let ptr_frac_y = y / ptr_pixels;
+
+            let move_x = ptr_frac_x * ptr * camera.local_x();
+            let move_y = ptr_frac_y * ptr * camera.local_y();
+
+            camera.set_target(camera.target() - move_x + move_y);
+
+            *last_pos = current_pos;
+        }
     }
 
     fn update_mouse_orbit(&mut self, camera: &mut Camera) {

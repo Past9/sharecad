@@ -344,6 +344,10 @@ impl VisualRenderer {
         }
     }
 
+    pub fn size(&self) -> (u32, u32) {
+        self.size
+    }
+
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
             self.size = new_size;
