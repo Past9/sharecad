@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use winit::{event::WindowEvent, window::Window};
 
@@ -30,12 +28,11 @@ impl State {
             5.0,
             50.0 * 2f64.sqrt(),
             vec3(0.0, 0.0, -5.0),
-            //vec3(0.0, 5.0, 1.0),
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
-        let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0), 0.2);
+        let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
 
         let scene = {
             let mut scene = Scene::new();

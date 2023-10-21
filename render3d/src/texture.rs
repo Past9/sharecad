@@ -1,6 +1,5 @@
-use std::{cell::OnceCell, sync::Arc};
-
 use image::GenericImageView;
+use std::{cell::OnceCell, sync::Arc};
 
 pub enum TextureImage {
     Depth,

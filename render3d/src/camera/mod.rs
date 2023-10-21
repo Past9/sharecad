@@ -1,89 +1,9 @@
+mod controller;
+
+pub use controller::*;
+
 use bytemuck::{Pod, Zeroable};
-use space::{deg, point3, Angle, Mat44, Point3, Quat, Vec3};
-use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
-
-pub struct CameraController {
-    orbit: Point3,
-    speed: f64,
-    is_forward_pressed: bool,
-    is_backward_pressed: bool,
-    is_left_pressed: bool,
-    is_right_pressed: bool,
-}
-impl CameraController {
-    pub fn new(orbit: Point3, speed: f64) -> Self {
-        Self {
-            orbit,
-            speed,
-            is_forward_pressed: false,
-            is_backward_pressed: false,
-            is_left_pressed: false,
-            is_right_pressed: false,
-        }
-    }
-
-    pub fn process_events(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
-                        ..
-                    },
-                ..
-            } => {
-                let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::W | VirtualKeyCode::Up => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::A | VirtualKeyCode::Left => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::S | VirtualKeyCode::Down => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::D | VirtualKeyCode::Right => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
-    }
-
-    pub fn update_camera(&self, camera: &mut Camera) {
-        let mut rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
-
-        if self.is_left_pressed {
-            rotation += Quat::from_axis_angle(camera.up, deg(0.1));
-        }
-
-        if self.is_right_pressed {
-            rotation += Quat::from_axis_angle(camera.up, -deg(0.1));
-        }
-
-        if self.is_forward_pressed {
-            rotation += Quat::from_axis_angle(camera.right(), deg(0.1));
-        }
-
-        if self.is_backward_pressed {
-            rotation += Quat::from_axis_angle(camera.right(), -deg(0.1));
-        }
-
-        println!("camera.forward() = {:?}", camera.forward());
-        println!("camera.up() = {:?}", camera.up());
-        println!("camera.right() = {:?}", camera.right());
-
-        camera.rotate_around(self.orbit, rotation);
-    }
-}
+use space::{Angle, Mat44, Point3, Quat, Vec3};
 
 pub struct Eye {
     pub dist: f64,
@@ -137,6 +57,22 @@ impl Camera {
         self.up.cross(self.forward())
     }
 
+    pub fn local_z(&self) -> Vec3 {
+        self.forward()
+    }
+
+    pub fn local_y(&self) -> Vec3 {
+        self.up()
+    }
+
+    pub fn local_x(&self) -> Vec3 {
+        self.right()
+    }
+
+    pub fn target_radius(&self) -> f64 {
+        self.target_radius
+    }
+
     pub fn set_target(&mut self, target: Point3) {
         self.target = target;
     }
@@ -162,11 +98,7 @@ impl Camera {
     }
 
     pub fn set_fov(&mut self, fov: Angle) {
-        //
-    }
-
-    pub fn set_min_target_depth(&mut self, min_target_depth: f32) {
-        //
+        self.half_fov = fov / 2.0;
     }
 
     pub fn near(&self) -> f64 {
@@ -222,8 +154,6 @@ impl Camera {
                 self.far(),
             ),
         };
-
-        println!("proj = {:?}", proj);
 
         proj * view
     }

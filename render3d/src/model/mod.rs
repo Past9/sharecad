@@ -1,7 +1,7 @@
 mod instance;
 mod mesh;
 
-use crate::{material::MaterialId, render::VertexBuffer};
+use crate::material::MaterialId;
 
 pub use instance::*;
 pub use mesh::*;
