@@ -42,7 +42,7 @@ impl Camera {
         let orbit_to_target = self.target - orbit;
         self.set_target(orbit + rotation * orbit_to_target);
         self.set_to_eye(rotation * self.to_eye);
-        self.up = rotation * self.up;
+        self.up = (rotation * self.up).normalize();
     }
 
     pub fn forward(&self) -> Vec3 {
@@ -54,7 +54,7 @@ impl Camera {
     }
 
     pub fn right(&self) -> Vec3 {
-        self.up.cross(self.forward())
+        self.up.cross(self.forward()).normalize()
     }
 
     pub fn local_z(&self) -> Vec3 {
