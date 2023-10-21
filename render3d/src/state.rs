@@ -32,7 +32,7 @@ impl State {
             deg(45.0),
         );
 
-        let camera_controller = CameraController::new(Point3::new(3.0, 3.0, 3.0));
+        let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
 
         let scene = {
             let mut scene = Scene::new();

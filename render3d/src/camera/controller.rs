@@ -9,10 +9,18 @@ use super::Camera;
 const ZOOM_SENSITIVITY: f64 = 0.1;
 const ORBIT_SENSITIVITY: f64 = 0.1;
 
+#[derive(Debug, Clone)]
+struct OrbitParams {
+    /// The distance between the orbit point and the camera's target or "look at"
+    /// point at the start of an orbit drag.
+    orbit_to_target_dist: Option<f64>,
+}
+
 #[derive(Debug)]
-enum DragState {
+enum DragState<T> {
     None,
     Dragging {
+        params: T,
         last_pos: PhysicalPosition<f64>,
         current_pos: PhysicalPosition<f64>,
     },
@@ -26,7 +34,7 @@ pub struct CameraController {
     is_right_pressed: bool,
     scroll_delta: f64,
     mouse_pos: PhysicalPosition<f64>,
-    rmb_drag_state: DragState,
+    rmb_drag_state: DragState<OrbitParams>,
 }
 impl CameraController {
     pub fn new(orbit: Point3) -> Self {
@@ -83,12 +91,14 @@ impl CameraController {
 
                 // Orbit dragging with RMB
                 if let DragState::Dragging {
+                    params,
                     last_pos,
                     current_pos,
-                } = self.rmb_drag_state
+                } = &self.rmb_drag_state
                 {
                     self.rmb_drag_state = DragState::Dragging {
-                        last_pos: last_pos,
+                        params: params.clone(),
+                        last_pos: *last_pos,
                         current_pos: self.mouse_pos,
                     };
                 }
@@ -104,6 +114,9 @@ impl CameraController {
                 if *button == MouseButton::Right {
                     self.rmb_drag_state = match state {
                         ElementState::Pressed => DragState::Dragging {
+                            params: OrbitParams {
+                                orbit_to_target_dist: None,
+                            },
                             last_pos: self.mouse_pos,
                             current_pos: self.mouse_pos,
                         },
@@ -153,58 +166,53 @@ impl CameraController {
 
     fn update_mouse_orbit(&mut self, camera: &mut Camera) {
         if let DragState::Dragging {
+            ref mut params,
             ref mut last_pos,
             current_pos,
         } = self.rmb_drag_state
         {
-            let mut rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
-            let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
+            // Set the orbit-to-target distance if this is the first movement
+            // of the orbit.
+            let original_orbit_to_target_dist = params
+                .orbit_to_target_dist
+                .get_or_insert_with(|| (camera.target() - self.orbit).magnitude());
 
-            rotation += Quat::from_axis_angle(camera.local_y(), deg(x * ORBIT_SENSITIVITY));
-            rotation += Quat::from_axis_angle(camera.local_x(), deg(y * ORBIT_SENSITIVITY));
+            // Move the camera around the orbit point according to the mouse movement
+            {
+                let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
-            let xy = camera.local_x().dot(camera.local_y());
-            let yz = camera.local_y().dot(camera.local_z());
-            let xz = camera.local_x().dot(camera.local_z());
+                let rotation = Quat::from_axis_angle(camera.local_y(), deg(x * ORBIT_SENSITIVITY))
+                    + Quat::from_axis_angle(camera.local_x(), deg(y * ORBIT_SENSITIVITY));
 
-            println!("\nX {:?}", camera.local_x());
-            println!("Y {:?}", camera.local_y());
-            println!("Z {:?}", camera.local_z());
-            println!("XY {}", xy);
-            println!("YZ {}", yz);
-            println!("XZ {}", xz);
-
-            if xy.is_nan() || yz.is_nan() || xz.is_nan() {
-                panic!("NaN");
+                camera.rotate_around(self.orbit, rotation);
             }
 
-            camera.rotate_around(self.orbit, rotation);
+            // Due to floating point imprecision, the camera's target point may "drift away" from the
+            // orbit point during an orbit drag. To correct this, we move the target point after
+            // rotating the camera (above) so that it's always `original_orbit_to_target_dist` away.
+            {
+                // The vector from orbit to target point after rotating
+                let orbit_to_target = camera.target() - self.orbit;
 
+                // The length of the vector. This is what we're correcting.
+                let dist = orbit_to_target.magnitude();
+
+                let corrected_target = if dist > 0.0 {
+                    // Move the target slightly along `orbit_to_target` (in whichever direction is needed)
+                    // so that `original_orbit_to_target_dist` is maintained.
+                    self.orbit + orbit_to_target * (*original_orbit_to_target_dist / dist)
+                } else {
+                    // If the camera is orbiting its exact target point, just move the target
+                    // to the orbit.
+                    self.orbit
+                };
+
+                // Move the camera to the corrected point
+                camera.set_target(corrected_target);
+            }
+
+            // Update the DragState so we don't use this mouse movement more than once
             *last_pos = current_pos;
         }
     }
-
-    /*
-    fn update_key_orbit(&self, camera: &mut Camera) {
-        let mut rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
-
-        if self.is_left_pressed {
-            rotation += Quat::from_axis_angle(camera.local_y(), deg(0.1));
-        }
-
-        if self.is_right_pressed {
-            rotation += Quat::from_axis_angle(camera.local_y(), -deg(0.1));
-        }
-
-        if self.is_forward_pressed {
-            rotation += Quat::from_axis_angle(camera.local_x(), deg(0.1));
-        }
-
-        if self.is_backward_pressed {
-            rotation += Quat::from_axis_angle(camera.local_x(), -deg(0.1));
-        }
-
-        camera.rotate_around(self.orbit, rotation);
-    }
-     */
 }

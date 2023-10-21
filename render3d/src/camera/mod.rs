@@ -73,6 +73,10 @@ impl Camera {
         self.target_radius
     }
 
+    pub fn target(&mut self) -> Point3 {
+        self.target
+    }
+
     pub fn set_target(&mut self, target: Point3) {
         self.target = target;
     }
