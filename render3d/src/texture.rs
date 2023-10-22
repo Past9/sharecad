@@ -34,13 +34,6 @@ pub enum ImageTextureKind {
 }
 
 #[derive(Debug)]
-pub struct TextureResources {
-    pub texture: Arc<wgpu::Texture>,
-    pub view: Arc<wgpu::TextureView>,
-    pub sampler: Arc<wgpu::Sampler>,
-}
-
-#[derive(Debug)]
 pub struct Texture {
     pub id: TextureId,
     pub image: TextureImage,

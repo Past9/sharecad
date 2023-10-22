@@ -5,7 +5,7 @@ use crate::{
     camera::{Camera, CameraController},
     light::Light,
     model::{InstanceId, TransformedInstance},
-    render::{RenderContext, VisualRenderer},
+    render::{PositionRenderer, RenderContext, VisualRenderer},
     scene::Scene,
 };
 
@@ -13,7 +13,7 @@ const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
 
 pub struct State {
-    visual_render: VisualRenderer,
+    renderer: PositionRenderer,
     camera: Camera,
     camera_controller: CameraController,
     scene: Scene,
@@ -24,7 +24,7 @@ impl State {
         let render_context = RenderContext::new().await;
         let render_target = render_context.on_window(&window);
 
-        let visual_render = VisualRenderer::new(render_target).await;
+        let visual_render = PositionRenderer::new(render_target).await;
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
@@ -36,7 +36,7 @@ impl State {
             vec3(0.0, 2.0, -5.0),
             vec3(0.0, 5.0, 2.0),
              */
-            deg(0.0),
+            deg(45.0),
         );
 
         let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
@@ -93,7 +93,7 @@ impl State {
         };
 
         Self {
-            visual_render,
+            renderer: visual_render,
             camera,
             camera_controller,
             scene,
@@ -106,7 +106,7 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        self.visual_render.resize((new_size.width, new_size.height));
+        self.renderer.resize((new_size.width, new_size.height));
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -115,7 +115,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.camera_controller
-            .update_camera(&mut self.camera, self.visual_render.size());
+            .update_camera(&mut self.camera, self.renderer.size());
 
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
@@ -124,6 +124,6 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.visual_render.render(&self.scene, &self.camera)
+        self.renderer.render(&self.scene, &self.camera)
     }
 }

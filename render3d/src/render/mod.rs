@@ -1,10 +1,13 @@
+mod position;
+mod texture;
 mod visual;
-use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
-
-pub use visual::*;
+use std::sync::Arc;
 use winit::window::Window;
+
+pub use position::*;
+pub use visual::*;
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
