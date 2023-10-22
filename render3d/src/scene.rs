@@ -63,10 +63,6 @@ impl Scene {
         &self.objects
     }
 
-    pub fn material(&self, id: &MaterialId) -> Option<&Material> {
-        self.materials.get(id)
-    }
-
     pub fn materials(&self) -> &HashMap<MaterialId, Material> {
         &self.materials
     }
@@ -148,9 +144,12 @@ impl Scene {
 
             self.textures.insert(
                 normal_tex_id,
-                // TODO: Use Normal kind, not Diffuse
-                self.load_texture(normal_tex_id, &m.normal_texture, ImageTextureKind::Diffuse)
-                    .await,
+                self.load_texture(
+                    normal_tex_id,
+                    &m.normal_texture,
+                    ImageTextureKind::NormalMap,
+                )
+                .await,
             );
 
             let material = Material::new(material_id, &m.name, diffuse_tex_id, normal_tex_id);

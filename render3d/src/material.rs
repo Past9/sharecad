@@ -1,8 +1,4 @@
-use std::{cell::OnceCell, sync::Arc};
-
-use wgpu::BindGroup;
-
-use crate::texture::{Texture, TextureId};
+use crate::texture::TextureId;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaterialId(pub u32);

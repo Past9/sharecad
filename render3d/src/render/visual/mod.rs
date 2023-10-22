@@ -1,5 +1,5 @@
 use image::GenericImageView;
-use std::{cell::OnceCell, collections::HashMap, sync::Arc};
+use std::{cell::OnceCell, collections::HashMap};
 use wgpu::util::DeviceExt;
 
 use crate::{

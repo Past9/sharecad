@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, sync::Arc};
+use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
