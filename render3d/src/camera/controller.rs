@@ -4,6 +4,8 @@ use winit::{
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
+use crate::render::PositionRenderer;
+
 use super::Camera;
 
 const ZOOM_SENSITIVITY: f64 = 0.2;
@@ -26,8 +28,33 @@ enum DragState<T> {
     },
 }
 
+pub struct EventResult {
+    pub processed: bool,
+    pub requests: Vec<CameraControllerRequest>,
+}
+impl EventResult {
+    pub fn processed<const N: usize>(requests: [CameraControllerRequest; N]) -> Self {
+        Self {
+            processed: true,
+            requests: requests.to_vec(),
+        }
+    }
+
+    pub fn unprocessed<const N: usize>(requests: [CameraControllerRequest; N]) -> Self {
+        Self {
+            processed: false,
+            requests: requests.to_vec(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum CameraControllerRequest {
+    RequestOrbitPoint,
+}
+
 pub struct CameraController {
-    orbit: Point3,
+    orbit_point: Point3,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -38,9 +65,9 @@ pub struct CameraController {
     mmb_drag_state: DragState<()>,
 }
 impl CameraController {
-    pub fn new(orbit: Point3) -> Self {
+    pub fn new() -> Self {
         Self {
-            orbit,
+            orbit_point: Point3::ZERO,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,
@@ -52,7 +79,12 @@ impl CameraController {
         }
     }
 
-    pub fn process_events(&mut self, event: &WindowEvent) -> bool {
+    pub fn set_orbit_point(&mut self, orbit_point: Point3) {
+        println!("new orbit: {:?}", self.orbit_point);
+        self.orbit_point = orbit_point;
+    }
+
+    pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {
         match event {
             WindowEvent::KeyboardInput {
                 input:
@@ -67,21 +99,21 @@ impl CameraController {
                 match keycode {
                     VirtualKeyCode::W | VirtualKeyCode::Up => {
                         self.is_forward_pressed = is_pressed;
-                        true
+                        EventResult::processed([])
                     }
                     VirtualKeyCode::A | VirtualKeyCode::Left => {
                         self.is_left_pressed = is_pressed;
-                        true
+                        EventResult::processed([])
                     }
                     VirtualKeyCode::S | VirtualKeyCode::Down => {
                         self.is_backward_pressed = is_pressed;
-                        true
+                        EventResult::processed([])
                     }
                     VirtualKeyCode::D | VirtualKeyCode::Right => {
                         self.is_right_pressed = is_pressed;
-                        true
+                        EventResult::processed([])
                     }
-                    _ => false,
+                    _ => EventResult::unprocessed([]),
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
@@ -111,21 +143,23 @@ impl CameraController {
                     };
                 }
 
-                true
+                EventResult::processed([])
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Right {
-                    self.rmb_drag_state = match state {
-                        // Start orbit
-                        ElementState::Pressed => DragState::Dragging {
+                    if *state == ElementState::Pressed {
+                        self.rmb_drag_state = DragState::Dragging {
                             params: OrbitParams {
                                 orbit_to_target_dist: None,
                             },
                             last_pos: self.mouse_pos,
                             current_pos: self.mouse_pos,
-                        },
-                        ElementState::Released => DragState::None,
-                    };
+                        };
+                        EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
+                    } else {
+                        self.rmb_drag_state = DragState::None;
+                        EventResult::processed([])
+                    }
                 } else if *button == MouseButton::Middle {
                     self.mmb_drag_state = match state {
                         ElementState::Pressed => DragState::Dragging {
@@ -135,9 +169,10 @@ impl CameraController {
                         },
                         ElementState::Released => DragState::None,
                     };
+                    EventResult::processed([])
+                } else {
+                    EventResult::processed([])
                 }
-
-                true
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.scroll_delta = match delta {
@@ -147,9 +182,9 @@ impl CameraController {
                     }
                 };
 
-                true
+                EventResult::processed([])
             }
-            _ => false,
+            _ => EventResult::unprocessed([]),
         }
     }
 
@@ -270,7 +305,7 @@ impl CameraController {
             // of the orbit.
             let original_orbit_to_target_dist = params
                 .orbit_to_target_dist
-                .get_or_insert_with(|| (camera.target() - self.orbit).magnitude());
+                .get_or_insert_with(|| (camera.target() - self.orbit_point).magnitude());
 
             // Move the camera around the orbit point according to the mouse movement
             {
@@ -279,7 +314,7 @@ impl CameraController {
                 let rotation = Quat::from_axis_angle(camera.local_y(), deg(x * ORBIT_SENSITIVITY))
                     + Quat::from_axis_angle(camera.local_x(), deg(y * ORBIT_SENSITIVITY));
 
-                camera.rotate_around(self.orbit, rotation);
+                camera.rotate_around(self.orbit_point, rotation);
             }
 
             // Due to floating point imprecision, the camera's target point may "drift away" from the
@@ -287,7 +322,7 @@ impl CameraController {
             // rotating the camera (above) so that it's always `original_orbit_to_target_dist` away.
             {
                 // The vector from orbit to target point after rotating
-                let orbit_to_target = camera.target() - self.orbit;
+                let orbit_to_target = camera.target() - self.orbit_point;
 
                 // The length of the vector. This is what we're correcting.
                 let dist = orbit_to_target.magnitude();
@@ -295,11 +330,11 @@ impl CameraController {
                 let corrected_target = if dist > 0.0 {
                     // Move the target slightly along `orbit_to_target` (in whichever direction is needed)
                     // so that `original_orbit_to_target_dist` is maintained.
-                    self.orbit + orbit_to_target * (*original_orbit_to_target_dist / dist)
+                    self.orbit_point + orbit_to_target * (*original_orbit_to_target_dist / dist)
                 } else {
                     // If the camera is orbiting its exact target point, just move the target
                     // to the orbit.
-                    self.orbit
+                    self.orbit_point
                 };
 
                 // Move the camera to the corrected point

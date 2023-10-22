@@ -1,5 +1,5 @@
 use crate::{
-    camera::{Camera, CameraController},
+    camera::{Camera, CameraController, CameraControllerRequest},
     light::Light,
     model::{InstanceId, TransformedInstance},
     render::{PositionRenderer, RenderContext, VisualRenderer},
@@ -18,6 +18,7 @@ pub struct State {
     camera_controller: CameraController,
     scene: Scene,
     window: Window,
+    needs_position_update: bool,
 }
 impl State {
     pub async fn new(window: Window) -> Self {
@@ -43,7 +44,7 @@ impl State {
             deg(0.0),
         );
 
-        let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
+        let camera_controller = CameraController::new();
 
         let scene = {
             let mut scene = Scene::new();
@@ -103,6 +104,7 @@ impl State {
             camera_controller,
             scene,
             window,
+            needs_position_update: true,
         }
     }
 
@@ -118,7 +120,18 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
+        let result = self.camera_controller.process_events(event);
+
+        for request in result.requests {
+            match request {
+                CameraControllerRequest::RequestOrbitPoint => {
+                    let orbit_point = self.get_orbit_point();
+                    self.camera_controller.set_orbit_point(orbit_point)
+                }
+            }
+        }
+
+        result.processed
     }
 
     pub fn update(&mut self) {
@@ -136,12 +149,21 @@ impl State {
             .render(&self.scene, &self.camera)
             .unwrap();
 
-        self.position_renderer
-            .render(&self.scene, &self.camera)
-            .unwrap();
-
-        pollster::block_on(self.position_renderer.get_avg_pos());
+        self.needs_position_update = true;
 
         Ok(())
+    }
+
+    fn get_orbit_point(&mut self) -> Point3 {
+        self.render_position();
+        pollster::block_on(self.position_renderer.get_avg_pos())
+    }
+
+    fn render_position(&mut self) -> Result<(), wgpu::SurfaceError> {
+        if self.needs_position_update {
+            self.position_renderer.render(&self.scene, &self.camera)
+        } else {
+            Ok(())
+        }
     }
 }
