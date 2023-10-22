@@ -116,6 +116,7 @@ impl CameraController {
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Right {
                     self.rmb_drag_state = match state {
+                        // Start orbit
                         ElementState::Pressed => DragState::Dragging {
                             params: OrbitParams {
                                 orbit_to_target_dist: None,

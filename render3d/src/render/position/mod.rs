@@ -1,9 +1,10 @@
-use super::{texture::TextureResources, RenderTarget, VertexBuffer};
+use super::{pad_u32, texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraUniform},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
 };
+use space::{point3, Point3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
@@ -16,6 +17,8 @@ pub struct PositionRenderer {
     camera_bind_group: wgpu::BindGroup,
 
     render_pipeline: wgpu::RenderPipeline,
+
+    output_buffer: OnceCell<wgpu::Buffer>,
 }
 impl PositionRenderer {
     pub async fn new(target: RenderTarget) -> Self {
@@ -120,6 +123,8 @@ impl PositionRenderer {
             camera_buffer,
 
             render_pipeline,
+
+            output_buffer: OnceCell::new(),
         }
     }
 
@@ -130,7 +135,8 @@ impl PositionRenderer {
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
             self.target.resize(new_size);
-            self.depth_texture = OnceCell::new()
+            self.depth_texture = OnceCell::new();
+            self.output_buffer = OnceCell::new();
         }
     }
 
@@ -161,7 +167,7 @@ impl PositionRenderer {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 })],
@@ -195,6 +201,9 @@ impl PositionRenderer {
             }
         }
 
+        self.target
+            .copy_to_buffer(&mut encoder, self.output_buffer());
+
         queue.submit(std::iter::once(encoder.finish()));
         frame.finish();
 
@@ -204,5 +213,75 @@ impl PositionRenderer {
     fn depth_texture(&self) -> &TextureResources {
         self.depth_texture
             .get_or_init(|| TextureResources::depth(self.target.device(), self.target.size()))
+    }
+
+    fn output_buffer(&self) -> &wgpu::Buffer {
+        self.output_buffer.get_or_init(|| {
+            let bytes_per_row = pad_u32(
+                self.target.format().block_size(None).unwrap() * self.target.size().0,
+                256,
+            );
+            let buffer_size = (bytes_per_row * self.target.size().1) as wgpu::BufferAddress;
+
+            let buffer_desc = wgpu::BufferDescriptor {
+                size: buffer_size,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                label: None,
+                mapped_at_creation: false,
+            };
+
+            self.target.context.device.create_buffer(&buffer_desc)
+        })
+    }
+
+    pub async fn get_avg_pos(&self) -> Point3 {
+        let mut avg_pos = Point3::ZERO;
+
+        // We need to scope the mapping variables so that we can
+        // unmap the buffer
+        let output_buffer = self.output_buffer();
+
+        {
+            let buffer_slice = self.output_buffer().slice(..);
+
+            // NOTE: We have to create the mapping THEN device.poll() before await
+            // the future. Otherwise the application will freeze.
+            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                tx.send(result).unwrap();
+            });
+            self.target.context.device.poll(wgpu::Maintain::Wait);
+            rx.receive().await.unwrap().unwrap();
+
+            let data = buffer_slice.get_mapped_range();
+
+            let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
+
+            if prefix.len() > 0 {
+                panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
+            }
+
+            if prefix.len() > 0 {
+                panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
+            }
+
+            let mut total_pix: u64 = 0;
+            for pixel in pixels.iter() {
+                if pixel[3] == 0.0 {
+                    continue;
+                }
+
+                avg_pos += point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
+                total_pix += 1;
+            }
+
+            if total_pix > 0 {
+                avg_pos = (avg_pos.into_vec() / (total_pix as f64)).into_point()
+            }
+        }
+
+        output_buffer.unmap();
+
+        avg_pos
     }
 }

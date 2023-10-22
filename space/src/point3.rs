@@ -72,3 +72,15 @@ impl_op_ex_commutative!(+|p: Vec3, v: Point3| -> Point3 {
 });
 impl_op_ex!(-|p: Point3, v: Vec3| -> Point3 { point3(p.x - v.x, p.y - v.y, p.z - v.z) });
 impl_op_ex!(-|a: Point3, b: Point3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
+
+// Assignment
+impl_op_ex!(+= |a: &mut Point3, b: Point3| {
+   a.x += b.x;
+   a.y += b.y;
+   a.z += b.z;
+});
+impl_op_ex!(-= |a: &mut Point3, b: Point3| {
+   a.x -= b.x;
+   a.y -= b.y;
+   a.z -= b.z;
+});

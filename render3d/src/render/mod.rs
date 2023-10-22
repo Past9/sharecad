@@ -3,6 +3,9 @@ mod texture;
 mod visual;
 
 use bytemuck::{Pod, Zeroable};
+use futures_intrusive::channel::shared::{GenericOneshotReceiver, GenericOneshotSender};
+use parking_lot::RawMutex;
+use space::{point3, Point3};
 use std::sync::Arc;
 use winit::window::Window;
 
@@ -11,6 +14,10 @@ pub use visual::*;
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
+}
+
+pub fn pad_u32(num: u32, pad: u32) -> u32 {
+    num + (pad - num % pad)
 }
 
 pub struct RenderContext {
@@ -59,46 +66,6 @@ impl RenderContext {
         size: (u32, u32),
         format: wgpu::TextureFormat,
     ) -> RenderTarget {
-        /*
-        let desc = wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width: size.0,
-                height: size.1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
-            view_formats: &[],
-        };
-
-        let texture = self.inner.device.create_texture(&desc);
-        let view = texture.create_view(&Default::default());
-
-        let buffer_size =
-            (format.block_size(None).unwrap() * size.0 * size.1) as wgpu::BufferAddress;
-
-        let buffer_desc = wgpu::BufferDescriptor {
-            size: buffer_size,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            label: None,
-            mapped_at_creation: false,
-        };
-
-        let output_buffer = self.inner.device.create_buffer(&buffer_desc);
-
-        RenderTarget {
-            context: self.inner.clone(),
-            target: TargetInner::Texture(TargetTexture {
-                texture,
-                view,
-                output_buffer,
-            }),
-        }
-         */
         RenderTarget {
             context: self.inner.clone(),
             target: TargetInner::Texture(TargetTexture::new(&self.inner.device, size, format)),
@@ -160,7 +127,7 @@ struct TargetSurface {
 struct TargetTexture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
-    output_buffer: wgpu::Buffer,
+    //output_buffer: wgpu::Buffer,
 }
 impl TargetTexture {
     pub fn new(device: &wgpu::Device, size: (u32, u32), format: wgpu::TextureFormat) -> Self {
@@ -182,23 +149,84 @@ impl TargetTexture {
         let texture = device.create_texture(&desc);
         let view = texture.create_view(&Default::default());
 
-        let buffer_size =
-            (format.block_size(None).unwrap() * size.0 * size.1) as wgpu::BufferAddress;
+        TargetTexture { texture, view }
+    }
 
-        let buffer_desc = wgpu::BufferDescriptor {
-            size: buffer_size,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            label: None,
-            mapped_at_creation: false,
-        };
+    pub fn copy_to_buffer(&self, encoder: &mut wgpu::CommandEncoder, buffer: &wgpu::Buffer) {
+        let bytes_per_row = pad_u32(
+            self.texture.format().block_size(None).unwrap() * self.texture.size().width,
+            256,
+        );
 
-        let output_buffer = device.create_buffer(&buffer_desc);
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(bytes_per_row),
+                    rows_per_image: Some(self.texture.size().height),
+                },
+            },
+            self.texture.size(),
+        );
+    }
 
-        TargetTexture {
-            texture,
-            view,
-            output_buffer,
+    pub async fn read(&self, device: &wgpu::Device) {
+        /*
+        let buffer_slice = self.output_buffer.slice(..);
+
+        let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| tx.send(result).unwrap());
+        device.poll(wgpu::Maintain::Wait);
+        rx.receive().await.unwrap().unwrap();
+
+        let data = buffer_slice.get_mapped_range();
+
+        let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
+
+        if prefix.len() > 0 {
+            panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
         }
+
+        if prefix.len() > 0 {
+            panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
+        }
+
+        let mut avg_pos = Point3::ZERO;
+        for pixel in pixels.iter() {
+            if pixel[3] == 0.0 {
+                continue;
+            }
+
+            avg_pos += point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
+        }
+
+        println!("avg_pos = {:?}", avg_pos);
+         */
+
+        /*
+        for pixel in buffer_slice.get_mapped_range().chunks(16).into_iter() {
+            if pixel.len() != 16 {
+                continue;
+            }
+
+            let (prefix, rgba, suffix): (&[u8], &[[f32; 4]; 4], &[u8]) =
+                unsafe { pixel.align_to::<[[f32; 4]; 4]>() };
+
+            let r = unsafe { &pixel[0..4].align_to::<[f32; 4]>() };
+            /*
+            let g = unsafe { &pixel[4..8].align_to::<f32>() };
+            let b = unsafe { &pixel[8..12].align_to::<f32>() };
+            let a = unsafe { &pixel[12..16].align_to::<f32>() };
+             */
+        }
+         */
     }
 }
 
@@ -244,6 +272,12 @@ impl RenderTarget {
         }
     }
 
+    pub async fn print_avg_pos(&self) {
+        if let TargetInner::Texture(target) = &self.target {
+            target.read(self.device()).await;
+        }
+    }
+
     pub fn size(&self) -> (u32, u32) {
         match &self.target {
             TargetInner::Surface(target) => (target.config.width, target.config.height),
@@ -273,6 +307,15 @@ impl RenderTarget {
                     .create_view(&wgpu::TextureViewDescriptor::default()),
                 None,
             ),
+        }
+    }
+
+    pub fn copy_to_buffer(&self, encoder: &mut wgpu::CommandEncoder, buffer: &wgpu::Buffer) {
+        match &self.target {
+            TargetInner::Surface(_) => todo!(),
+            TargetInner::Texture(target) => {
+                target.copy_to_buffer(encoder, buffer);
+            }
         }
     }
 }

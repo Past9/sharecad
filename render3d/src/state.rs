@@ -22,7 +22,6 @@ pub struct State {
 impl State {
     pub async fn new(window: Window) -> Self {
         let render_context = RenderContext::new().await;
-        //let render_target = render_context.render_on_window(&window);
 
         let visual_renderer = VisualRenderer::new(render_context.render_on_window(&window)).await;
         let position_renderer = PositionRenderer::new(
@@ -136,6 +135,13 @@ impl State {
         self.visual_renderer
             .render(&self.scene, &self.camera)
             .unwrap();
-        self.position_renderer.render(&self.scene, &self.camera)
+
+        self.position_renderer
+            .render(&self.scene, &self.camera)
+            .unwrap();
+
+        pollster::block_on(self.position_renderer.get_avg_pos());
+
+        Ok(())
     }
 }
