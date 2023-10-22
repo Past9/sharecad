@@ -2,7 +2,7 @@ use std::{cell::OnceCell, sync::Arc};
 
 use wgpu::BindGroup;
 
-use crate::texture::Texture;
+use crate::texture::{Texture, TextureId};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaterialId(pub u32);
@@ -16,11 +16,11 @@ impl From<u32> for MaterialId {
 pub struct Material {
     pub id: MaterialId,
     pub name: String,
-    pub diffuse: Texture,
-    pub normal: Texture,
+    pub diffuse: TextureId,
+    pub normal: TextureId,
 }
 impl Material {
-    pub fn new(id: MaterialId, name: &str, diffuse: Texture, normal: Texture) -> Self {
+    pub fn new(id: MaterialId, name: &str, diffuse: TextureId, normal: TextureId) -> Self {
         Self {
             id,
             name: name.into(),

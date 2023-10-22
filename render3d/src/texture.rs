@@ -42,13 +42,20 @@ pub struct TextureResources {
 
 #[derive(Debug)]
 pub struct Texture {
+    pub id: TextureId,
     pub image: TextureImage,
     pub label: String,
     resources: OnceCell<TextureResources>,
 }
 impl Texture {
-    pub fn from_image(image: image::DynamicImage, label: &str, kind: ImageTextureKind) -> Self {
+    pub fn from_image(
+        id: TextureId,
+        image: image::DynamicImage,
+        label: &str,
+        kind: ImageTextureKind,
+    ) -> Self {
         Self {
+            id,
             image: match kind {
                 ImageTextureKind::Diffuse => TextureImage::Diffuse(image),
                 ImageTextureKind::NormalMap => TextureImage::NormalMap(image),
@@ -58,9 +65,9 @@ impl Texture {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8], label: &str, kind: ImageTextureKind) -> Self {
+    pub fn from_bytes(id: TextureId, bytes: &[u8], label: &str, kind: ImageTextureKind) -> Self {
         let image = image::load_from_memory(bytes).unwrap();
-        Self::from_image(image, label, kind)
+        Self::from_image(id, image, label, kind)
     }
 
     pub fn resources(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> &TextureResources {

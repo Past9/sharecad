@@ -10,7 +10,7 @@ use crate::{
     light::Light,
     material::{Material, MaterialId},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
-    texture::{ImageTextureKind, Texture},
+    texture::{ImageTextureKind, Texture, TextureId},
 };
 
 #[derive(Debug)]
@@ -35,16 +35,26 @@ impl<T: From<u32>> IdSeries<T> {
 #[derive(Debug)]
 pub struct Scene {
     objects: Vec<Box<dyn SceneObject>>,
-    materials: HashMap<MaterialId, Material>,
+
+    texture_ids: IdSeries<TextureId>,
+    textures: HashMap<TextureId, Texture>,
+
     material_ids: IdSeries<MaterialId>,
+    materials: HashMap<MaterialId, Material>,
+
     light: Light,
 }
 impl Scene {
     pub fn new() -> Self {
         Self {
             objects: vec![],
-            materials: HashMap::new(),
+
+            texture_ids: IdSeries::new(),
+            textures: HashMap::new(),
+
             material_ids: IdSeries::new(),
+            materials: HashMap::new(),
+
             light: Light::new(Point3::ZERO, [0.0; 3]),
         }
     }
@@ -59,6 +69,10 @@ impl Scene {
 
     pub fn materials(&self) -> &HashMap<MaterialId, Material> {
         &self.materials
+    }
+
+    pub fn textures(&self) -> &HashMap<TextureId, Texture> {
+        &self.textures
     }
 
     pub fn light(&self) -> &Light {
@@ -83,9 +97,14 @@ impl Scene {
         std::fs::read(path).unwrap()
     }
 
-    async fn load_texture(&self, file_name: &str, kind: ImageTextureKind) -> Texture {
+    async fn load_texture(
+        &self,
+        id: TextureId,
+        file_name: &str,
+        kind: ImageTextureKind,
+    ) -> Texture {
         let data = Self::load_binary(file_name).await;
-        Texture::from_bytes(&data, file_name, kind)
+        Texture::from_bytes(id, &data, file_name, kind)
     }
 
     pub async fn load_model_file<T: SceneObjectInstance>(
@@ -113,19 +132,28 @@ impl Scene {
         .unwrap();
 
         for m in obj_materials.unwrap().into_iter() {
-            let diffuse_texture = self
-                .load_texture(&m.diffuse_texture, ImageTextureKind::Diffuse)
-                .await;
-            let normal_texture = self
-                .load_texture(&m.normal_texture, ImageTextureKind::Diffuse)
-                .await;
+            let diffuse_tex_id = self.texture_ids.next();
+            let normal_tex_id = self.texture_ids.next();
+            let material_id = self.material_ids.next();
 
-            let material = Material::new(
-                self.material_ids.next(),
-                &m.name,
-                diffuse_texture,
-                normal_texture,
+            self.textures.insert(
+                diffuse_tex_id,
+                self.load_texture(
+                    diffuse_tex_id,
+                    &m.diffuse_texture,
+                    ImageTextureKind::Diffuse,
+                )
+                .await,
             );
+
+            self.textures.insert(
+                normal_tex_id,
+                // TODO: Use Normal kind, not Diffuse
+                self.load_texture(normal_tex_id, &m.normal_texture, ImageTextureKind::Diffuse)
+                    .await,
+            );
+
+            let material = Material::new(material_id, &m.name, diffuse_tex_id, normal_tex_id);
 
             self.materials.insert(material.id, material);
         }
