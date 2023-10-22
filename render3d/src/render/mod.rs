@@ -3,14 +3,11 @@ mod texture;
 mod visual;
 
 use bytemuck::{Pod, Zeroable};
-use std::{cell::OnceCell, sync::Arc};
-use wgpu::TextureAspect;
+use std::sync::Arc;
 use winit::window::Window;
 
 pub use position::*;
 pub use visual::*;
-
-use self::texture::TextureResources;
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
