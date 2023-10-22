@@ -1,6 +1,3 @@
-use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use winit::{event::WindowEvent, window::Window};
-
 use crate::{
     camera::{Camera, CameraController},
     light::Light,
@@ -8,12 +5,15 @@ use crate::{
     render::{PositionRenderer, RenderContext, VisualRenderer},
     scene::Scene,
 };
+use space::{deg, point3, vec3, Point3, Quat, Vec3};
+use winit::{event::WindowEvent, window::Window};
 
 const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
 
 pub struct State {
-    renderer: PositionRenderer,
+    visual_renderer: VisualRenderer,
+    position_renderer: PositionRenderer,
     camera: Camera,
     camera_controller: CameraController,
     scene: Scene,
@@ -22,9 +22,14 @@ pub struct State {
 impl State {
     pub async fn new(window: Window) -> Self {
         let render_context = RenderContext::new().await;
-        let render_target = render_context.on_window(&window);
+        //let render_target = render_context.render_on_window(&window);
 
-        let visual_render = PositionRenderer::new(render_target).await;
+        let visual_renderer = VisualRenderer::new(render_context.render_on_window(&window)).await;
+        let position_renderer = PositionRenderer::new(
+            render_context
+                .render_into_memory(visual_renderer.size(), wgpu::TextureFormat::Rgba32Float),
+        )
+        .await;
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
@@ -36,7 +41,7 @@ impl State {
             vec3(0.0, 2.0, -5.0),
             vec3(0.0, 5.0, 2.0),
              */
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(Point3::new(0.0, 0.0, 0.0));
@@ -93,7 +98,8 @@ impl State {
         };
 
         Self {
-            renderer: visual_render,
+            visual_renderer,
+            position_renderer,
             camera,
             camera_controller,
             scene,
@@ -106,7 +112,10 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        self.renderer.resize((new_size.width, new_size.height));
+        self.visual_renderer
+            .resize((new_size.width, new_size.height));
+        self.position_renderer
+            .resize((new_size.width, new_size.height));
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -115,7 +124,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.camera_controller
-            .update_camera(&mut self.camera, self.renderer.size());
+            .update_camera(&mut self.camera, self.visual_renderer.size());
 
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
@@ -124,6 +133,9 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.renderer.render(&self.scene, &self.camera)
+        self.visual_renderer
+            .render(&self.scene, &self.camera)
+            .unwrap();
+        self.position_renderer.render(&self.scene, &self.camera)
     }
 }

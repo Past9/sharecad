@@ -1,6 +1,4 @@
-use std::{cell::OnceCell, collections::HashMap};
-use wgpu::util::DeviceExt;
-
+use super::{texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraUniform},
     light::LightUniform,
@@ -9,8 +7,8 @@ use crate::{
     scene::Scene,
     texture::{Texture, TextureId},
 };
-
-use super::{texture::TextureResources, RenderTarget, VertexBuffer};
+use std::{cell::OnceCell, collections::HashMap};
+use wgpu::util::DeviceExt;
 
 pub struct VisualRenderer {
     target: RenderTarget,
@@ -355,13 +353,9 @@ impl VisualRenderer {
             .entry(material.id)
             .or_insert_with(|| {
                 let device = self.target.device();
-                //let queue = self.target.queue();
 
                 let diffuse = self.image_textures.get(&material.diffuse).unwrap();
                 let normal = self.image_textures.get(&material.normal).unwrap();
-
-                //let diffuse = material.diffuse.resources(device, queue);
-                //let normal = material.normal.resources(device, queue);
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     layout: &self.texture_bind_group_layout,

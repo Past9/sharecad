@@ -1,16 +1,11 @@
-use std::{cell::OnceCell, collections::HashMap};
-use wgpu::util::DeviceExt;
-
+use super::{texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraUniform},
-    light::LightUniform,
-    material::{Material, MaterialId},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
-    texture::{Texture, TextureId},
 };
-
-use super::{texture::TextureResources, RenderTarget, VertexBuffer};
+use std::cell::OnceCell;
+use wgpu::util::DeviceExt;
 
 pub struct PositionRenderer {
     target: RenderTarget,
@@ -85,10 +80,7 @@ impl PositionRenderer {
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
+                        blend: None,
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),

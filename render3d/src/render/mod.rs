@@ -3,11 +3,14 @@ mod texture;
 mod visual;
 
 use bytemuck::{Pod, Zeroable};
-use std::sync::Arc;
+use std::{cell::OnceCell, sync::Arc};
+use wgpu::TextureAspect;
 use winit::window::Window;
 
 pub use position::*;
 pub use visual::*;
+
+use self::texture::TextureResources;
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -54,7 +57,58 @@ impl RenderContext {
         }
     }
 
-    pub fn on_window(&self, window: &Window) -> RenderTarget {
+    pub fn render_into_memory(
+        &self,
+        size: (u32, u32),
+        format: wgpu::TextureFormat,
+    ) -> RenderTarget {
+        /*
+        let desc = wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+            view_formats: &[],
+        };
+
+        let texture = self.inner.device.create_texture(&desc);
+        let view = texture.create_view(&Default::default());
+
+        let buffer_size =
+            (format.block_size(None).unwrap() * size.0 * size.1) as wgpu::BufferAddress;
+
+        let buffer_desc = wgpu::BufferDescriptor {
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            label: None,
+            mapped_at_creation: false,
+        };
+
+        let output_buffer = self.inner.device.create_buffer(&buffer_desc);
+
+        RenderTarget {
+            context: self.inner.clone(),
+            target: TargetInner::Texture(TargetTexture {
+                texture,
+                view,
+                output_buffer,
+            }),
+        }
+         */
+        RenderTarget {
+            context: self.inner.clone(),
+            target: TargetInner::Texture(TargetTexture::new(&self.inner.device, size, format)),
+        }
+    }
+
+    pub fn render_on_window(&self, window: &Window) -> RenderTarget {
         let surface = unsafe { self.inner.instance.create_surface(&window) }.unwrap();
 
         let surface_caps = surface.get_capabilities(&self.inner.adapter);
@@ -67,6 +121,8 @@ impl RenderContext {
             .unwrap_or(surface_caps.formats[0]);
 
         let dimensions = window.inner_size();
+
+        println!("surface_format = {:?}", surface_format);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -96,12 +152,57 @@ struct ContextInner {
 
 enum TargetInner {
     Surface(TargetSurface),
-    Texture(wgpu::Texture),
+    Texture(TargetTexture),
 }
 
 struct TargetSurface {
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
+}
+
+struct TargetTexture {
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    output_buffer: wgpu::Buffer,
+}
+impl TargetTexture {
+    pub fn new(device: &wgpu::Device, size: (u32, u32), format: wgpu::TextureFormat) -> Self {
+        let desc = wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+            view_formats: &[],
+        };
+
+        let texture = device.create_texture(&desc);
+        let view = texture.create_view(&Default::default());
+
+        let buffer_size =
+            (format.block_size(None).unwrap() * size.0 * size.1) as wgpu::BufferAddress;
+
+        let buffer_desc = wgpu::BufferDescriptor {
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            label: None,
+            mapped_at_creation: false,
+        };
+
+        let output_buffer = device.create_buffer(&buffer_desc);
+
+        TargetTexture {
+            texture,
+            view,
+            output_buffer,
+        }
+    }
 }
 
 pub struct RenderTarget {
@@ -119,8 +220,8 @@ impl RenderTarget {
 
     pub fn format(&self) -> wgpu::TextureFormat {
         match &self.target {
-            TargetInner::Surface(surface) => surface.config.format,
-            TargetInner::Texture(texture) => texture.format(),
+            TargetInner::Surface(target) => target.config.format,
+            TargetInner::Texture(target) => target.texture.format(),
         }
     }
 
@@ -129,22 +230,29 @@ impl RenderTarget {
             return;
         }
 
-        match self.target {
-            TargetInner::Surface(ref mut surface) => {
-                surface.config.width = size.0;
-                surface.config.height = size.1;
-                surface
-                    .surface
-                    .configure(&self.context.device, &surface.config)
-            }
-            TargetInner::Texture(ref mut texture) => todo!(),
+        if let TargetInner::Surface(ref mut target) = self.target {
+            target.config.width = size.0;
+            target.config.height = size.1;
+            target
+                .surface
+                .configure(&self.context.device, &target.config);
+        } else if let TargetInner::Texture(target) = &self.target {
+            self.target = TargetInner::Texture(TargetTexture::new(
+                self.device(),
+                size,
+                target.texture.format(),
+            ));
+        } else {
+            todo!("Resize not yet implemented for target type");
         }
     }
 
     pub fn size(&self) -> (u32, u32) {
         match &self.target {
-            TargetInner::Surface(surface) => (surface.config.width, surface.config.height),
-            TargetInner::Texture(texture) => (texture.size().width, texture.size().height),
+            TargetInner::Surface(target) => (target.config.width, target.config.height),
+            TargetInner::Texture(target) => {
+                (target.texture.size().width, target.texture.size().height)
+            }
         }
     }
 
@@ -155,15 +263,17 @@ impl RenderTarget {
 
     pub fn frame(&self) -> RenderFrame {
         match &self.target {
-            TargetInner::Surface(surface) => {
-                let surface_texture = surface.surface.get_current_texture().unwrap();
+            TargetInner::Surface(target) => {
+                let surface_texture = target.surface.get_current_texture().unwrap();
                 let view = surface_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
                 RenderFrame::new(view, Some(surface_texture))
             }
-            TargetInner::Texture(texture) => RenderFrame::new(
-                texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            TargetInner::Texture(target) => RenderFrame::new(
+                target
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
                 None,
             ),
         }
