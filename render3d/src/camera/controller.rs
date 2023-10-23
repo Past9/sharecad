@@ -1,25 +1,18 @@
-use std::future::Future;
-
-use space::{deg, vec2, Point3, Quat};
+use space::{deg, vec2, Angle, Point3, Quat, Vec3};
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
-use crate::render::PositionRenderer;
-
 use super::Camera;
 
 const ZOOM_SENSITIVITY: f64 = 0.2;
-const ORBIT_SENSITIVITY: f64 = 0.1;
+const ORBIT_SENSITIVITY: f64 = 0.2;
 
 #[derive(Debug, Clone)]
 struct OrbitParams {
-    /// The distance between the orbit point and the camera's target or "look at"
-    /// point at the start of an orbit drag.
-    orbit_to_target_dist: Option<f64>,
-    //starting_camera: Camera,
-    //rotation: Quat,
+    starting_camera: Camera,
+    rotation: Quat,
 }
 
 #[derive(Debug)]
@@ -27,6 +20,7 @@ enum DragState<T> {
     None,
     Dragging {
         params: T,
+        start_pos: PhysicalPosition<f64>,
         last_pos: PhysicalPosition<f64>,
         current_pos: PhysicalPosition<f64>,
     },
@@ -64,32 +58,28 @@ pub enum OrbitPointMode {
 }
 
 pub struct CameraController {
+    size: (u32, u32),
     camera: Camera,
     orbit_point: Point3,
     orbit_point_mode: OrbitPointMode,
-    is_forward_pressed: bool,
-    is_backward_pressed: bool,
-    is_left_pressed: bool,
-    is_right_pressed: bool,
     scroll_delta: f64,
+    is_ctrl_pressed: bool,
     mouse_pos: PhysicalPosition<f64>,
-    rmb_drag_state: DragState<OrbitParams>,
-    mmb_drag_state: DragState<()>,
+    orbit_drag_state: DragState<OrbitParams>,
+    pan_drag_state: DragState<()>,
 }
 impl CameraController {
     pub fn new(camera: Camera) -> Self {
         Self {
+            size: (0, 0),
             camera,
             orbit_point: Point3::ZERO,
             orbit_point_mode: OrbitPointMode::Adaptive,
-            is_forward_pressed: false,
-            is_backward_pressed: false,
-            is_left_pressed: false,
-            is_right_pressed: false,
             scroll_delta: 0.0,
+            is_ctrl_pressed: false,
             mouse_pos: PhysicalPosition::new(0.0, 0.0),
-            rmb_drag_state: DragState::None,
-            mmb_drag_state: DragState::None,
+            orbit_drag_state: DragState::None,
+            pan_drag_state: DragState::None,
         }
     }
 
@@ -97,9 +87,12 @@ impl CameraController {
         &self.camera
     }
 
+    pub fn resize(&mut self, size: (u32, u32)) {
+        self.size = size;
+    }
+
     pub fn set_orbit_point(&mut self, orbit_point: Point3) {
         self.orbit_point = orbit_point;
-        println!("new orbit: {:?}", self.orbit_point);
     }
 
     pub fn orbit_point(&self) -> Point3 {
@@ -115,99 +108,34 @@ impl CameraController {
     }
 
     pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {
-        match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
-                        ..
-                    },
-                ..
-            } => {
-                let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::W | VirtualKeyCode::Up => {
-                        self.is_forward_pressed = is_pressed;
-                        EventResult::processed([])
-                    }
-                    VirtualKeyCode::A | VirtualKeyCode::Left => {
-                        self.is_left_pressed = is_pressed;
-                        EventResult::processed([])
-                    }
-                    VirtualKeyCode::S | VirtualKeyCode::Down => {
-                        self.is_backward_pressed = is_pressed;
-                        EventResult::processed([])
-                    }
-                    VirtualKeyCode::D | VirtualKeyCode::Right => {
-                        self.is_right_pressed = is_pressed;
-                        EventResult::processed([])
-                    }
-                    _ => EventResult::unprocessed([]),
-                }
+        let result = match event {
+            WindowEvent::ModifiersChanged(state) => {
+                self.is_ctrl_pressed = state.ctrl();
+                EventResult::processed([])
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.mouse_pos = position.cast();
 
-                // Orbit dragging with RMB
-                if let DragState::Dragging {
-                    params, last_pos, ..
-                } = &self.rmb_drag_state
-                {
-                    self.rmb_drag_state = DragState::Dragging {
-                        params: params.clone(),
-                        last_pos: *last_pos,
-                        current_pos: self.mouse_pos,
-                    };
-                }
-
-                // Pan dragging with MMB
-                if let DragState::Dragging {
-                    params, last_pos, ..
-                } = &self.mmb_drag_state
-                {
-                    self.mmb_drag_state = DragState::Dragging {
-                        params: params.clone(),
-                        last_pos: *last_pos,
-                        current_pos: self.mouse_pos,
-                    };
-                }
+                self.update_orbit();
+                self.update_pan();
 
                 EventResult::processed([])
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Right {
                     if *state == ElementState::Pressed {
-                        self.rmb_drag_state = DragState::Dragging {
-                            params: OrbitParams {
-                                orbit_to_target_dist: None,
-                            },
-                            last_pos: self.mouse_pos,
-                            current_pos: self.mouse_pos,
-                        };
-                        match self.orbit_point_mode {
-                            OrbitPointMode::Locked => EventResult::processed([]),
-                            OrbitPointMode::Adaptive => {
-                                EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
-                            }
-                        }
-                        //EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
+                        self.start_orbit()
                     } else {
-                        self.rmb_drag_state = DragState::None;
-                        EventResult::processed([])
+                        self.stop_orbit()
                     }
                 } else if *button == MouseButton::Middle {
-                    self.mmb_drag_state = match state {
-                        ElementState::Pressed => DragState::Dragging {
-                            params: (),
-                            last_pos: self.mouse_pos,
-                            current_pos: self.mouse_pos,
-                        },
-                        ElementState::Released => DragState::None,
-                    };
-                    EventResult::processed([])
+                    if *state == ElementState::Pressed {
+                        self.start_pan()
+                    } else {
+                        self.stop_pan()
+                    }
                 } else {
-                    EventResult::processed([])
+                    self.stop_pan()
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
@@ -221,17 +149,106 @@ impl CameraController {
                 EventResult::processed([])
             }
             _ => EventResult::unprocessed([]),
+        };
+
+        self.apply_zoom();
+        self.apply_orbit();
+        self.apply_pan();
+
+        if let DragState::Dragging {
+            ref mut last_pos,
+            current_pos,
+            ..
+        } = &mut self.orbit_drag_state
+        {
+            *last_pos = *current_pos;
+        }
+
+        if let DragState::Dragging {
+            ref mut last_pos,
+            current_pos,
+            ..
+        } = &mut self.pan_drag_state
+        {
+            *last_pos = *current_pos;
+        }
+
+        result
+    }
+
+    fn start_orbit(&mut self) -> EventResult {
+        self.orbit_drag_state = DragState::Dragging {
+            params: OrbitParams {
+                starting_camera: self.camera.clone(),
+                rotation: Quat::from_axis_angle(Vec3::UNIT_Y, Angle::ZERO),
+            },
+            start_pos: self.mouse_pos,
+            last_pos: self.mouse_pos,
+            current_pos: self.mouse_pos,
+        };
+        match self.orbit_point_mode {
+            OrbitPointMode::Locked => EventResult::processed([]),
+            OrbitPointMode::Adaptive => {
+                EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
+            }
         }
     }
 
-    pub fn update_camera(&mut self, dimensions: (u32, u32)) {
-        self.update_mouse_zoom(dimensions);
-
-        self.update_mouse_orbit();
-        self.update_mouse_pan(dimensions);
+    fn update_orbit(&mut self) {
+        if let DragState::Dragging {
+            params,
+            start_pos,
+            current_pos,
+            ..
+        } = &self.orbit_drag_state
+        {
+            self.orbit_drag_state = DragState::Dragging {
+                params: params.clone(),
+                start_pos: *start_pos,
+                last_pos: *current_pos,
+                current_pos: self.mouse_pos,
+            };
+        }
     }
 
-    fn update_mouse_zoom(&mut self, dimensions: (u32, u32)) {
+    fn stop_orbit(&mut self) -> EventResult {
+        self.orbit_drag_state = DragState::None;
+        EventResult::processed([])
+    }
+
+    fn start_pan(&mut self) -> EventResult {
+        self.pan_drag_state = DragState::Dragging {
+            params: (),
+            start_pos: self.mouse_pos,
+            last_pos: self.mouse_pos,
+            current_pos: self.mouse_pos,
+        };
+        EventResult::processed([])
+    }
+
+    fn update_pan(&mut self) {
+        if let DragState::Dragging {
+            params,
+            start_pos,
+            current_pos,
+            ..
+        } = &self.pan_drag_state
+        {
+            self.pan_drag_state = DragState::Dragging {
+                params: params.clone(),
+                start_pos: *start_pos,
+                last_pos: *current_pos,
+                current_pos: self.mouse_pos,
+            };
+        }
+    }
+
+    fn stop_pan(&mut self) -> EventResult {
+        self.pan_drag_state = DragState::None;
+        EventResult::processed([])
+    }
+
+    fn apply_zoom(&mut self) {
         if self.scroll_delta == 0.0 {
             return;
         }
@@ -250,7 +267,7 @@ impl CameraController {
         // Adjust the target position so that the object under the mouse pointer
         // at the target distance stays in the same spot on the screen after zooming
         {
-            let (w, h) = (dimensions.0 as f64, dimensions.1 as f64);
+            let (w, h) = (self.size.0 as f64, self.size.1 as f64);
 
             // The radius of `ptr` in pixels.
             let ptr_pixels = match w < h {
@@ -290,15 +307,15 @@ impl CameraController {
         self.scroll_delta = 0.0;
     }
 
-    fn update_mouse_pan(&mut self, dimensions: (u32, u32)) {
+    fn apply_pan(&mut self) {
         if let DragState::Dragging {
-            ref mut last_pos,
+            last_pos,
             current_pos,
             ..
-        } = self.mmb_drag_state
+        } = self.pan_drag_state
         {
             // Size in pixels of the displayed scene
-            let (w, h) = (dimensions.0 as f64, dimensions.1 as f64);
+            let (w, h) = (self.size.0 as f64, self.size.1 as f64);
 
             // X and Y mouse movement in pixels
             let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
@@ -327,62 +344,33 @@ impl CameraController {
             // Move the camera
             self.camera
                 .set_target(self.camera.target() + move_x + move_y);
-
-            // Update the DragState so we don't use this mouse movement more than once
-            *last_pos = current_pos;
         }
     }
 
-    fn update_mouse_orbit(&mut self) {
+    fn apply_orbit(&mut self) {
         if let DragState::Dragging {
             ref mut params,
-            ref mut last_pos,
+            last_pos,
             current_pos,
-        } = self.rmb_drag_state
+            ..
+        } = self.orbit_drag_state
         {
-            // Set the orbit-to-target distance if this is the first movement
-            // of the orbit.
-            let original_orbit_to_target_dist = params
-                .orbit_to_target_dist
-                .get_or_insert_with(|| (self.camera.target() - self.orbit_point).magnitude());
-
             // Move the camera around the orbit point according to the mouse movement
-            {
-                let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
+            let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
-                let rotation =
-                    Quat::from_axis_angle(self.camera.local_y(), deg(x * ORBIT_SENSITIVITY))
-                        + Quat::from_axis_angle(self.camera.local_x(), deg(y * ORBIT_SENSITIVITY));
+            params.rotation *=
+                Quat::from_axis_angle(params.starting_camera.local_y(), deg(x * ORBIT_SENSITIVITY))
+                    + Quat::from_axis_angle(
+                        params.starting_camera.local_x(),
+                        deg(y * ORBIT_SENSITIVITY),
+                    );
 
-                self.camera.rotate_around(self.orbit_point, rotation);
-            }
+            params.rotation = params.rotation.normalize();
 
-            // Due to floating point imprecision, the camera's target point may "drift away" from the
-            // orbit point during an orbit drag. To correct this, we move the target point after
-            // rotating the camera (above) so that it's always `original_orbit_to_target_dist` away.
-            {
-                // The vector from orbit to target point after rotating
-                let orbit_to_target = self.camera.target() - self.orbit_point;
+            let mut camera = params.starting_camera.clone();
+            camera.rotate_around(self.orbit_point, params.rotation);
 
-                // The length of the vector. This is what we're correcting.
-                let dist = orbit_to_target.magnitude();
-
-                let corrected_target = if dist > 0.0 {
-                    // Move the target slightly along `orbit_to_target` (in whichever direction is needed)
-                    // so that `original_orbit_to_target_dist` is maintained.
-                    self.orbit_point + orbit_to_target * (*original_orbit_to_target_dist / dist)
-                } else {
-                    // If the camera is orbiting its exact target point, just move the target
-                    // to the orbit.
-                    self.orbit_point
-                };
-
-                // Move the camera to the corrected point
-                self.camera.set_target(corrected_target);
-            }
-
-            // Update the DragState so we don't use this mouse movement more than once
-            *last_pos = current_pos;
+            self.camera = camera;
         }
     }
 }

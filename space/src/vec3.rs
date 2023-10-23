@@ -49,11 +49,11 @@ impl Vec3 {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot(&self, other: Vec3) -> f64 {
+    pub fn dot(&self, other: Self) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn cross(&self, other: Vec3) -> Self {
+    pub fn cross(&self, other: Self) -> Self {
         Self {
             x: (self.y * other.z) - (self.z * other.y),
             y: (self.z * other.x) - (self.x * other.z),

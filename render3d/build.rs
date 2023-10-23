@@ -7,6 +7,7 @@ fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=res/*");
 
     let out_dir = env::var("OUT_DIR")?;
+    //panic!("OUT_DIR {}", out_dir);
     let mut copy_options = CopyOptions::new();
     copy_options.overwrite = true;
     let mut paths_to_copy = Vec::new();

@@ -86,8 +86,6 @@ impl RenderContext {
 
         let dimensions = window.inner_size();
 
-        println!("surface_format = {:?}", surface_format);
-
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,

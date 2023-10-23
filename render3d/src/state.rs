@@ -1,5 +1,5 @@
 use crate::{
-    camera::{Camera, CameraController, CameraControllerRequest, OrbitPointMode},
+    camera::{Camera, CameraController, CameraControllerRequest},
     light::Light,
     model::{InstanceId, TransformedInstance},
     render::{PositionRenderer, RenderContext, VisualRenderer},
@@ -14,7 +14,6 @@ const SPACE_BETWEEN: f64 = 3.0;
 pub struct State {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
-    //camera: Camera,
     camera_controller: CameraController,
     scene: Scene,
     window: Window,
@@ -37,16 +36,10 @@ impl State {
             50.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            /*
-            vec3(0.0, 2.0, -5.0),
-            vec3(0.0, 5.0, 2.0),
-             */
             deg(0.0),
         );
 
-        let mut camera_controller = CameraController::new(camera);
-        camera_controller.set_orbit_point_mode(OrbitPointMode::Locked);
-        camera_controller.set_orbit_point(point3(4.0, 4.0, 4.0));
+        let camera_controller = CameraController::new(camera);
 
         let scene = {
             let mut scene = Scene::new();
@@ -58,14 +51,6 @@ impl State {
                             let id = InstanceId(
                                 y * NUM_INSTANCES_PER_ROW.pow(2) + z * NUM_INSTANCES_PER_ROW + x,
                             );
-
-                            /*
-                            let scale = vec3(
-                                x as f64 / NUM_INSTANCES_PER_ROW as f64,
-                                y as f64 / NUM_INSTANCES_PER_ROW as f64,
-                                z as f64 / NUM_INSTANCES_PER_ROW as f64,
-                            );
-                             */
 
                             let scale = vec3(1.0, 1.0, 1.0);
 
@@ -119,10 +104,11 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        self.visual_renderer
-            .resize((new_size.width, new_size.height));
+        let new_size = (new_size.width, new_size.height);
+        self.visual_renderer.resize(new_size);
         self.position_renderer
-            .resize((new_size.width, new_size.height));
+            .resize((new_size.0 / 10, new_size.1 / 10));
+        self.camera_controller.resize(new_size)
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -141,9 +127,6 @@ impl State {
     }
 
     pub fn update(&mut self) {
-        self.camera_controller
-            .update_camera(self.visual_renderer.size());
-
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
 

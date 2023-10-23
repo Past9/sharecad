@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     io::{BufReader, Cursor},
     marker::PhantomData,
+    path::{Path, PathBuf},
 };
 
 use space::{Point3, Vec2, Vec3};
@@ -83,6 +84,7 @@ impl Scene {
         let path = std::path::Path::new(env!("OUT_DIR"))
             .join("res")
             .join(file_name);
+        println!("loading {}", path.display());
         std::fs::read_to_string(path).unwrap()
     }
 
@@ -108,6 +110,8 @@ impl Scene {
         file_name: &str,
         mut instances: Vec<Vec<T>>,
     ) {
+        let mut parent_path = Path::new(file_name).parent().unwrap();
+
         let obj_text = Self::load_string(file_name).await;
         let obj_cursor = Cursor::new(obj_text);
         let mut obj_reader = BufReader::new(obj_cursor);
@@ -120,7 +124,12 @@ impl Scene {
                 ..Default::default()
             },
             |p| async move {
-                let mat_text = Self::load_string(&p).await;
+                let mut material_pathbuf = PathBuf::from(parent_path);
+                material_pathbuf.push(p);
+
+                let mat_text =
+                    Self::load_string(&material_pathbuf.into_os_string().into_string().unwrap())
+                        .await;
                 tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
             },
         )
@@ -132,21 +141,27 @@ impl Scene {
             let normal_tex_id = self.texture_ids.next();
             let material_id = self.material_ids.next();
 
+            let mut diffuse_pathbuf = PathBuf::from(parent_path);
+            diffuse_pathbuf.push(m.diffuse_texture);
+
             self.textures.insert(
                 diffuse_tex_id,
                 self.load_texture(
                     diffuse_tex_id,
-                    &m.diffuse_texture,
+                    &diffuse_pathbuf.into_os_string().into_string().unwrap(),
                     ImageTextureKind::Diffuse,
                 )
                 .await,
             );
 
+            let mut normal_pathbuf = PathBuf::from(parent_path);
+            normal_pathbuf.push(m.normal_texture);
+
             self.textures.insert(
                 normal_tex_id,
                 self.load_texture(
                     normal_tex_id,
-                    &m.normal_texture,
+                    &normal_pathbuf.into_os_string().into_string().unwrap(),
                     ImageTextureKind::NormalMap,
                 )
                 .await,

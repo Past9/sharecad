@@ -18,16 +18,16 @@ pub fn rad(rad: f64) -> Angle {
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Angle(pub f64);
 impl Angle {
-    const ZERO: Self = Self(0.0);
-    const RAD_PI: Self = Self(PI);
-    const RAD_2PI: Self = Self(PI2_1);
-    const RAD_1_2_PI: Self = Self(PI1_2);
-    const RAD_1_4_PI: Self = Self(PI1_4);
+    pub const ZERO: Self = Self(0.0);
+    pub const RAD_PI: Self = Self(PI);
+    pub const RAD_2PI: Self = Self(PI2_1);
+    pub const RAD_1_2_PI: Self = Self(PI1_2);
+    pub const RAD_1_4_PI: Self = Self(PI1_4);
 
-    const DEG_180: Self = Self(PI);
-    const DEG_360: Self = Self(PI2_1);
-    const DEG_90: Self = Self(PI1_2);
-    const DEG_45: Self = Self(PI1_4);
+    pub const DEG_180: Self = Self(PI);
+    pub const DEG_360: Self = Self(PI2_1);
+    pub const DEG_90: Self = Self(PI1_2);
+    pub const DEG_45: Self = Self(PI1_4);
 
     pub fn is_zero(&self) -> bool {
         self.0 == 0.0
