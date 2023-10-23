@@ -55,8 +55,15 @@ pub enum CameraControllerRequest {
     RequestOrbitPoint,
 }
 
+#[derive(Clone, Copy)]
+pub enum OrbitPointMode {
+    Locked,
+    Adaptive,
+}
+
 pub struct CameraController {
     orbit_point: Point3,
+    orbit_point_mode: OrbitPointMode,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -70,6 +77,7 @@ impl CameraController {
     pub fn new() -> Self {
         Self {
             orbit_point: Point3::ZERO,
+            orbit_point_mode: OrbitPointMode::Adaptive,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,
@@ -84,6 +92,18 @@ impl CameraController {
     pub fn set_orbit_point(&mut self, orbit_point: Point3) {
         self.orbit_point = orbit_point;
         println!("new orbit: {:?}", self.orbit_point);
+    }
+
+    pub fn orbit_point(&self) -> Point3 {
+        self.orbit_point
+    }
+
+    pub fn set_orbit_point_mode(&mut self, mode: OrbitPointMode) {
+        self.orbit_point_mode = mode;
+    }
+
+    pub fn orbit_point_mode(&self) -> OrbitPointMode {
+        self.orbit_point_mode
     }
 
     pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {
@@ -157,7 +177,13 @@ impl CameraController {
                             last_pos: self.mouse_pos,
                             current_pos: self.mouse_pos,
                         };
-                        EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
+                        match self.orbit_point_mode {
+                            OrbitPointMode::Locked => EventResult::processed([]),
+                            OrbitPointMode::Adaptive => {
+                                EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
+                            }
+                        }
+                        //EventResult::processed([CameraControllerRequest::RequestOrbitPoint])
                     } else {
                         self.rmb_drag_state = DragState::None;
                         EventResult::processed([])
