@@ -110,7 +110,14 @@ impl CameraController {
     pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {
         let result = match event {
             WindowEvent::ModifiersChanged(state) => {
-                self.is_ctrl_pressed = state.ctrl();
+                if self.is_ctrl_pressed != state.ctrl() {
+                    self.is_ctrl_pressed = state.ctrl();
+
+                    if !self.is_ctrl_pressed {
+                        self.stop_orbit();
+                        self.stop_pan();
+                    }
+                }
                 EventResult::processed([])
             }
             WindowEvent::CursorMoved { position, .. } => {
@@ -123,13 +130,24 @@ impl CameraController {
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Right {
-                    if *state == ElementState::Pressed {
-                        self.start_orbit()
+                    if self.is_ctrl_pressed {
+                        if *state == ElementState::Pressed {
+                            self.stop_orbit();
+                            self.start_pan()
+                        } else {
+                            self.stop_pan()
+                        }
                     } else {
-                        self.stop_orbit()
+                        if *state == ElementState::Pressed {
+                            self.stop_pan();
+                            self.start_orbit()
+                        } else {
+                            self.stop_orbit()
+                        }
                     }
                 } else if *button == MouseButton::Middle {
                     if *state == ElementState::Pressed {
+                        self.stop_orbit();
                         self.start_pan()
                     } else {
                         self.stop_pan()
