@@ -1,5 +1,5 @@
 use crate::{
-    camera::{Camera, CameraController, CameraControllerRequest},
+    camera::{Camera, CameraController, CameraControllerRequest, OrbitPointMode},
     light::Light,
     model::{InstanceId, TransformedInstance},
     render::{PositionRenderer, RenderContext, VisualRenderer},
@@ -14,7 +14,7 @@ const SPACE_BETWEEN: f64 = 3.0;
 pub struct State {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
-    camera: Camera,
+    //camera: Camera,
     camera_controller: CameraController,
     scene: Scene,
     window: Window,
@@ -44,7 +44,9 @@ impl State {
             deg(0.0),
         );
 
-        let camera_controller = CameraController::new();
+        let mut camera_controller = CameraController::new(camera);
+        camera_controller.set_orbit_point_mode(OrbitPointMode::Locked);
+        camera_controller.set_orbit_point(point3(4.0, 4.0, 4.0));
 
         let scene = {
             let mut scene = Scene::new();
@@ -104,7 +106,7 @@ impl State {
         Self {
             visual_renderer,
             position_renderer,
-            camera,
+            //camera,
             camera_controller,
             scene,
             window,
@@ -140,7 +142,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.camera_controller
-            .update_camera(&mut self.camera, self.visual_renderer.size());
+            .update_camera(self.visual_renderer.size());
 
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
@@ -150,7 +152,7 @@ impl State {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.visual_renderer
-            .render(&self.scene, &self.camera)
+            .render(&self.scene, self.camera_controller.camera())
             .unwrap();
 
         self.needs_position_update = true;
@@ -161,7 +163,7 @@ impl State {
     fn get_orbit_point(&mut self) -> Point3 {
         self.render_position().unwrap();
 
-        let eye = self.camera.eye();
+        let eye = self.camera_controller.camera().eye();
         let mut avg_pos = Vec3::ZERO;
 
         pollster::block_on(self.position_renderer.visit_pixels(|pixels| {
@@ -189,7 +191,8 @@ impl State {
 
     fn render_position(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.needs_position_update {
-            self.position_renderer.render(&self.scene, &self.camera)
+            self.position_renderer
+                .render(&self.scene, &self.camera_controller.camera())
         } else {
             Ok(())
         }

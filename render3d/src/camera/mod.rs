@@ -10,7 +10,7 @@ pub struct Eye {
     pub location: Point3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Camera {
     target: Point3,
     target_radius: f64,

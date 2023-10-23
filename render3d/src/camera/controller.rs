@@ -18,6 +18,8 @@ struct OrbitParams {
     /// The distance between the orbit point and the camera's target or "look at"
     /// point at the start of an orbit drag.
     orbit_to_target_dist: Option<f64>,
+    //starting_camera: Camera,
+    //rotation: Quat,
 }
 
 #[derive(Debug)]
@@ -62,6 +64,7 @@ pub enum OrbitPointMode {
 }
 
 pub struct CameraController {
+    camera: Camera,
     orbit_point: Point3,
     orbit_point_mode: OrbitPointMode,
     is_forward_pressed: bool,
@@ -74,8 +77,9 @@ pub struct CameraController {
     mmb_drag_state: DragState<()>,
 }
 impl CameraController {
-    pub fn new() -> Self {
+    pub fn new(camera: Camera) -> Self {
         Self {
+            camera,
             orbit_point: Point3::ZERO,
             orbit_point_mode: OrbitPointMode::Adaptive,
             is_forward_pressed: false,
@@ -87,6 +91,10 @@ impl CameraController {
             rmb_drag_state: DragState::None,
             mmb_drag_state: DragState::None,
         }
+    }
+
+    pub fn camera(&self) -> &Camera {
+        &self.camera
     }
 
     pub fn set_orbit_point(&mut self, orbit_point: Point3) {
@@ -216,19 +224,19 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
-        self.update_mouse_zoom(camera, dimensions);
+    pub fn update_camera(&mut self, dimensions: (u32, u32)) {
+        self.update_mouse_zoom(dimensions);
 
-        self.update_mouse_orbit(camera);
-        self.update_mouse_pan(camera, dimensions);
+        self.update_mouse_orbit();
+        self.update_mouse_pan(dimensions);
     }
 
-    fn update_mouse_zoom(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
+    fn update_mouse_zoom(&mut self, dimensions: (u32, u32)) {
         if self.scroll_delta == 0.0 {
             return;
         }
 
-        let radius = camera.target_radius();
+        let radius = self.camera.target_radius();
 
         // Calculate a zoom factor. The target radius will be multiplied by this.
         let zoom = if self.scroll_delta > 0.0 {
@@ -260,27 +268,29 @@ impl CameraController {
 
             // The distance in world space to move the target so the point under the mouse pointer
             // at the target distance remains in the same spot on the screen.
-            let target_move_dist = mouse.magnitude() * camera.planar_target_radius() * (1.0 - zoom);
+            let target_move_dist =
+                mouse.magnitude() * self.camera.planar_target_radius() * (1.0 - zoom);
 
             // Generate a vector by which to move the target point by going that distance
             // along the direction from the center of the screen to the mouse pointer
             let target_move = target_move_dist * mouse.normalize();
 
             // Translation vectors to move relative to the camera's local coordinate system
-            let move_x = target_move.x * camera.local_x();
-            let move_y = target_move.y * camera.local_y();
+            let move_x = target_move.x * self.camera.local_x();
+            let move_y = target_move.y * self.camera.local_y();
 
             // Move the camera
-            camera.set_target(camera.target() + move_x + move_y);
+            self.camera
+                .set_target(self.camera.target() + move_x + move_y);
         }
 
         // Now zoom the camera
-        camera.set_target_radius(radius * zoom);
+        self.camera.set_target_radius(radius * zoom);
 
         self.scroll_delta = 0.0;
     }
 
-    fn update_mouse_pan(&mut self, camera: &mut Camera, dimensions: (u32, u32)) {
+    fn update_mouse_pan(&mut self, dimensions: (u32, u32)) {
         if let DragState::Dragging {
             ref mut last_pos,
             current_pos,
@@ -296,7 +306,7 @@ impl CameraController {
             // Diameter of the target area in world coordinates. This is the radius
             // (in world coordinates) of a circle at the target distance that is
             // circumscribed by the display area.
-            let ptd = camera.planar_target_radius() * 2.0;
+            let ptd = self.camera.planar_target_radius() * 2.0;
 
             // The radius of `ptr` in pixels.
             let ptd_pixels = match w < h {
@@ -311,18 +321,19 @@ impl CameraController {
 
             // Vectors to move the camera so that objexts at the target distance stay with
             // the mouse pointer
-            let move_x = -ptd_frac_x * ptd * camera.local_x();
-            let move_y = ptd_frac_y * ptd * camera.local_y();
+            let move_x = -ptd_frac_x * ptd * self.camera.local_x();
+            let move_y = ptd_frac_y * ptd * self.camera.local_y();
 
             // Move the camera
-            camera.set_target(camera.target() + move_x + move_y);
+            self.camera
+                .set_target(self.camera.target() + move_x + move_y);
 
             // Update the DragState so we don't use this mouse movement more than once
             *last_pos = current_pos;
         }
     }
 
-    fn update_mouse_orbit(&mut self, camera: &mut Camera) {
+    fn update_mouse_orbit(&mut self) {
         if let DragState::Dragging {
             ref mut params,
             ref mut last_pos,
@@ -333,16 +344,17 @@ impl CameraController {
             // of the orbit.
             let original_orbit_to_target_dist = params
                 .orbit_to_target_dist
-                .get_or_insert_with(|| (camera.target() - self.orbit_point).magnitude());
+                .get_or_insert_with(|| (self.camera.target() - self.orbit_point).magnitude());
 
             // Move the camera around the orbit point according to the mouse movement
             {
                 let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
-                let rotation = Quat::from_axis_angle(camera.local_y(), deg(x * ORBIT_SENSITIVITY))
-                    + Quat::from_axis_angle(camera.local_x(), deg(y * ORBIT_SENSITIVITY));
+                let rotation =
+                    Quat::from_axis_angle(self.camera.local_y(), deg(x * ORBIT_SENSITIVITY))
+                        + Quat::from_axis_angle(self.camera.local_x(), deg(y * ORBIT_SENSITIVITY));
 
-                camera.rotate_around(self.orbit_point, rotation);
+                self.camera.rotate_around(self.orbit_point, rotation);
             }
 
             // Due to floating point imprecision, the camera's target point may "drift away" from the
@@ -350,7 +362,7 @@ impl CameraController {
             // rotating the camera (above) so that it's always `original_orbit_to_target_dist` away.
             {
                 // The vector from orbit to target point after rotating
-                let orbit_to_target = camera.target() - self.orbit_point;
+                let orbit_to_target = self.camera.target() - self.orbit_point;
 
                 // The length of the vector. This is what we're correcting.
                 let dist = orbit_to_target.magnitude();
@@ -366,7 +378,7 @@ impl CameraController {
                 };
 
                 // Move the camera to the corrected point
-                camera.set_target(corrected_target);
+                self.camera.set_target(corrected_target);
             }
 
             // Update the DragState so we don't use this mouse movement more than once
