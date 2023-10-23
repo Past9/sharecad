@@ -57,11 +57,15 @@ impl State {
                                 y * NUM_INSTANCES_PER_ROW.pow(2) + z * NUM_INSTANCES_PER_ROW + x,
                             );
 
+                            /*
                             let scale = vec3(
                                 x as f64 / NUM_INSTANCES_PER_ROW as f64,
                                 y as f64 / NUM_INSTANCES_PER_ROW as f64,
                                 z as f64 / NUM_INSTANCES_PER_ROW as f64,
                             );
+                             */
+
+                            let scale = vec3(1.0, 1.0, 1.0);
 
                             let rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
 
@@ -155,8 +159,32 @@ impl State {
     }
 
     fn get_orbit_point(&mut self) -> Point3 {
-        self.render_position();
-        pollster::block_on(self.position_renderer.get_avg_pos())
+        self.render_position().unwrap();
+
+        let eye = self.camera.eye();
+        let mut avg_pos = Vec3::ZERO;
+
+        pollster::block_on(self.position_renderer.visit_pixels(|pixels| {
+            let mut total_weight: f64 = 0.0;
+            for pixel in pixels.iter() {
+                if pixel[3] == 0.0 {
+                    continue;
+                }
+
+                let pos = point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
+                let dist_from_camera = (eye.location - pos).magnitude();
+                let weight = 1.0 / dist_from_camera;
+
+                avg_pos += pos.into_vec() * weight;
+                total_weight += weight;
+            }
+
+            if total_weight > 0.0 {
+                avg_pos = avg_pos / total_weight;
+            }
+        }));
+
+        avg_pos.into_point()
     }
 
     fn render_position(&mut self) -> Result<(), wgpu::SurfaceError> {

@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use space::{deg, vec2, Point3, Quat};
 use winit::{
     dpi::PhysicalPosition,
@@ -80,8 +82,8 @@ impl CameraController {
     }
 
     pub fn set_orbit_point(&mut self, orbit_point: Point3) {
-        println!("new orbit: {:?}", self.orbit_point);
         self.orbit_point = orbit_point;
+        println!("new orbit: {:?}", self.orbit_point);
     }
 
     pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {

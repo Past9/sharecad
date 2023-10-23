@@ -4,7 +4,7 @@ use crate::{
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
 };
-use space::{point3, Point3};
+use space::{point3, vec3, Point3, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
@@ -234,8 +234,42 @@ impl PositionRenderer {
         })
     }
 
+    pub async fn visit_pixels<T>(&self, visitor: impl FnOnce(&[[f32; 4]]) -> T) -> T {
+        let output: T;
+        let output_buffer = self.output_buffer();
+
+        {
+            let buffer_slice = self.output_buffer().slice(..);
+
+            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                tx.send(result).unwrap();
+            });
+            self.target.context.device.poll(wgpu::Maintain::Wait);
+            rx.receive().await.unwrap().unwrap();
+
+            let data = buffer_slice.get_mapped_range();
+
+            let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
+
+            if prefix.len() > 0 {
+                panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
+            }
+
+            if prefix.len() > 0 {
+                panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
+            }
+
+            output = visitor(pixels);
+        }
+
+        output_buffer.unmap();
+
+        output
+    }
+
     pub async fn get_avg_pos(&self) -> Point3 {
-        let mut avg_pos = Point3::ZERO;
+        let mut avg_pos = Vec3::ZERO;
 
         // We need to scope the mapping variables so that we can
         // unmap the buffer
@@ -265,23 +299,25 @@ impl PositionRenderer {
                 panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
             }
 
-            let mut total_pix: u64 = 0;
+            let mut total_weight: f64 = 0.0;
             for pixel in pixels.iter() {
                 if pixel[3] == 0.0 {
                     continue;
                 }
 
-                avg_pos += point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
-                total_pix += 1;
+                let weight = 1.0; // TODO: Weighting function
+
+                avg_pos += vec3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64) * weight;
+                total_weight += weight;
             }
 
-            if total_pix > 0 {
-                avg_pos = (avg_pos.into_vec() / (total_pix as f64)).into_point()
+            if total_weight > 0.0 {
+                avg_pos = avg_pos / total_weight;
             }
         }
 
         output_buffer.unmap();
 
-        avg_pos
+        avg_pos.into_point()
     }
 }

@@ -13,8 +13,8 @@ pub async fn run() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(Size::Physical(PhysicalSize {
-            width: 900,
-            height: 900,
+            width: 2400,
+            height: 1350,
         }))
         .build(&event_loop)
         .unwrap();
