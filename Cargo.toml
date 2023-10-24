@@ -2,6 +2,7 @@
 resolver = "2"
 
 members = [
+    "app",
     "geometry",
     "render2d",
     "render3d",
