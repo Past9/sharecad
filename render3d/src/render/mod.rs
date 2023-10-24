@@ -125,7 +125,6 @@ struct TargetSurface {
 struct TargetTexture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
-    //output_buffer: wgpu::Buffer,
 }
 impl TargetTexture {
     pub fn new(device: &wgpu::Device, size: (u32, u32), format: wgpu::TextureFormat) -> Self {
@@ -174,58 +173,6 @@ impl TargetTexture {
             self.texture.size(),
         );
     }
-
-    pub async fn read(&self, device: &wgpu::Device) {
-        /*
-        let buffer_slice = self.output_buffer.slice(..);
-
-        let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |result| tx.send(result).unwrap());
-        device.poll(wgpu::Maintain::Wait);
-        rx.receive().await.unwrap().unwrap();
-
-        let data = buffer_slice.get_mapped_range();
-
-        let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
-
-        if prefix.len() > 0 {
-            panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
-        }
-
-        if prefix.len() > 0 {
-            panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
-        }
-
-        let mut avg_pos = Point3::ZERO;
-        for pixel in pixels.iter() {
-            if pixel[3] == 0.0 {
-                continue;
-            }
-
-            avg_pos += point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
-        }
-
-        println!("avg_pos = {:?}", avg_pos);
-         */
-
-        /*
-        for pixel in buffer_slice.get_mapped_range().chunks(16).into_iter() {
-            if pixel.len() != 16 {
-                continue;
-            }
-
-            let (prefix, rgba, suffix): (&[u8], &[[f32; 4]; 4], &[u8]) =
-                unsafe { pixel.align_to::<[[f32; 4]; 4]>() };
-
-            let r = unsafe { &pixel[0..4].align_to::<[f32; 4]>() };
-            /*
-            let g = unsafe { &pixel[4..8].align_to::<f32>() };
-            let b = unsafe { &pixel[8..12].align_to::<f32>() };
-            let a = unsafe { &pixel[12..16].align_to::<f32>() };
-             */
-        }
-         */
-    }
 }
 
 pub struct RenderTarget {
@@ -267,12 +214,6 @@ impl RenderTarget {
             ));
         } else {
             todo!("Resize not yet implemented for target type");
-        }
-    }
-
-    pub async fn print_avg_pos(&self) {
-        if let TargetInner::Texture(target) = &self.target {
-            target.read(self.device()).await;
         }
     }
 
