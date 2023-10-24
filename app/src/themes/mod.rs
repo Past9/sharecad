@@ -3,6 +3,7 @@ use eframe::egui::Visuals;
 pub mod dark;
 pub mod light;
 
+#[derive(Debug)]
 pub enum AppTheme {
     Dark,
     Light,

@@ -4,6 +4,7 @@ mod widgets;
 use eframe::egui::{self, Margin, Visuals};
 use eframe::egui_wgpu::WgpuConfiguration;
 use eframe::{epaint, wgpu, Theme};
+use egui_tiles::{Behavior, TileId};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use themes::AppTheme;
@@ -54,10 +55,78 @@ fn main() {
     .unwrap();
 }
 
-enum File {
-    Part(PartFile),
+#[derive(Debug)]
+struct FilePane {
+    file_id: usize,
+    name: String,
+    kind: FileKindId,
 }
 
+struct TreeBehavior {}
+impl egui_tiles::Behavior<FilePane> for TreeBehavior {
+    fn pane_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _tile_id: egui_tiles::TileId,
+        pane: &mut FilePane,
+    ) -> egui_tiles::UiResponse {
+        let text = match pane.kind {
+            FileKindId::Part => format!("Part {}: {}", pane.file_id, pane.name),
+            FileKindId::Assembly => format!("Assembly {}: {}", pane.file_id, pane.name),
+        };
+
+        ui.label(text);
+
+        Default::default()
+    }
+
+    fn tab_title_for_pane(&mut self, pane: &FilePane) -> egui::WidgetText {
+        match pane.kind {
+            FileKindId::Part => format!("Part {}: {}", pane.file_id, pane.name),
+            FileKindId::Assembly => format!("Assembly {}: {}", pane.file_id, pane.name),
+        }
+        .into()
+    }
+
+    fn simplification_options(&self) -> egui_tiles::SimplificationOptions {
+        egui_tiles::SimplificationOptions {
+            prune_empty_containers: false,
+            prune_empty_tabs: false,
+            prune_single_child_tabs: false,
+            prune_single_child_containers: false,
+            all_panes_must_have_tabs: false,
+            join_nested_linear_containerss: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct File {
+    id: usize,
+    kind: FileKind,
+}
+
+#[derive(Debug)]
+enum FileKindId {
+    Part,
+    Assembly,
+}
+
+#[derive(Debug)]
+enum FileKind {
+    Part(PartFile),
+    Assembly(AssemblyFile),
+}
+impl FileKind {
+    fn path(&self) -> Option<String> {
+        match self {
+            FileKind::Part(part) => part.path.clone(),
+            FileKind::Assembly(assembly) => assembly.path.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
 struct PartFile {
     path: Option<String>,
 }
@@ -67,20 +136,47 @@ impl PartFile {
     }
 }
 
+#[derive(Debug)]
+struct AssemblyFile {
+    path: Option<String>,
+}
+impl AssemblyFile {
+    pub fn new() -> Self {
+        Self { path: None }
+    }
+}
+
+#[derive(Debug)]
 struct State {
     theme: AppTheme,
     open_files: Vec<File>,
+    root_id: TileId,
+    tree: egui_tiles::Tree<FilePane>,
 }
 impl State {
     pub fn new() -> Self {
-        Self {
+        let mut tiles = egui_tiles::Tiles::<FilePane>::default();
+        let root = egui_tiles::Container::new_tabs(vec![]);
+        let root_id = tiles.insert_container(root);
+        let tree = egui_tiles::Tree::new(root_id, tiles);
+        println!("INIT TREE {:#?}", tree);
+        let state = Self {
             theme: AppTheme::Dark,
             open_files: vec![],
-        }
+            root_id,
+            tree,
+        };
+
+        println!("STATE {:#?}", state);
+
+        state
     }
 
     pub fn new_part_file(&mut self) {
-        self.open_files.push(File::Part(PartFile::new()));
+        self.open_files.push(File {
+            id: self.open_files.len(),
+            kind: FileKind::Part(PartFile::new()),
+        });
     }
 }
 
@@ -110,6 +206,34 @@ impl ShareCad {
                 Command::Exit => frame.close(),
                 Command::NewPart => {
                     self.state.new_part_file();
+
+                    println!("CHECK STATE 1 {:#?}", self.state);
+                    println!("CHECK TREE 1 {:#?}", self.state.tree);
+
+                    let file_id = self.state.open_files.len();
+
+                    let tile_id = self.state.tree.tiles.insert_pane(FilePane {
+                        file_id,
+                        name: match &self.state.open_files[file_id - 1].kind {
+                            FileKind::Part(part) => match &part.path {
+                                Some(path) => format!("Part {}: {}", file_id, path),
+                                None => format!("Part {} (Untitled)", file_id),
+                            },
+                            FileKind::Assembly(assembly) => todo!(),
+                        },
+                        kind: FileKindId::Part,
+                    });
+
+                    if let Some(egui_tiles::Tile::Container(egui_tiles::Container::Tabs(tabs))) =
+                        self.state.tree.tiles.get_mut(self.state.root_id)
+                    {
+                        tabs.add_child(tile_id);
+                        tabs.set_active(tile_id);
+                    } else {
+                        println!("CHECK STATE 2 {:#?}", self.state);
+                        println!("CHECK TREE 2 {:#?}", self.state.tree);
+                        println!("{:#?}", self.state.tree.tiles.get_mut(self.state.root_id));
+                    }
                 }
             }
         }
@@ -151,40 +275,42 @@ impl eframe::App for ShareCad {
                         });
                     });
 
-                ui.heading("Hello world!");
+                /*
+                let mut tiles = egui_tiles::Tiles::default();
+
+                let tile_ids = self
+                    .state
+                    .open_files
+                    .iter()
+                    .map(|file| {
+                        tiles.insert_pane(FilePane {
+                            file_id: file.id,
+                            name: match file.kind.path() {
+                                Some(path) => path,
+                                None => "Untitled".to_string(),
+                            },
+                            kind: match file.kind {
+                                FileKind::Part(_) => FileKindId::Part,
+                                FileKind::Assembly(_) => FileKindId::Assembly,
+                            },
+                        })
+                    })
+                    .collect::<Vec<_>>();
+
+                let root = tiles.insert_tab_tile(tile_ids);
+
+                let mut tree = egui_tiles::Tree::new(root, tiles);
+                     */
+
+                let mut behavior = TreeBehavior {};
+
+                println!("CHECK STATE -1 {:#?}", self.state);
+                self.state.tree.ui(&mut behavior, ui);
+                println!("CHECK STATE 0 {:#?}", self.state);
+
+                //ui.heading("Hello world!");
             });
 
         self.handle_commands(frame);
     }
-
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
-
-    fn on_close_event(&mut self) -> bool {
-        true
-    }
-
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}
-
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(30)
-    }
-
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        // NOTE: a bright gray makes the shadows of the windows look weird.
-        // We use a bit of transparency so that if the user switches on the
-        // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
-
-        // _visuals.window_fill() would also be a natural choice
-    }
-
-    fn persist_egui_memory(&self) -> bool {
-        true
-    }
-
-    fn warm_up_enabled(&self) -> bool {
-        false
-    }
-
-    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 }
