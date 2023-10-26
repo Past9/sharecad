@@ -5,6 +5,7 @@ mod visual;
 use bytemuck::{Pod, Zeroable};
 use futures_intrusive::channel::shared::{GenericOneshotReceiver, GenericOneshotSender};
 use parking_lot::RawMutex;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use space::{point3, Point3};
 use std::sync::Arc;
 use winit::window::Window;
@@ -73,6 +74,8 @@ impl RenderContext {
     }
 
     pub fn render_on_window(&self, window: &Window) -> RenderTarget {
+        println!("window handle: {:?}", window.raw_window_handle());
+        println!("display handle: {:?}", window.raw_display_handle());
         let surface = unsafe { self.inner.instance.create_surface(&window) }.unwrap();
 
         let surface_caps = surface.get_capabilities(&self.inner.adapter);
