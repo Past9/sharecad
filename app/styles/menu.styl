@@ -14,6 +14,12 @@ bg-color(base-color, darken)
     position relative
     line-height 25px
 
+    &>.menu-item-name 
+        user-select none
+
+    &>.menu-item-expandable  
+        user-select none
+
     &:hover 
         background-color menu-hover-color
 
@@ -68,7 +74,7 @@ bg-color(base-color, darken)
         position relative
 
         &>.menu-item-name 
-            float: left
+            float left
             margin-right 50px
 
         &>.menu-item-expandable 
@@ -78,7 +84,7 @@ bg-color(base-color, darken)
             top 5px
             width 10px
             margin-left -50px
-            float: right
+            float right
 
         
 

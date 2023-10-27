@@ -1,30 +1,10 @@
 use dioxus::prelude::*;
 
-use crate::components::MenuBar;
+use crate::components::{MenuBar, Tabs};
 
-use super::{menu, MenuBarProps, MenuItem, MenuItemKind};
+use super::{menu, MenuItem, MenuItemKind};
 
 pub fn main_window(cx: Scope) -> Element {
-    let name = use_state(cx, || "blah".to_string());
-
-    let menu_items = vec![
-        MenuItemKind::Item(MenuItem {
-            name: "File".into(),
-            enabled: true,
-            children: vec![],
-        }),
-        MenuItemKind::Item(MenuItem {
-            name: "Edit".into(),
-            enabled: true,
-            children: vec![],
-        }),
-        MenuItemKind::Item(MenuItem {
-            name: "Help".into(),
-            enabled: true,
-            children: vec![],
-        }),
-    ];
-
     let menu_items = [
         menu::item(
             "File",
@@ -91,33 +71,9 @@ pub fn main_window(cx: Scope) -> Element {
             items: menu_items
         }
 
+        Tabs {
 
-        br {}
-        br {}
-        input {
-            value: "{name}",
-            oninput: move |evt| { name.set(evt.value.clone()) }
         }
-        div {
-            "FOO"
-            "{name}"
-        }
-        br {}
-        br {}
-        button {
-            "Normal button"
-        }
-        a {
-            class: "button",
-            "Link button"
-        }
-        button {
-            class: "primary",
-            "Primary"
-        }
-        button {
-            class: "danger",
-            "Danger"
-        }
+
     })
 }
