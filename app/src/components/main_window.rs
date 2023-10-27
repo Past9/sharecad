@@ -32,6 +32,17 @@ pub fn main_window(cx: Scope) -> Element {
             [
                 menu::item("New part", true, []),
                 menu::item("New assembly", true, []),
+                menu::item("Open file", true, []),
+                menu::item(
+                    "Open recent...",
+                    true,
+                    [
+                        menu::item("some/file/part1.prt", true, []),
+                        menu::item("some/file/part2.prt", true, []),
+                        menu::item("some/file/assembly1.asm", true, []),
+                        menu::item("some/file/assembly2.asm", true, []),
+                    ],
+                ),
                 menu::item("Save", false, []),
                 menu::item("Save as...", false, []),
                 menu::item("Exit", true, []),
@@ -48,7 +59,14 @@ pub fn main_window(cx: Scope) -> Element {
                     true,
                     [
                         menu::item("Package 1", true, []),
-                        menu::item("Package 2", true, []),
+                        menu::item(
+                            "Package 2",
+                            true,
+                            [
+                                menu::item("Version 1", true, []),
+                                menu::item("Version 2", true, []),
+                            ],
+                        ),
                         menu::item("Package 3", true, []),
                     ],
                 ),

@@ -7,26 +7,31 @@ bg-color(base-color, darken)
     display block
     background-color darken(light-color, 5%)
 
-left-spacing = 10px
+    .menu-item
+        bg-color(darken(light-color, 5%), 10%)
+        white-space nowrap
+        display inline-block
+        padding 0px 10px
+        box-sizing border-box
+        cursor pointer
+        position relative
 
-.menu-item
-    bg-color(darken(light-color, 5%), 10%)
-    white-space nowrap
-    display inline-block
-    padding 0px left-spacing
-    box-sizing border-box
-    cursor pointer
-    position relative
+        .submenu
+            position absolute
+            left 100%
+            top 0px
+            border-radius border-radius
+            box-shadow: shadow-1
+            z-index 1
 
-    .submenu
-        position absolute
-        left 0px
-        border-radius border-radius
-        box-shadow: shadow-1
-        z-index 1
+        .submenu>.menu-item 
+            line-height 25px
+            display none
 
-    .submenu>.menu-item 
-        display none
+        &:hover>.submenu>.menu-item
+            display block
 
-    &:hover>.submenu>.menu-item
-        display block
+    &>.menu-item>.submenu
+        left: 0px
+        top: 100%
+
