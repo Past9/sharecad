@@ -10,6 +10,7 @@ bg-color(base-color, darken)
     bg-color(menu-bg-color, 10%)
     cursor pointer
     position relative
+    line-height 25px
 
 .menu-bar 
     display block
@@ -34,6 +35,7 @@ bg-color(base-color, darken)
     background-color menu-bg-color
     border-radius border-radius
     box-shadow: shadow-1
+    z-index 1
 
     &>.menu-sep 
         display block 
@@ -42,6 +44,7 @@ bg-color(base-color, darken)
         margin 5px 0
 
     &>.menu-item
+        clearfix()
         bg-color(menu-bg-color, 10%)
         display block
         white-space nowrap
@@ -51,6 +54,19 @@ bg-color(base-color, darken)
         padding 0px 10px
         box-sizing border-box
         position relative
+
+        &>.menu-item-name 
+            float: left
+            margin-right 50px
+
+        &>.menu-item-expandable 
+            font-size 1.5em
+            line-height 0.75em
+            position relative
+            top 5px
+            width 10px
+            margin-left -50px
+            float: right
 
         &:hover>.submenu 
             display block

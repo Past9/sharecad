@@ -35,7 +35,7 @@ pub fn main_window(cx: Scope) -> Element {
                 menu::sep(),
                 menu::item("Open file", true, []),
                 menu::item(
-                    "Open recent",
+                    "Open some recent file",
                     true,
                     [
                         menu::item("some/file/part1.prt", true, []),
