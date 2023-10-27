@@ -37,10 +37,13 @@ pub fn sep() -> MenuItemKind {
 #[allow(non_snake_case)]
 pub fn MenuBar(cx: Scope<MenuBarProps>) -> Element {
     cx.render(rsx! {
-        for (i, item) in cx.props.items.iter().enumerate() {
-            match item {
-                MenuItemKind::Separator => rsx! { div { "sep" } },
-                MenuItemKind::Item(item) => rsx! { top_level_menu_item { key: "{i}", item: item } },
+        nav {
+            class: "menu-bar",
+            for (i, item) in cx.props.items.iter().enumerate() {
+                match item {
+                    MenuItemKind::Separator => rsx! { div { "seps" } },
+                    MenuItemKind::Item(item) => rsx! { top_level_menu_item { key: "{i}", item: item } },
+                }
             }
         }
     })
@@ -49,22 +52,24 @@ pub fn MenuBar(cx: Scope<MenuBarProps>) -> Element {
 #[inline_props]
 fn top_level_menu_item<'a>(cx: Scope, item: &'a MenuItem) -> Element<'a> {
     cx.render(rsx! {
-        div {
+        a {
             "{item.name}"
         }
+        /*
         for (i, item) in item.children.iter().enumerate() {
             match item {
                 MenuItemKind::Separator => rsx! { div { "> sep" } },
                 MenuItemKind::Item(item) => rsx! { child_item { key: "{i}", item: item } },
             }
         }
+         */
     })
 }
 
 #[inline_props]
 fn child_item<'a>(cx: Scope, item: &'a MenuItem) -> Element<'a> {
     cx.render(rsx! {
-        div {
+        a {
             "> {item.name}"
         }
         for (i, item) in item.children.iter().enumerate() {

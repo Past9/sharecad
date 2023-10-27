@@ -1,0 +1,1 @@
+stylus -w styles/main.styl -o public/main.css

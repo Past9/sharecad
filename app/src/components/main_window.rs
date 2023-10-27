@@ -72,5 +72,22 @@ pub fn main_window(cx: Scope) -> Element {
             "FOO"
             "{name}"
         }
+        br {}
+        br {}
+        button {
+            "Normal button"
+        }
+        a {
+            class: "button",
+            "Link button"
+        }
+        button {
+            class: "primary",
+            "Primary"
+        }
+        button {
+            class: "danger",
+            "Danger"
+        }
     })
 }
