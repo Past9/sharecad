@@ -32,14 +32,11 @@ pub fn main_window(cx: Scope) -> Element {
             [
                 menu::item("New part", true, []),
                 menu::item("New assembly", true, []),
-                menu::sep(),
                 menu::item("Save", false, []),
                 menu::item("Save as...", false, []),
-                menu::sep(),
                 menu::item("Exit", true, []),
             ],
         ),
-        menu::sep(),
         menu::item("Edit", true, []),
         menu::item(
             "Help",
@@ -64,6 +61,8 @@ pub fn main_window(cx: Scope) -> Element {
         MenuBar {
             items: menu_items
         }
+        br {}
+        br {}
         input {
             value: "{name}",
             oninput: move |evt| { name.set(evt.value.clone()) }
