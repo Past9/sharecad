@@ -1,37 +1,104 @@
+menu-bg-color = darken(light-color, 5%)
+
 bg-color(base-color, darken) 
     background-color base-color
     &:hover 
         background-color darken(base-color, darken)
 
+
+.menu-item
+    bg-color(menu-bg-color, 10%)
+    cursor pointer
+    position relative
+
 .menu-bar 
     display block
-    background-color darken(light-color, 5%)
+    background-color menu-bg-color
 
-    .menu-item
-        bg-color(darken(light-color, 5%), 10%)
-        white-space nowrap
+    .menu-sep 
+        display none
+
+    &>.menu-item 
         display inline-block
         padding 0px 10px
+
+        &:hover>.submenu 
+            display block
+            left 0
+            top 100%
+
+
+.submenu 
+    position absolute
+    display none
+    background-color menu-bg-color
+    border-radius border-radius
+    box-shadow: shadow-1
+
+    &>.menu-sep 
+        display block 
+        background-color darken(menu-bg-color, 10%) 
+        height 1px
+        margin 5px 0
+
+    &>.menu-item
+        bg-color(menu-bg-color, 10%)
+        display block
+        white-space nowrap
         box-sizing border-box
-        cursor pointer
+        position relative
+        white-space nowrap
+        padding 0px 10px
+        box-sizing border-box
         position relative
 
-        .submenu
-            position absolute
-            left 100%
-            top 0px
-            border-radius border-radius
-            box-shadow: shadow-1
-            z-index 1
-
-        .submenu>.menu-item 
-            line-height 25px
-            display none
-
-        &:hover>.submenu>.menu-item
+        &:hover>.submenu 
             display block
+            left 100%
+            top 0
+
+
+/*
+
+.menu-item
+    bg-color(menu-bg-color, 10%)
+    display block
+    white-space nowrap
+    box-sizing border-box
+    position relative
+    white-space nowrap
+    padding 0px 10px
+    box-sizing border-box
+    position relative
+
+    .submenu
+        background-color menu-bg-color
+        position absolute
+        left 100%
+        top 0px
+        border-radius border-radius
+        box-shadow: shadow-1
+        z-index 1
+        display none
+
+        .menu-item 
+            line-height 25px
+
+
+        .menu-sep
+            display block 
+            background-color darken(menu-bg-color, 10%) 
+            height 1px
+            margin 5px 0
+
+
+
+    &:hover>.submenu
+        display block
+
 
     &>.menu-item>.submenu
-        left: 0px
-        top: 100%
+            left 0px
+            top 100%
 
+*/

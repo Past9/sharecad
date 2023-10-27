@@ -42,7 +42,7 @@ pub fn MenuBar(cx: Scope<MenuBarProps>) -> Element {
             for (i, item) in cx.props.items.iter().enumerate() {
                 match item {
                     MenuItemKind::Separator => rsx! { div { class: "menu-sep" } },
-                    MenuItemKind::Item(item) => rsx! { menu_item { key: "{i}", item: item } },
+                    MenuItemKind::Item(item) => rsx! { menu_item { key: "{i}", item: item, top_level: true } },
                 }
             }
         }
@@ -50,17 +50,37 @@ pub fn MenuBar(cx: Scope<MenuBarProps>) -> Element {
 }
 
 #[inline_props]
-fn menu_item<'a>(cx: Scope, item: &'a MenuItem) -> Element<'a> {
+fn menu_item<'a>(cx: Scope, item: &'a MenuItem, top_level: bool) -> Element<'a> {
     cx.render(rsx! {
         a {
             class: "menu-item",
-            "{item.name}"
             div {
-                class: "submenu",
-                for (i, item) in item.children.iter().enumerate() {
-                    match item {
-                        MenuItemKind::Separator => rsx! { div { class: "menu-sep" } },
-                        MenuItemKind::Item(item) => rsx! { menu_item { key: "{i}", item: item } },
+                class: "menu-item-name",
+                "{item.name}"
+            }
+            if !top_level && item.children.len() > 0 {
+                rsx! { 
+                    div {
+                        class: "menu-item-expandable",
+                        "▸"
+                    }
+                }
+            }
+            if item.children.len() > 0 {
+                rsx!{
+                    /*
+                    div {
+                        class: "expandable-item"
+                    }
+                     */
+                    div {
+                        class: "submenu",
+                        for (i, item) in item.children.iter().enumerate() {
+                            match item {
+                                MenuItemKind::Separator => rsx! { div { class: "menu-sep" } },
+                                MenuItemKind::Item(item) => rsx! { menu_item { key: "{i}", item: item, top_level: false } },
+                            }
+                        }
                     }
                 }
             }
