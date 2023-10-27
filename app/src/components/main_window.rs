@@ -90,6 +90,8 @@ pub fn main_window(cx: Scope) -> Element {
         MenuBar {
             items: menu_items
         }
+
+
         br {}
         br {}
         input {
