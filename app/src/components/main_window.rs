@@ -1,10 +1,10 @@
+use super::{menu, tabs};
+use crate::components::MenuBar;
 use dioxus::prelude::*;
+use tabs::TabArea;
 
-use crate::components::{MenuBar, Tabs};
-
-use super::{menu, MenuItem, MenuItemKind};
-
-pub fn main_window(cx: Scope) -> Element {
+#[allow(non_snake_case)]
+pub fn MainWindow(cx: Scope) -> Element {
     let menu_items = [
         menu::item(
             "File",
@@ -66,13 +66,15 @@ pub fn main_window(cx: Scope) -> Element {
     ]
     .to_vec();
 
+    let tab_layout = tabs::group([tabs::tab(1), tabs::tab(2)]);
+
     cx.render(rsx! {
         MenuBar {
             items: menu_items
         }
 
-        Tabs {
-
+        TabArea {
+            get_initial_layout: || { tab_layout }
         }
 
     })

@@ -68,11 +68,6 @@ fn menu_item<'a>(cx: Scope, item: &'a MenuItem, top_level: bool) -> Element<'a> 
             }
             if item.children.len() > 0 {
                 rsx!{
-                    /*
-                    div {
-                        class: "expandable-item"
-                    }
-                     */
                     div {
                         class: "submenu",
                         for (i, item) in item.children.iter().enumerate() {
@@ -87,49 +82,3 @@ fn menu_item<'a>(cx: Scope, item: &'a MenuItem, top_level: bool) -> Element<'a> 
         }
     })
 }
-
-/*
-#[inline_props]
-fn child_item<'a>(cx: Scope, item: &'a MenuItem) -> Element<'a> {
-    cx.render(rsx! {
-        a {
-            "> {item.name}"
-        }
-        for (i, item) in item.children.iter().enumerate() {
-            match item {
-                MenuItemKind::Separator => rsx! { div { "> sep" } },
-                MenuItemKind::Item(item) => rsx! { child_item { key: "{i}", item: item } },
-            }
-        }
-    })
-}
- */
-
-/*
-pub fn top_level_menu_item<'a>(cx: Scope<'a, &'a MenuItem>) -> Element {
-    cx.render(rsx! {
-        div {
-            "{cx.props.name}"
-        }
-    })
-}
- */
-
-/*
-pub fn top_menu_item(cx: Scope<MenuItem>) -> Element {
-    cx.render(rsx! {
-        div {
-            "top_menu_item"
-        }
-    })
-}
-
-pub fn menu_child(cx: Scope<MenuItem>) -> Element {
-    cx.render(rsx! {
-        div {
-            "menu_child"
-        }
-    })
-}
-
- */
