@@ -66,6 +66,7 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
+    /*
     let tab_layout = use_ref(cx, || {
         tabs::vsplit(
             0.327,
@@ -77,6 +78,17 @@ pub fn MainWindow(cx: Scope) -> Element {
             ),
         )
     });
+     */
+
+    let tab_layout = tabs::vsplit(
+        0.327,
+        tabs::group([tabs::tab(1), tabs::tab(2)]),
+        tabs::hsplit(
+            0.723,
+            tabs::group([tabs::tab(3)]),
+            tabs::group([tabs::tab(4)]),
+        ),
+    );
 
     //let tab_layout = use_ref(cx, || tabs::group([tabs::tab(1), tabs::tab(2)]));
 

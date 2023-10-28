@@ -61,12 +61,12 @@ pub struct TabProps {
 
 #[allow(non_snake_case)]
 #[inline_props]
-pub fn TabArea<'a>(cx: Scope, layout: &'a UseRef<TabLayout>) -> Element {
-    let current_layout = layout.with(|layout| layout.clone());
+pub fn TabArea(cx: Scope, layout: TabLayout) -> Element {
+    let layout = layout.clone();
 
     cx.render(rsx! {
         TabLayoutComponent {
-            layout: current_layout
+            layout: layout
         }
     })
 }
@@ -92,7 +92,7 @@ fn TabLayoutComponent(cx: Scoped, layout: TabLayout) -> Element {
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabComponent<'a>(cx: Scoped, tab: &'a TabProps) -> Element {
+fn TabComponent(cx: Scoped, tab: TabProps) -> Element {
     cx.render(rsx! {
         div {
             "Tab "
@@ -108,7 +108,7 @@ fn TabGroupComponent(cx: Scoped, group: TabGroup) -> Element<'a> {
         for tab in group.tabs.iter() {
             rsx! {
                 TabComponent {
-                    tab: tab
+                    tab: tab.clone()
                 }
             }
         }
