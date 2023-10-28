@@ -106,7 +106,11 @@ pub fn MainWindow(cx: Scope) -> Element {
             section {
                 id: "workspace",
                 TabArea {
-                    layout: tab_layout
+                    layout: tab_layout,
+                    on_layout_changed: |layout| {
+                        //
+                        println!("layout {:#?}", layout);
+                    }
                 }
             }
 
