@@ -1,3 +1,14 @@
+splitter-color = darken(light-color, 3)
+splitter-color-hover = darken(light-color, 10)
+splitter-border-color = darken(light-color, 8)
+
+.splitter
+    background-color splitter-color
+    border-color splitter-border-color
+    border-style solid
+
+    &:hover
+        background-color splitter-color-hover
 
 .vsplit 
     width 100%
@@ -5,13 +16,18 @@
     display flex
     flex-direction row
 
+    &>.splitter 
+        width 5px
+        cursor ew-resize
+        border-width 0 1px
+
     &>.vsplit-pane 
 
         &.vsplit-left 
-            background-color darkseagreen
+            //
 
         &.vsplit-right 
-            background-color darkgoldenrod
+            //
 
 
 
@@ -21,10 +37,15 @@
     display flex
     flex-direction column
 
+    &>.splitter 
+        height 5px
+        cursor ns-resize
+        border-width 1px 0
+
     &>.hsplit-pane 
 
         &.hsplit-top 
-            background-color yellow
+            //
 
         &.hsplit-bottom 
-            background-color aqua
+            //

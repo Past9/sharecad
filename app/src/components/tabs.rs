@@ -69,28 +69,18 @@ pub fn TabArea<'a>(cx: Scope, layout: &'a UseRef<TabLayout>) -> Element {
             layout: current_layout
         }
     })
-    /*
-    layout.with(|layout| match &layout {
-        TabLayout::Group(group) => cx.render(rsx! {
-            TabGroupComponent { group: group.clone() }
-        }),
-        TabLayout::VSplit(vsplit) => cx.render(rsx! {
-            TabVSplitComponent { vsplit: vsplit.clone() }
-        }),
-        TabLayout::HSplit(hsplit) => cx.render(rsx! {
-            TabHSplitComponent { hsplit: hsplit.clone() }
-        }),
-    })
-     */
 }
 
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabLayoutComponent(cx: Scoped, layout: TabLayout) -> Element {
     match layout {
-        TabLayout::Group(group) => cx.render(rsx! {
-            TabGroupComponent { group: group.clone() }
-        }),
+        TabLayout::Group(group) => {
+            //
+            cx.render(rsx! {
+                TabGroupComponent { group: group.clone() }
+            })
+        }
         TabLayout::VSplit(vsplit) => cx.render(rsx! {
             TabVSplitComponent { vsplit: vsplit.clone() }
         }),
@@ -139,6 +129,9 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
                 }
             }
             div {
+                class: "splitter"
+            }
+            div {
                 class: "vsplit-pane vsplit-right",
                 flex: 1.0 - vsplit.split,
                 TabLayoutComponent {
@@ -161,6 +154,9 @@ fn TabHSplitComponent(cx: Scoped, hsplit: TabHSplit) -> Element<'a> {
                 TabLayoutComponent {
                     layout: *hsplit.top.clone()
                 }
+            }
+            div {
+                class: "splitter"
             }
             div {
                 class: "hsplit-pane hsplit-bottom",
