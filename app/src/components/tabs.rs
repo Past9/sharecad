@@ -1,9 +1,14 @@
+use std::time::{Duration, Instant};
+
 use dioxus::{
     html::input_data::{MouseButton, MouseButtonSet},
     prelude::*,
 };
+use futures::StreamExt;
 use gloo::events::EventListener;
 use wasm_bindgen::{prelude::Closure, JsCast};
+
+use crate::OnMouseMove;
 
 //const FLEX_RESOLUTION: f32 = 10000.0;
 
@@ -124,6 +129,43 @@ fn TabGroupComponent(cx: Scoped, group: TabGroup) -> Element<'a> {
     })
 }
 
+fn onmouseup(is_dragging: &UseState<bool>) {
+    is_dragging.set(false);
+}
+
+/*
+//#[allow(non_snake_case)]
+fn exp(cx: Scope) -> Element {
+    let is_dragging = use_state(cx, || false);
+
+    log::debug!("is_dragging {}", is_dragging);
+
+    let onmousemove = || {
+        is_dragging.set(false);
+    };
+
+    let onmousemove_provider = use_shared_state::<OnMouseMove>(cx).unwrap();
+
+    log::debug!("{:?}", onmousemove_provider.read().receiver().recv());
+
+    /*
+    use_effect(cx, (), {
+        let cx = cx.clone();
+        |()| async move {
+            let id = onmousemove_provider.read().add(Box::new(|| {
+                //
+            }));
+        }
+    });
+    */
+
+    cx.render(rsx! {
+        div {
+        }
+    })
+}
+ */
+
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
@@ -131,74 +173,25 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
 
     log::debug!("is_dragging {}", is_dragging);
 
-    use_effect(cx, is_dragging, |is_dragging| async move {
-        let win = web_sys::window().unwrap();
+    let onmousemove_provider = use_shared_state::<OnMouseMove>(cx).unwrap();
 
-        let mousemove_listener = EventListener::new(&win, "mousemove", move |_| {
-            log::debug!("move");
-        })
-        .forget();
+    let cr: &Coroutine<()> = use_coroutine(cx, |rx| {
+        to_owned![is_dragging, onmousemove_provider];
 
-        let mouseup_listener = EventListener::new(&win, "mouseup", move |_| {
-            log::debug!("up");
-            is_dragging.set(false);
-        })
-        .forget();
+        async move {
+            is_dragging.set(true);
 
-        /*
-        let on_mouse_up = Closure::wrap(Box::new(move || {
-            log::debug!("up");
-            is_dragging.set(false);
-        }) as Box<dyn FnMut()>);
-
-        let on_mouse_move = Closure::wrap(Box::new(move || {
-            log::debug!("move");
-        }) as Box<dyn FnMut()>);
-
-        log::debug!("add handlers");
-
-        {
-            win.add_event_listener_with_callback("mouseup", on_mouse_up.as_ref().unchecked_ref())
-                .unwrap();
-
-            win.add_event_listener_with_callback(
-                "mousemove",
-                on_mouse_move.as_ref().unchecked_ref(),
-            )
-            .unwrap();
-        }
-
-        on_mouse_up.forget();
-        on_mouse_move.forget();
-         */
-
-        move || {
-            log::debug!("remove handlers");
-
-            //std::mem::drop(mousemove_listener);
-            //std::mem::drop(mouseup_listener);
-
-            /*
-            win.remove_event_listener_with_callback(
-                "mouseup",
-                on_mouse_up.as_ref().unchecked_ref(),
-            )
-            .unwrap();
-
-            win.remove_event_listener_with_callback(
-                "mousemove",
-                on_mouse_move.as_ref().unchecked_ref(),
-            )
-            .unwrap();
-             */
+            loop {
+                log::debug!("await recv");
+                //let next = receiver.recv().await;
+                let next = onmousemove_provider.read().receiver().recv().await;
+                log::debug!("got recv");
+                if let Ok(res) = next {
+                    log::debug!("next {:?}", res);
+                }
+            }
         }
     });
-
-    /*
-    if **is_dragging {
-        log::debug!("dragging");
-    }
-     */
 
     cx.render(rsx! {
         div {
