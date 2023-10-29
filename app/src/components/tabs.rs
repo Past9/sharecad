@@ -129,7 +129,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
 
     use_effect(cx, (is_dragging), |is_dragging| {
         use_window_mouseup(cx, move |evt| {
-            is_dragging.set(!*is_dragging.current().as_ref());
+            is_dragging.set(!*is_dragging.current());
         });
 
         async {}
