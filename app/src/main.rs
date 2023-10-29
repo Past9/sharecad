@@ -77,14 +77,10 @@ impl WindowEvents {
     pub fn next(&self) -> Recv<'_, web_sys::Event> {
         self.receiver.recv()
     }
-
-    pub fn receiver(&self) -> &Receiver<web_sys::Event> {
-        &self.receiver
-    }
 }
 
 pub struct UseWindowEvent {
-    coroutine: Coroutine<()>,
+    _coroutine: Coroutine<()>,
 }
 
 pub fn use_window_event<F: FnMut(web_sys::Event) + 'static>(
@@ -92,10 +88,14 @@ pub fn use_window_event<F: FnMut(web_sys::Event) + 'static>(
     event_name: &str,
     cb: F,
 ) -> UseWindowEvent {
-    let cr = use_coroutine(cx, |rx: UnboundedReceiver<()>| async move {
-        WindowEvents::on(event_name).listen(cb).await;
+    let event_name = event_name.to_string();
+    let cr = use_coroutine(cx, |_rx: UnboundedReceiver<()>| {
+        //
+        async move {
+            WindowEvents::on(&event_name).listen(cb).await;
+        }
     });
     UseWindowEvent {
-        coroutine: cr.to_owned(),
+        _coroutine: cr.to_owned(),
     }
 }

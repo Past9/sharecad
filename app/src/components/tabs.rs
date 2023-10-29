@@ -8,7 +8,7 @@ use futures::StreamExt;
 use gloo::events::EventListener;
 use wasm_bindgen::{prelude::Closure, JsCast};
 
-use crate::WindowEvents;
+use crate::{use_window_event, WindowEvents};
 
 //const FLEX_RESOLUTION: f32 = 10000.0;
 
@@ -129,59 +129,21 @@ fn TabGroupComponent(cx: Scoped, group: TabGroup) -> Element<'a> {
     })
 }
 
-fn onmouseup(is_dragging: &UseState<bool>) {
-    is_dragging.set(false);
-}
-
-/*
-//#[allow(non_snake_case)]
-fn exp(cx: Scope) -> Element {
-    let is_dragging = use_state(cx, || false);
-
-    log::debug!("is_dragging {}", is_dragging);
-
-    let onmousemove = || {
-        is_dragging.set(false);
-    };
-
-    let onmousemove_provider = use_shared_state::<OnMouseMove>(cx).unwrap();
-
-    log::debug!("{:?}", onmousemove_provider.read().receiver().recv());
-
-    /*
-    use_effect(cx, (), {
-        let cx = cx.clone();
-        |()| async move {
-            let id = onmousemove_provider.read().add(Box::new(|| {
-                //
-            }));
-        }
-    });
-    */
-
-    cx.render(rsx! {
-        div {
-        }
-    })
-}
- */
-
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
     let is_dragging = use_state(cx, || false);
 
-    let cr = use_coroutine(cx, |rx: UnboundedReceiver<()>| {
+    {
         to_owned![is_dragging];
+        use_window_event(cx, "mouseup", move |evt| {
+            is_dragging.set(false);
+            log::debug!("got mousemove {:?}", evt)
+        });
+    }
 
-        async move {
-            WindowEvents::on("mousemove")
-                .listen(|evt| {
-                    is_dragging.set(false);
-                    log::debug!("got event {:?}", evt);
-                })
-                .await;
-        }
+    use_window_event(cx, "mousemove", move |evt| {
+        log::debug!("got mousemove {:?}", evt)
     });
 
     cx.render(rsx! {
@@ -198,7 +160,6 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
                 class: "splitter",
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
-                    //if evt.held_buttons().contains(MouseButton::Primary) {
                         log::debug!("onmousedown {:?}", evt);
                         is_dragging.set(true);
                     }
