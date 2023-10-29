@@ -1,14 +1,5 @@
-use std::time::{Duration, Instant};
-
-use dioxus::{
-    html::input_data::{MouseButton, MouseButtonSet},
-    prelude::*,
-};
-use futures::StreamExt;
-use gloo::events::EventListener;
-use wasm_bindgen::{prelude::Closure, JsCast};
-
-use crate::{use_window_event, WindowEvents};
+use crate::window_events::use_window_mouseup;
+use dioxus::{html::input_data::MouseButton, prelude::*};
 
 //const FLEX_RESOLUTION: f32 = 10000.0;
 
@@ -134,17 +125,28 @@ fn TabGroupComponent(cx: Scoped, group: TabGroup) -> Element<'a> {
 fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
     let is_dragging = use_state(cx, || false);
 
+    log::debug!("is_dragging {}", is_dragging);
+
+    use_effect(cx, (is_dragging), |is_dragging| {
+        use_window_mouseup(cx, move |evt| {
+            is_dragging.set(!*is_dragging.current().as_ref());
+        });
+
+        async {}
+    });
+
+    /*
     {
         to_owned![is_dragging];
-        use_window_event(cx, "mouseup", move |evt| {
-            is_dragging.set(false);
-            log::debug!("got mousemove {:?}", evt)
+        use_window_mouseup(cx, move |evt| {
+            is_dragging.set(!is_d);
+            log::debug!("isd {}", is_dragging);
+            log::debug!("got mouseup {:?}", evt);
         });
     }
 
-    use_window_event(cx, "mousemove", move |evt| {
-        log::debug!("got mousemove {:?}", evt)
-    });
+    use_window_mousemove(cx, move |evt| log::debug!("got mousemove {:?}", evt));
+     */
 
     cx.render(rsx! {
         div {
@@ -161,11 +163,11 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
                         log::debug!("onmousedown {:?}", evt);
-                        is_dragging.set(true);
+                        //is_dragging.set(true);
                     }
                 },
                 onclick: move |_| {
-                    is_dragging.set(!is_dragging);
+                    //is_dragging.set(!is_dragging);
                 }
             }
             div {
