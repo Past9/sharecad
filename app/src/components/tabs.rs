@@ -8,7 +8,7 @@ use futures::StreamExt;
 use gloo::events::EventListener;
 use wasm_bindgen::{prelude::Closure, JsCast};
 
-use crate::OnMouseMove;
+use crate::WindowEvents;
 
 //const FLEX_RESOLUTION: f32 = 10000.0;
 
@@ -171,28 +171,16 @@ fn exp(cx: Scope) -> Element {
 fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
     let is_dragging = use_state(cx, || false);
 
-    log::debug!("is_dragging {}", is_dragging);
-
-    let onmousemove_provider = use_shared_state::<OnMouseMove>(cx).unwrap();
-
-    //let cr: &Coroutine<()> =
-    use_coroutine(cx, |rx: UnboundedReceiver<()>| {
-        to_owned![is_dragging, onmousemove_provider];
-
-        //let next = onmousemove_provider.read().receiver().len();
+    let cr = use_coroutine(cx, |rx: UnboundedReceiver<()>| {
+        to_owned![is_dragging];
 
         async move {
-            is_dragging.set(true);
-
-            loop {
-                log::debug!("await recv");
-                //let next = receiver.recv().await;
-                let next = onmousemove_provider.read().receiver().recv().await;
-                log::debug!("got recv {:?}", next);
-                if let Ok(res) = next {
-                    log::debug!("next {:?}", res);
-                }
-            }
+            WindowEvents::on("mousemove")
+                .listen(|evt| {
+                    is_dragging.set(false);
+                    log::debug!("got event {:?}", evt);
+                })
+                .await;
         }
     });
 
@@ -215,6 +203,9 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
                         is_dragging.set(true);
                     }
                 },
+                onclick: move |_| {
+                    is_dragging.set(!is_dragging);
+                }
             }
             div {
                 class: "vsplit-pane vsplit-right",

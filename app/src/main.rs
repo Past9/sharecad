@@ -1,6 +1,6 @@
 mod components;
 
-use async_channel::Receiver;
+use async_channel::{Receiver, Recv};
 use components::MainWindow;
 use dioxus::prelude::*;
 use futures::{channel::mpsc::TrySendError, executor::block_on};
@@ -19,10 +19,10 @@ fn main() {
 }
 
 fn app(cx: Scope) -> Element {
-    let win = web_sys::window().unwrap();
-    let onmousemove = OnMouseMove::new(&win);
+    //let win = web_sys::window().unwrap();
+    //let onmousemove = OnMouseMove::new();
 
-    use_shared_state_provider(cx, || onmousemove);
+    //use_shared_state_provider(cx, || onmousemove);
 
     cx.render(rsx! {
         MainWindow {}
@@ -43,17 +43,21 @@ impl IdSource {
     }
 }
 
-struct OnMouseMove {
+struct WindowEvents {
     _listener: EventListener,
-    receiver: Receiver<()>,
+    receiver: Receiver<web_sys::Event>,
 }
-impl OnMouseMove {
-    pub fn new(target: &EventTarget) -> Self {
-        let (sender, receiver) = async_channel::unbounded();
+impl WindowEvents {
+    pub fn on(event_name: &str) -> Self {
+        let event_name = event_name.to_string();
+        let win = web_sys::window().unwrap();
+        let (sender, receiver) = async_channel::unbounded::<web_sys::Event>();
 
-        let listener = EventListener::new(&target, "mousemove", move |_evt| {
-            let res = block_on(sender.send(()));
-            log::debug!("send move {:?}", res);
+        let listener = EventListener::new(&win, event_name, move |evt| {
+            if let Err(err) = block_on(sender.send(evt.to_owned())) {
+                log::error!("window error: {}", err);
+                log::error!("window event: {:?}", evt);
+            }
         });
 
         Self {
@@ -62,16 +66,36 @@ impl OnMouseMove {
         }
     }
 
-    pub fn receiver(&self) -> &Receiver<()> {
+    pub async fn listen<F: FnMut(web_sys::Event)>(&self, mut cb: F) {
+        loop {
+            if let Ok(next) = self.next().await {
+                cb(next);
+            }
+        }
+    }
+
+    pub fn next(&self) -> Recv<'_, web_sys::Event> {
+        self.receiver.recv()
+    }
+
+    pub fn receiver(&self) -> &Receiver<web_sys::Event> {
         &self.receiver
     }
 }
-/*
-impl Stream for OnMouseMove {
-    type Item = ();
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        Pin::new(&mut self.receiver).poll_next(cx)
+pub struct UseWindowEvent {
+    coroutine: Coroutine<()>,
+}
+
+pub fn use_window_event<F: FnMut(web_sys::Event) + 'static>(
+    cx: &ScopeState,
+    event_name: &str,
+    cb: F,
+) -> UseWindowEvent {
+    let cr = use_coroutine(cx, |rx: UnboundedReceiver<()>| async move {
+        WindowEvents::on(event_name).listen(cb).await;
+    });
+    UseWindowEvent {
+        coroutine: cr.to_owned(),
     }
 }
- */
