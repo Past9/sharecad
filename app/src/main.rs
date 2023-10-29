@@ -3,7 +3,7 @@ mod components;
 use async_channel::Receiver;
 use components::MainWindow;
 use dioxus::prelude::*;
-use futures::channel::mpsc::TrySendError;
+use futures::{channel::mpsc::TrySendError, executor::block_on};
 use gloo::events::EventListener;
 use std::{
     collections::HashMap,
@@ -44,24 +44,22 @@ impl IdSource {
 }
 
 struct OnMouseMove {
+    _listener: EventListener,
     receiver: Receiver<()>,
 }
 impl OnMouseMove {
     pub fn new(target: &EventTarget) -> Self {
         let (sender, receiver) = async_channel::unbounded();
 
-        EventListener::new(&target, "mousemove", move |_evt| {
-            let res = sender.send(());
+        let listener = EventListener::new(&target, "mousemove", move |_evt| {
+            let res = block_on(sender.send(()));
             log::debug!("send move {:?}", res);
-            /*
-            if let Err(err) = res {
-                log::debug!("send err {:?}", err)
-            }
-             */
-        })
-        .forget();
+        });
 
-        Self { receiver: receiver }
+        Self {
+            _listener: listener,
+            receiver,
+        }
     }
 
     pub fn receiver(&self) -> &Receiver<()> {

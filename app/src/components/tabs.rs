@@ -175,8 +175,11 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
 
     let onmousemove_provider = use_shared_state::<OnMouseMove>(cx).unwrap();
 
-    let cr: &Coroutine<()> = use_coroutine(cx, |rx| {
+    //let cr: &Coroutine<()> =
+    use_coroutine(cx, |rx: UnboundedReceiver<()>| {
         to_owned![is_dragging, onmousemove_provider];
+
+        //let next = onmousemove_provider.read().receiver().len();
 
         async move {
             is_dragging.set(true);
@@ -185,7 +188,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit) -> Element<'a> {
                 log::debug!("await recv");
                 //let next = receiver.recv().await;
                 let next = onmousemove_provider.read().receiver().recv().await;
-                log::debug!("got recv");
+                log::debug!("got recv {:?}", next);
                 if let Ok(res) = next {
                     log::debug!("next {:?}", res);
                 }
