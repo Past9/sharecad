@@ -16,7 +16,7 @@ impl WindowEvents {
         let listener = EventListener::new(&win, event_name, move |evt| {
             if let Err(err) = block_on(sender.send(evt.to_owned())) {
                 log::error!("window error: {}", err);
-                log::error!("window event: {:?}", evt);
+                log::error!("previous error occurred on window event: {:#?}", evt);
             }
         });
 
@@ -43,8 +43,8 @@ pub struct UseWindowEvent {
     _coroutine: Coroutine<()>,
 }
 
-pub fn use_window_event<F: FnMut(web_sys::Event) + 'static>(
-    cx: &ScopeState,
+pub fn use_window_event<'a, F: FnMut(web_sys::Event) + 'static>(
+    cx: &'a ScopeState,
     event_name: &str,
     cb: F,
 ) -> UseWindowEvent {
@@ -60,15 +60,15 @@ pub fn use_window_event<F: FnMut(web_sys::Event) + 'static>(
     }
 }
 
-pub fn use_window_mouseup<F: FnMut(MouseData) + 'static>(
-    cx: &ScopeState,
+pub fn use_window_mouseup<'a, F: FnMut(MouseData) + 'static>(
+    cx: &'a ScopeState,
     mut cb: F,
 ) -> UseWindowEvent {
     use_window_event(cx, "mouseup", move |evt| cb(make_mousedata(evt)))
 }
 
-pub fn use_window_mousemove<F: FnMut(MouseData) + 'static>(
-    cx: &ScopeState,
+pub fn use_window_mousemove<'a, F: FnMut(MouseData) + 'static>(
+    cx: &'a ScopeState,
     mut cb: F,
 ) -> UseWindowEvent {
     use_window_event(cx, "mousemove", move |evt| cb(make_mousedata(evt)))
