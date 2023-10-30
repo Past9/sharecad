@@ -1,4 +1,5 @@
 mod components;
+mod on_resize;
 mod window_events;
 
 use components::MainWindow;
