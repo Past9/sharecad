@@ -1,5 +1,3 @@
-use std::{process::Command, sync::Arc};
-
 use crate::{
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
@@ -7,8 +5,6 @@ use crate::{
 use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
-
-//const FLEX_RESOLUTION: f32 = 10000.0;
 
 struct IdSeries {
     id: u32,
