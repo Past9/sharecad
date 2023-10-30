@@ -64,7 +64,7 @@ pub enum TabLayout {
     HSplit(TabHSplit),
 }
 impl TabLayout {
-    fn apply(&self, command: &TabLayoutCommand) -> Self {
+    fn modify(&self, command: &TabLayoutCommand) -> Self {
         match command {
             TabLayoutCommand::Nop => self.clone(),
             TabLayoutCommand::OnAdjustVSplit {
@@ -75,6 +75,7 @@ impl TabLayout {
     }
 
     fn apply_adjust_vsplit(&self, target_layout_id: u32, new_split: f64) -> Self {
+        //log::debug!("new_split {}", new_split);
         match self {
             TabLayout::VSplit(TabVSplit {
                 layout_id,
@@ -137,7 +138,7 @@ impl CommandBus {
     }
 }
 impl PartialEq for CommandBus {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -149,54 +150,30 @@ pub fn TabArea<'a>(
     layout: &'a TabLayout,
     on_layout_changed: EventHandler<'a, TabLayout>,
 ) -> Element {
-    let layout = (*layout).to_owned();
+    //let layout = (*layout).to_owned();
 
     let (sender, receiver) = async_channel::unbounded::<TabLayoutCommand>();
     let bus = CommandBus::new(sender);
+    //block_on(bus.send(TabLayoutCommand::Nop));
 
     let next_command = use_state::<Option<TabLayoutCommand>>(cx, || None);
 
     let cr = {
         to_owned![next_command];
         use_coroutine(cx, |_rx: UnboundedReceiver<()>| async move {
-            log::debug!("new coroutine");
             loop {
-                log::debug!("loop {}", receiver.len());
                 if let Ok(command) = receiver.recv().await {
-                    log::debug!("got command");
                     next_command.set(Some(command));
                 }
-                log::debug!("past command");
             }
-
-            /*
-            loop {
-                if let Ok(next) = receiver.recv().await {
-                    log::debug!("layout: {:?}", next);
-                    on_layout_changed.call(layout.apply(next));
-                    /*
-                    match next {
-                        TabLayoutCommand::Nop => {}
-                        TabLayoutCommand::OnAdjustVSplit {
-                            layout_id,
-                            new_split,
-                        } => {
-                            //
-                        }
-                    }
-                     */
-                }
-            }
-             */
         })
     };
 
     if let Some(command) = &**next_command {
-        log::debug!("calling on_layout_changed");
         next_command.set(None);
-        on_layout_changed.call(layout.apply(command));
+        log::debug!("command {:?}", command);
+        on_layout_changed.call(layout.modify(command));
         cx.needs_update();
-        log::debug!("called on_layout_changed");
     }
 
     cx.render(rsx! {
@@ -209,7 +186,7 @@ pub fn TabArea<'a>(
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabLayoutComponent(cx: Scoped, layout: TabLayout, bus: CommandBus) -> Element {
+fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) -> Element {
     match layout {
         TabLayout::Group(group) => {
             //
@@ -251,7 +228,7 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup) -> Element<'a> {
     })
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct DragPosition {
     start: f64,
     current: f64,
@@ -281,7 +258,7 @@ impl DragPosition {
 #[inline_props]
 fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
-    let drag_dist = use_state(cx, || -> Option<DragPosition> { None });
+    let drag_pos = use_state(cx, || -> Option<DragPosition> { None });
 
     let on_resize = use_state(cx, || {
         to_owned![size];
@@ -289,40 +266,37 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
     });
 
     {
-        to_owned![drag_dist];
-        use_window_mouseup(cx, move |evt| {
-            drag_dist.set(None);
-            if evt.trigger_button() == Some(MouseButton::Primary) {
-                drag_dist.set(None);
-            }
-            log::debug!("stop drag");
+        to_owned![drag_pos];
+        use_window_mouseup(cx, move |_| {
+            drag_pos.set(None);
         });
     }
 
+    log::debug!("outside vsplit.split {}", vsplit.split);
+
     {
-        to_owned![drag_dist, size, vsplit, bus];
+        to_owned![drag_pos, size, vsplit, bus];
         use_window_mousemove(cx, move |evt| {
-            if evt.held_buttons().contains(MouseButton::Primary) {
-                if let Some(ref dist) = *drag_dist.current() {
-                    //log::debug!("drag {:#?}", evt);
-                    drag_dist.set(Some(dist.clone().with_current(evt.client_coordinates().x)));
-                    let new_split = dist.adjust_split(size.read().width, vsplit.split);
-                    log::debug!("new split {}", new_split);
-                    block_on(bus.send(TabLayoutCommand::OnAdjustVSplit {
+            log::debug!("inside vsplit.split {}", vsplit.split);
+            if let Some(ref pos) = *drag_pos.current() {
+                if evt.held_buttons().contains(MouseButton::Primary) {
+                    drag_pos.set(Some(pos.clone().with_current(evt.client_coordinates().x)));
+                    let new_split = pos.adjust_split(size.read().width, vsplit.split);
+                    let command = TabLayoutCommand::OnAdjustVSplit {
                         layout_id: vsplit.layout_id,
                         new_split,
-                    }));
-                    log::debug!("sent new split");
-                    /*
-                    on_adjust_vsplit.call(OnAdjustVSplit {
-                        layout_id: 0, //vsplit.layout_id,
-                        new_split,
-                    });
-                     */
-                    //let x = on_adjust_vsplit;
+                    };
+
+                    log::debug!(
+                        "sending command {:?}, DragPos {:?}, vsplit.split {}",
+                        command,
+                        pos,
+                        vsplit.split
+                    );
+                    block_on(bus.send(command));
+                } else {
+                    drag_pos.set(None);
                 }
-            } else {
-                drag_dist.set(None);
             }
         });
     }
@@ -331,7 +305,6 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
         div {
             class: "vsplit",
             onmounted: move |evt| {
-                //log::debug!("onmounted {:#?}", evt.data.get_client_rect().await);
                 on_resize.mount(evt);
             },
             div {
@@ -341,7 +314,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
                     "width: {size.read().width}, height: {size.read().height}"
                 }
                 TabLayoutComponent {
-                    layout: *vsplit.left.clone(),
+                    layout: vsplit.left.as_ref(),
                     bus: bus.clone()
                 }
             }
@@ -350,12 +323,10 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
                         let pos = evt.client_coordinates().x;
-                        drag_dist.set(Some(DragPosition {
+                        drag_pos.set(Some(DragPosition {
                             start: pos,
                             current: pos
                         }));
-                        //is_dragging.set(true);
-                        log::debug!("start drag");
                     }
                 },
             }
@@ -363,7 +334,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
                 class: "vsplit-pane vsplit-right",
                 flex: 1.0 - vsplit.split,
                 TabLayoutComponent {
-                    layout: *vsplit.right.clone(),
+                    layout: vsplit.right.as_ref(),
                     bus: bus.clone()
                 }
             }
@@ -381,7 +352,7 @@ fn TabHSplitComponent(cx: Scoped, hsplit: TabHSplit, bus: CommandBus) -> Element
                 class: "hsplit-pane hsplit-top",
                 flex: hsplit.split,
                 TabLayoutComponent {
-                    layout: *hsplit.top.clone(),
+                    layout: hsplit.top.as_ref(),
                     bus: bus.clone()
                 }
             }
@@ -392,7 +363,7 @@ fn TabHSplitComponent(cx: Scoped, hsplit: TabHSplit, bus: CommandBus) -> Element
                 class: "hsplit-pane hsplit-bottom",
                 flex: 1.0 - hsplit.split,
                 TabLayoutComponent {
-                    layout: *hsplit.bottom.clone(),
+                    layout: hsplit.bottom.as_ref(),
                     bus: bus.clone()
                 }
             }

@@ -81,19 +81,26 @@ pub fn MainWindow(cx: Scope) -> Element {
      */
 
     let tab_layout = use_state(cx, || {
+        log::debug!("new state");
         tabs::vsplit(
             1,
             0.327,
+            tabs::group([]),
+            tabs::group([]),
+            /*
             tabs::group([tabs::tab(1), tabs::tab(2)]),
             tabs::hsplit(
                 0.723,
                 tabs::group([tabs::tab(3)]),
                 tabs::group([tabs::tab(4)]),
             ),
+             */
         )
     });
 
-    log::debug!("tab_layout {:#?}", tab_layout);
+    log::debug!("layout state {:?}", tab_layout);
+
+    //log::debug!("tab_layout {:#?}", tab_layout);
 
     //let tab_layout = use_ref(cx, || tabs::group([tabs::tab(1), tabs::tab(2)]));
 
@@ -113,7 +120,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                 TabArea {
                     layout: tab_layout,
                     on_layout_changed: |layout| {
-                        println!("layout {:#?}", layout);
+                        log::debug!("layout changed to {:#?}", layout);
                         tab_layout.set(layout);
                         //
                     }
