@@ -70,17 +70,29 @@ pub fn MainWindow(cx: Scope) -> Element {
         tabs::vsplit(
             1,
             0.327,
-            tabs::group([tabs::tab(1), tabs::tab(2)]),
+            tabs::group(
+                1,
+                [
+                    tabs::tab(1, "Some file", false),
+                    tabs::tab(2, "Some file with a very long path.fileextension", true),
+                ],
+            ),
             tabs::vsplit(
                 2,
                 0.723,
                 tabs::hsplit(
                     3,
                     0.4,
-                    tabs::group([tabs::tab(3)]),
-                    tabs::group([tabs::tab(4)]),
+                    tabs::group(2, [tabs::tab(3, "A file", true)]),
+                    tabs::group(3, [tabs::tab(4, "A file", true)]),
                 ),
-                tabs::group([tabs::tab(5)]),
+                tabs::group(
+                    4,
+                    [
+                        tabs::tab(5, "A file", false),
+                        tabs::tab(6, "Another file", true),
+                    ],
+                ),
             ),
         )
     });

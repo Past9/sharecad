@@ -1,13 +1,3 @@
-menu-bg-color = darken(light-color, 3)
-menu-hover-color = darken(light-color, 10)
-menu-border-color = darken(light-color, 8)
-
-bg-color(base-color, darken) 
-    background-color base-color
-    &:hover 
-        background-color darken(base-color, darken)
-
-
 .menu-item
     background-color transparent
     cursor pointer
@@ -21,12 +11,12 @@ bg-color(base-color, darken)
         user-select none
 
     &:hover 
-        background-color menu-hover-color
+        background-color surface-hover-color
 
 .menu-bar 
     display block
-    background-color menu-bg-color
-    border-bottom 1px solid menu-border-color
+    background-color surface-color
+    border-bottom 1px solid surface-border-color
 
     .menu-sep 
         display none
@@ -46,7 +36,7 @@ bg-color(base-color, darken)
     display block
     overflow hidden
     display none
-    background-color light-color
+    background-color surface-color
     border-radius border-radius
     box-shadow shadow-1
     z-index 1
@@ -58,7 +48,7 @@ bg-color(base-color, darken)
 
     &>.menu-sep 
         display block 
-        background-color menu-border-color
+        background-color surface-border-color
         height 1px
         margin 5px 0
 

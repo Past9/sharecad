@@ -6,19 +6,24 @@ use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
 
-pub fn tab(id: u32) -> TabProps {
-    TabProps { tab_id: id }
+pub fn tab(id: u32, title: &str, active_in_group: bool) -> TabProps {
+    TabProps {
+        tab_id: id,
+        title: title.to_string(),
+        active_in_group,
+    }
 }
 
-pub fn group<const N: usize>(tabs: [TabProps; N]) -> TabLayout {
+pub fn group<const N: usize>(id: u32, tabs: [TabProps; N]) -> TabLayout {
     TabLayout::Group(TabGroup {
+        group_id: id,
         tabs: tabs.to_vec(),
     })
 }
 
 pub fn vsplit(id: u32, split: f64, left: TabLayout, right: TabLayout) -> TabLayout {
     TabLayout::Split(TabSplit {
-        kind: TabSplitKind::Vertical,
+        direction: TabSplitDirection::Vertical,
         layout_id: id,
         location: split,
         a: Box::new(left),
@@ -28,7 +33,7 @@ pub fn vsplit(id: u32, split: f64, left: TabLayout, right: TabLayout) -> TabLayo
 
 pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayout {
     TabLayout::Split(TabSplit {
-        kind: TabSplitKind::Horizontal,
+        direction: TabSplitDirection::Horizontal,
         layout_id: id,
         location: split,
         a: Box::new(top),
@@ -44,17 +49,59 @@ pub enum TabLayout {
 impl TabLayout {
     fn modify(&self, command: &TabLayoutCommand) -> Self {
         match command {
-            TabLayoutCommand::OnAdjustSplit {
+            TabLayoutCommand::AdjustSplit {
                 layout_id,
                 new_location,
-            } => self.apply_adjust_split(*layout_id, *new_location),
+            } => self.adjust_split(*layout_id, *new_location),
+            TabLayoutCommand::SetActiveInGroup { group_id, tab_id } => {
+                self.set_active_tab_in_group(*group_id, *tab_id)
+            }
         }
     }
 
-    fn apply_adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
+    fn set_active_tab_in_group(&self, group_id: u32, tab_id: u32) -> Self {
+        match self {
+            TabLayout::Group(group) => {
+                let new_group = if group.group_id == group_id {
+                    let tabs = group
+                        .tabs
+                        .iter()
+                        .map(|tab| {
+                            let mut tab = tab.to_owned();
+                            tab.active_in_group = tab.tab_id == tab_id;
+                            tab
+                        })
+                        .collect::<Vec<_>>();
+                    TabGroup { group_id, tabs }
+                } else {
+                    TabGroup {
+                        group_id: group.group_id,
+                        tabs: group.tabs.clone(),
+                    }
+                };
+
+                TabLayout::Group(new_group)
+            }
+            TabLayout::Split(TabSplit {
+                direction,
+                layout_id,
+                location,
+                a,
+                b,
+            }) => TabLayout::Split(TabSplit {
+                direction: *direction,
+                layout_id: *layout_id,
+                location: *location,
+                a: Box::new(a.set_active_tab_in_group(group_id, tab_id)),
+                b: Box::new(b.set_active_tab_in_group(group_id, tab_id)),
+            }),
+        }
+    }
+
+    fn adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
         match self {
             TabLayout::Split(TabSplit {
-                kind,
+                direction,
                 layout_id,
                 location,
                 a,
@@ -62,7 +109,7 @@ impl TabLayout {
             }) => {
                 if *layout_id == target_layout_id {
                     TabLayout::Split(TabSplit {
-                        kind: kind.clone(),
+                        direction: direction.clone(),
                         layout_id: *layout_id,
                         location: new_location,
                         a: a.clone(),
@@ -70,11 +117,11 @@ impl TabLayout {
                     })
                 } else {
                     TabLayout::Split(TabSplit {
-                        kind: kind.clone(),
+                        direction: direction.clone(),
                         layout_id: *layout_id,
                         location: location.clone(),
-                        a: Box::new(a.apply_adjust_split(target_layout_id, new_location)),
-                        b: Box::new(b.apply_adjust_split(target_layout_id, new_location)),
+                        a: Box::new(a.adjust_split(target_layout_id, new_location)),
+                        b: Box::new(b.adjust_split(target_layout_id, new_location)),
                     })
                 }
             }
@@ -83,34 +130,38 @@ impl TabLayout {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Props)]
-pub struct TabGroup {
-    tabs: Vec<TabProps>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum TabSplitKind {
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum TabSplitDirection {
     Vertical,
     Horizontal,
 }
 
-#[derive(Clone, Debug, PartialEq, Props)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TabSplit {
-    kind: TabSplitKind,
+    direction: TabSplitDirection,
     layout_id: u32,
     location: f64,
     a: Box<TabLayout>,
     b: Box<TabLayout>,
 }
 
-#[derive(PartialEq, Debug, Clone, Props)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TabGroup {
+    group_id: u32,
+    tabs: Vec<TabProps>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct TabProps {
     tab_id: u32,
+    title: String,
+    active_in_group: bool,
 }
 
 #[derive(Debug, PartialEq)]
 enum TabLayoutCommand {
-    OnAdjustSplit { layout_id: u32, new_location: f64 },
+    AdjustSplit { layout_id: u32, new_location: f64 },
+    SetActiveInGroup { group_id: u32, tab_id: u32 },
 }
 
 #[derive(Clone)]
@@ -124,6 +175,10 @@ impl CommandBus {
 
     async fn send(&self, command: TabLayoutCommand) {
         self.sender.send(command).await.unwrap();
+    }
+
+    fn send_blocking(&self, command: TabLayoutCommand) {
+        block_on(self.send(command))
     }
 }
 impl PartialEq for CommandBus {
@@ -144,12 +199,11 @@ pub fn TabArea<'a>(
 
     let next_command = use_state::<Option<TabLayoutCommand>>(cx, || None);
 
-    let cr = {
+    let _cr = {
         to_owned![next_command, receiver];
         use_coroutine(cx, |_rx: UnboundedReceiver<()>| async move {
             loop {
                 if let Ok(command) = receiver.recv().await {
-                    log::debug!("receive {:?}", command);
                     next_command.set(Some(command));
                 }
             }
@@ -159,13 +213,15 @@ pub fn TabArea<'a>(
     if let Some(command) = &**next_command {
         next_command.set(None);
         on_layout_changed.call(layout.modify(command));
-        cx.needs_update();
     }
 
     cx.render(rsx! {
-        TabLayoutComponent {
-            layout: layout,
-            bus: bus
+        div {
+            class: "tab-area",
+            TabLayoutComponent {
+                layout: layout,
+                bus: bus
+            }
         }
     })
 }
@@ -175,37 +231,15 @@ pub fn TabArea<'a>(
 fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) -> Element {
     match layout {
         TabLayout::Group(group) => cx.render(rsx! {
-            TabGroupComponent { group: group }
+            TabGroupComponent {
+                group: group,
+                bus: bus.clone()
+            }
         }),
         TabLayout::Split(split) => cx.render(rsx! {
             TabSplitComponent { split: split.clone(), bus: bus.clone() }
         }),
     }
-}
-
-#[allow(non_snake_case)]
-#[inline_props]
-fn TabComponent(cx: Scoped, tab: TabProps) -> Element {
-    cx.render(rsx! {
-        div {
-            "Tab "
-            "{tab.tab_id}"
-        }
-    })
-}
-
-#[allow(non_snake_case)]
-#[inline_props]
-fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup) -> Element<'a> {
-    cx.render(rsx! {
-        for tab in group.tabs.iter() {
-            rsx! {
-                TabComponent {
-                    tab: tab.clone()
-                }
-            }
-        }
-    })
 }
 
 #[derive(Clone, Debug)]
@@ -260,11 +294,11 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
-                        let (position, space) = match split.kind {
-                            TabSplitKind::Vertical => {
+                        let (position, space) = match split.direction {
+                            TabSplitDirection::Vertical => {
                                 (evt.client_coordinates().x, size.read().width)
                             }
-                            TabSplitKind::Horizontal => {
+                            TabSplitDirection::Horizontal => {
                                 (evt.client_coordinates().y, size.read().height)
                             }
                         };
@@ -272,7 +306,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                         let new_drag_pos = pos.clone().with_current(position);
                         let new_location = new_drag_pos.adjust_split(space);
                         drag_pos.set(Some(new_drag_pos));
-                        let command = TabLayoutCommand::OnAdjustSplit {
+                        let command = TabLayoutCommand::AdjustSplit {
                             layout_id: split.layout_id,
                             new_location,
                         };
@@ -286,9 +320,9 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
         },
     );
 
-    let direction_class = match split.kind {
-        TabSplitKind::Vertical => "vertical",
-        TabSplitKind::Horizontal => "horizontal",
+    let direction_class = match split.direction {
+        TabSplitDirection::Vertical => "vertical",
+        TabSplitDirection::Horizontal => "horizontal",
     };
 
     let dragging_class = match drag_pos.is_some() {
@@ -321,9 +355,9 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 class: "splitter {dragging_class}",
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
-                        let pos = match split.kind {
-                            TabSplitKind::Vertical => evt.client_coordinates().x,
-                            TabSplitKind::Horizontal => evt.client_coordinates().y,
+                        let pos = match split.direction {
+                            TabSplitDirection::Vertical => evt.client_coordinates().x,
+                            TabSplitDirection::Horizontal => evt.client_coordinates().y,
                         };
                         drag_pos.set(Some(DragPosition {
                             start_split: split.location,
@@ -340,6 +374,63 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                     layout: split.b.as_ref(),
                     bus: bus.clone()
                 }
+            }
+        }
+    })
+}
+
+#[allow(non_snake_case)]
+#[inline_props]
+fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> Element<'a> {
+    cx.render(rsx! {
+        div {
+            class: "group",
+            div {
+                class: "group-header",
+                for tab in group.tabs.iter() {
+                    rsx! {
+                        TabComponent {
+                            key: "{tab.tab_id}",
+                            group_id: group.group_id,
+                            tab: tab.clone(),
+                            bus: bus.clone()
+                        }
+                    }
+                }
+            }
+            div {
+                class: "active-content",
+                "Active tab content"
+            }
+        }
+    })
+}
+
+#[allow(non_snake_case)]
+#[inline_props]
+fn TabComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
+    let active_in_group_class = match tab.active_in_group {
+        true => "active-in-group",
+        false => "",
+    };
+
+    cx.render(rsx! {
+        div {
+            class: "tab-header {active_in_group_class}",
+            onmousedown: move |_| {
+                bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
+            },
+            div {
+                class: "tab-icon",
+                "Ϣ"
+            }
+            div {
+                class: "tab-title",
+                "{tab.title}"
+            }
+            div {
+                class: "tab-close",
+                "✕"
             }
         }
     })
