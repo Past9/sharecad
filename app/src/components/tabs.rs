@@ -243,12 +243,12 @@ fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) ->
 }
 
 #[derive(Clone, Debug)]
-struct DragPosition {
+struct SplitDragPosition {
     start_split: f64,
     start_mousepos: f64,
     current_mousepos: f64,
 }
-impl DragPosition {
+impl SplitDragPosition {
     pub fn dist(&self) -> f64 {
         self.current_mousepos - self.start_mousepos
     }
@@ -274,7 +274,7 @@ impl DragPosition {
 #[inline_props]
 fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
-    let drag_pos = use_state(cx, || -> Option<DragPosition> { None });
+    let drag_pos = use_state(cx, || -> Option<SplitDragPosition> { None });
 
     let on_resize = use_state(cx, || {
         to_owned![size];
@@ -334,7 +334,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
         if drag_pos.is_some() {
             rsx! {
                 div {
-                    class: "overlay split-cursor"
+                    class: "split-drag-overlay split-cursor"
                 }
             }
         }
@@ -359,7 +359,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                             TabSplitDirection::Vertical => evt.client_coordinates().x,
                             TabSplitDirection::Horizontal => evt.client_coordinates().y,
                         };
-                        drag_pos.set(Some(DragPosition {
+                        drag_pos.set(Some(SplitDragPosition {
                             start_split: split.location,
                             start_mousepos: pos,
                             current_mousepos: pos
@@ -419,10 +419,98 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
     })
 }
 
+#[derive(Debug)]
+enum TabDragState {
+    Standby {
+        start_pos: (f64, f64),
+    },
+    Dragging {
+        start_pos: (f64, f64),
+        current_pos: (f64, f64),
+    },
+}
+
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
+    const DRAG_TRIGGER_DIST: f64 = 25.0;
+
+    let drag_state = use_state(cx, || -> Option<TabDragState> { None });
+
+    log::debug!("drag_state {:?}", drag_state);
+
+    use_window_mouseup(cx, drag_state, |drag_state| {
+        move |_| {
+            drag_state.set(None);
+        }
+    });
+
+    use_window_mousemove(cx, (drag_state), |(drag_state)| {
+        move |evt| {
+            if let Some(ref state) = *drag_state.current() {
+                if evt.held_buttons().contains(MouseButton::Primary) {
+                    let current_pos = evt.client_coordinates().to_tuple();
+                    log::debug!("coords {:?}", current_pos);
+                    match state {
+                        TabDragState::Standby { start_pos } => {
+                            // Distance mouse has traveled from mousedown by Pythagorean theorem
+                            let dist = ((current_pos.0 - start_pos.0).powi(2)
+                                + (current_pos.1 - start_pos.1).powi(2))
+                            .sqrt();
+
+                            if dist > DRAG_TRIGGER_DIST {
+                                drag_state.set(Some(TabDragState::Dragging {
+                                    start_pos: current_pos,
+                                    current_pos: current_pos,
+                                }));
+                            }
+                        }
+                        TabDragState::Dragging { start_pos, .. } => {
+                            drag_state.set(Some(TabDragState::Dragging {
+                                start_pos: *start_pos,
+                                current_pos,
+                            }));
+                        }
+                    }
+                } else {
+                    drag_state.set(None);
+                }
+            }
+        }
+    });
+
     let active_in_group_class = match tab.active_in_group {
+        true => "active-in-group",
+        false => "",
+    };
+
+    cx.render(rsx! {
+        TabHeaderComponentInner {
+            group_id: *group_id,
+            tab_id: tab.tab_id,
+            title: tab.title.clone(),
+            active_in_group: tab.active_in_group,
+            onmousedown: move |evt: Event<MouseData>| {
+                drag_state.set(Some(TabDragState::Standby {
+                    start_pos: evt.client_coordinates().to_tuple()
+                }));
+                bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
+            },
+        }
+    })
+}
+
+#[allow(non_snake_case)]
+#[inline_props]
+fn TabHeaderComponentInner<'a>(
+    cx: Scoped,
+    group_id: u32,
+    tab_id: u32,
+    title: String,
+    active_in_group: bool,
+    onmousedown: EventHandler<'a, Event<MouseData>>,
+) -> Element {
+    let active_in_group_class = match active_in_group {
         true => "active-in-group",
         false => "",
     };
@@ -430,17 +518,14 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
     cx.render(rsx! {
         div {
             class: "tab-header {active_in_group_class}",
-            draggable: true,
-            onmousedown: move |_| {
-                bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
-            },
+            onmousedown: |evt| { onmousedown.call(evt) },
             div {
                 class: "tab-icon",
                 "Ϣ"
             }
             div {
                 class: "tab-title",
-                "{tab.title}"
+                "{title}"
             }
             div {
                 class: "tab-close",
