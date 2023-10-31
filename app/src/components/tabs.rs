@@ -5,7 +5,7 @@ use crate::{
 use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
-use web_sys::MouseEventInit;
+use web_sys::{DragEventInit, MouseEventInit};
 
 pub fn config(layout: TabLayout) -> TabConfig {
     TabConfig {
@@ -523,6 +523,7 @@ fn TabHeaderComponent(
     use_window_mouseup(cx, (drag_state, bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
+            log::debug!("MOUSEUP");
             bus.send_blocking(ConfigCommand::StopDraggingTab);
         }
     });
@@ -626,21 +627,30 @@ fn TabHeaderComponent(
                                      */
                                 }
 
-                                log::debug!("element_under_cursor {:?}", element_under_cursor);
+                                //log::debug!("element_under_cursor {:?}", element_under_cursor);
 
                                 if let Some(element_under_cursor) = element_under_cursor {
-                                    let event =
-                                        web_sys::MouseEvent::new_with_mouse_event_init_dict(
-                                            "mousemove",
-                                            MouseEventInit::new()
-                                                .bubbles(true)
-                                                .cancelable(true)
-                                                .view(Some(&win)),
-                                        )
-                                        .unwrap();
+                                    log::debug!(
+                                        "element_under_cursor #{}.{}",
+                                        element_under_cursor.id(),
+                                        element_under_cursor.class_name()
+                                    );
 
-                                    let dispatch_res = element_under_cursor.dispatch_event(&event);
-                                    log::debug!("dispatch_res {:?}", dispatch_res);
+                                    let event = web_sys::DragEvent::new_with_event_init_dict(
+                                        "dragover",
+                                        DragEventInit::new()
+                                            .bubbles(true)
+                                            .cancelable(true)
+                                            .view(Some(&win))
+                                            .client_x(evt.client_coordinates().x as i32)
+                                            .client_y(evt.client_coordinates().y as i32)
+                                            .screen_x(evt.screen_coordinates().x as i32)
+                                            .screen_y(evt.screen_coordinates().y as i32)
+                                            .buttons(1),
+                                    )
+                                    .unwrap();
+
+                                    element_under_cursor.dispatch_event(&event).unwrap();
                                 }
                             }
 
@@ -653,6 +663,7 @@ fn TabHeaderComponent(
                     }
                 } else {
                     drag_state.set(None);
+                    log::debug!("NO PRIMARY BTN");
                     bus.send_blocking(ConfigCommand::StopDraggingTab);
                 }
             }
@@ -693,9 +704,9 @@ fn TabHeaderComponent(
                 }));
                 bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id }));
             },
-            onmousemove: move |_evt: Event<MouseData>| {
+            ondragover: move |evt: Event<DragData>| {
                 if *is_dragging_tab {
-                    log::debug!("drop target");
+                    log::debug!("drop target {:?}", evt.mouse.element_coordinates());
                 }
             },
             if is_dragging {
@@ -709,7 +720,7 @@ fn TabHeaderComponent(
                             absolute_pos: pos,
                             opacity: 0.8,
                             onmousedown: |_| {},
-                            onmousemove: |_| {}
+                            ondragover: |_| {}
                         }
                     }
                 }
@@ -728,7 +739,7 @@ fn TabHeaderComponentInner<'a>(
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
-    onmousemove: EventHandler<'a, Event<MouseData>>,
+    ondragover: EventHandler<'a, Event<DragData>>,
     children: Element<'a>,
 ) -> Element {
     let active_in_group_class = match active_in_group {
@@ -751,7 +762,8 @@ fn TabHeaderComponentInner<'a>(
             id: "{id}",
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
-            onmousemove: |evt| { onmousemove.call(evt) },
+            //onmousemove: |evt| { onmousemove.call(evt) },
+            ondragover: |evt| { ondragover.call(evt) },
             position: position_attr,
             left: "{left_attr}px",
             top: "{top_attr}px",
