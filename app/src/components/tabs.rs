@@ -389,7 +389,7 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
                 class: "group-header",
                 for tab in group.tabs.iter() {
                     rsx! {
-                        TabComponent {
+                        TabHeaderComponent {
                             key: "{tab.tab_id}",
                             group_id: group.group_id,
                             tab: tab.clone(),
@@ -398,9 +398,22 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
                     }
                 }
             }
-            div {
-                class: "active-content",
-                "Active tab content"
+            if let Some(tab) = group.tabs.iter().find(|tab| tab.active_in_group) {
+                rsx! {
+                    div {
+                        class: "active-content",
+                        "Active tab {tab.title}"
+                    }
+                }
+            } else {
+                rsx! {
+                    div {
+                        class: "no-active-tab",
+                        p {
+                            "Click a tab to open it"
+                        }
+                    }
+                }
             }
         }
     })
@@ -408,7 +421,7 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
+fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
     let active_in_group_class = match tab.active_in_group {
         true => "active-in-group",
         false => "",
@@ -417,6 +430,7 @@ fn TabComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> El
     cx.render(rsx! {
         div {
             class: "tab-header {active_in_group_class}",
+            draggable: true,
             onmousedown: move |_| {
                 bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
             },

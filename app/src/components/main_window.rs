@@ -84,7 +84,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                     3,
                     0.4,
                     tabs::group(2, [tabs::tab(3, "A file", true)]),
-                    tabs::group(3, [tabs::tab(4, "A file", true)]),
+                    tabs::group(3, [tabs::tab(4, "A file", false)]),
                 ),
                 tabs::group(
                     4,
