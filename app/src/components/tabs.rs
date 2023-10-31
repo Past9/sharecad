@@ -3,7 +3,7 @@ use crate::{
     window_events::{use_window_mousemove, use_window_mouseup},
 };
 use async_channel::Sender;
-use dioxus::{html::input_data::MouseButton, prelude::*};
+use dioxus::{core::AttributeValue, html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
 
 struct IdSeries {
@@ -179,7 +179,6 @@ pub fn TabArea<'a>(
     if let Some(command) = &**next_command {
         next_command.set(None);
         on_layout_changed.call(layout.modify(command));
-        //log::debug!("process {:?}", command);
         cx.needs_update();
     }
 
@@ -195,12 +194,9 @@ pub fn TabArea<'a>(
 #[inline_props]
 fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) -> Element {
     match layout {
-        TabLayout::Group(group) => {
-            //
-            cx.render(rsx! {
-                TabGroupComponent { group: group }
-            })
-        }
+        TabLayout::Group(group) => cx.render(rsx! {
+            TabGroupComponent { group: group }
+        }),
         TabLayout::Split(split) => cx.render(rsx! {
             TabSplitComponent { split: split.clone(), bus: bus.clone() }
         }),
@@ -280,15 +276,24 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
     use_window_mousemove(
         cx,
         (drag_pos, size, split, bus),
-        |(drag_pos, size, vsplit, bus)| {
+        |(drag_pos, size, split, bus)| {
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
-                        let new_drag_pos = pos.clone().with_current(evt.client_coordinates().x);
-                        let new_location = new_drag_pos.adjust_split(size.read().width);
+                        let (position, space) = match split.kind {
+                            TabSplitKind::Vertical => {
+                                (evt.client_coordinates().x, size.read().width)
+                            }
+                            TabSplitKind::Horizontal => {
+                                (evt.client_coordinates().y, size.read().height)
+                            }
+                        };
+
+                        let new_drag_pos = pos.clone().with_current(position);
+                        let new_location = new_drag_pos.adjust_split(space);
                         drag_pos.set(Some(new_drag_pos));
                         let command = TabLayoutCommand::OnAdjustSplit {
-                            layout_id: vsplit.layout_id,
+                            layout_id: split.layout_id,
                             new_location,
                         };
 
@@ -301,40 +306,45 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
         },
     );
 
-    let splitter_classes = match drag_pos.is_some() {
-        true => "splitter dragging",
-        false => "splitter",
+    let direction_class = match split.kind {
+        TabSplitKind::Vertical => "vertical",
+        TabSplitKind::Horizontal => "horizontal",
+    };
+
+    let dragging_class = match drag_pos.is_some() {
+        true => "dragging",
+        false => "",
     };
 
     cx.render(rsx! {
         if drag_pos.is_some() {
             rsx! {
                 div {
-                    class: "overlay vsplit-cursor"
+                    class: "overlay split-cursor"
                 }
             }
         }
         div {
-            class: "vsplit",
+            class: "split {direction_class}",
             onmounted: move |evt| {
                 on_resize.mount(evt);
             },
             div {
-                class: "vsplit-pane vsplit-left",
+                class: "split-pane split-left",
                 flex: split.location,
-                span {
-                    "width: {size.read().width}, height: {size.read().height}"
-                }
                 TabLayoutComponent {
                     layout: split.a.as_ref(),
                     bus: bus.clone()
                 }
             }
             div {
-                class: splitter_classes,
+                class: "splitter {dragging_class}",
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
-                        let pos = evt.client_coordinates().x;
+                        let pos = match split.kind {
+                            TabSplitKind::Vertical => evt.client_coordinates().x,
+                            TabSplitKind::Horizontal => evt.client_coordinates().y,
+                        };
                         drag_pos.set(Some(DragPosition {
                             start_split: split.location,
                             start_mousepos: pos,
@@ -344,7 +354,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 },
             }
             div {
-                class: "vsplit-pane vsplit-right",
+                class: "split-pane split-right",
                 flex: 1.0 - split.location,
                 TabLayoutComponent {
                     layout: split.b.as_ref(),
