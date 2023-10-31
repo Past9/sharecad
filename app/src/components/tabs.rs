@@ -56,8 +56,16 @@ pub struct TabConfig {
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
         match command {
-            ConfigCommand::StartDraggingTab => self.clone(),
-            ConfigCommand::StopDraggingTab => self.clone(),
+            ConfigCommand::StartDraggingTab => {
+                let mut new_config = self.clone();
+                new_config.is_dragging_tab = true;
+                new_config
+            }
+            ConfigCommand::StopDraggingTab => {
+                let mut new_config = self.clone();
+                new_config.is_dragging_tab = false;
+                new_config
+            }
             ConfigCommand::DropTabInExistingGroup {
                 into_group_id,
                 tab_id,
@@ -70,6 +78,7 @@ impl TabConfig {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum ConfigCommand {
     StartDraggingTab,
     StopDraggingTab,
@@ -233,6 +242,8 @@ pub fn TabArea<'a>(
     let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<ConfigCommand>());
     let bus = CommandBus::new(sender.clone());
 
+    log::debug!("is_dragging_tab {}", config.is_dragging_tab);
+
     let next_command = use_state::<Option<ConfigCommand>>(cx, || None);
 
     let _cr = {
@@ -259,6 +270,7 @@ pub fn TabArea<'a>(
             class: "tab-area",
             TabLayoutComponent {
                 layout: &config.layout,
+                is_dragging_tab: config.is_dragging_tab,
                 bus: bus
             }
         }
@@ -267,7 +279,12 @@ pub fn TabArea<'a>(
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) -> Element {
+fn TabLayoutComponent<'a>(
+    cx: Scoped,
+    layout: &'a TabLayout,
+    is_dragging_tab: bool,
+    bus: CommandBus,
+) -> Element {
     match layout {
         TabLayout::Group(group) => cx.render(rsx! {
             TabGroupComponent {
@@ -276,7 +293,11 @@ fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) ->
             }
         }),
         TabLayout::Split(split) => cx.render(rsx! {
-            TabSplitComponent { split: split.clone(), bus: bus.clone() }
+            TabSplitComponent {
+                split: split.clone(),
+                is_dragging_tab: *is_dragging_tab,
+                bus: bus.clone()
+            }
         }),
     }
 }
@@ -311,7 +332,12 @@ impl SplitDragPosition {
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a> {
+fn TabSplitComponent(
+    cx: Scoped,
+    split: TabSplit,
+    is_dragging_tab: bool,
+    bus: CommandBus,
+) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
     let drag_pos = use_state(cx, || -> Option<SplitDragPosition> { None });
 
@@ -350,7 +376,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                             new_location,
                         });
 
-                        block_on(bus.send(command));
+                        bus.send_blocking(command);
                     } else {
                         drag_pos.set(None);
                     }
@@ -387,6 +413,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 flex: split.location,
                 TabLayoutComponent {
                     layout: split.a.as_ref(),
+                    is_dragging_tab: *is_dragging_tab,
                     bus: bus.clone()
                 }
             }
@@ -411,6 +438,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 flex: 1.0 - split.location,
                 TabLayoutComponent {
                     layout: split.b.as_ref(),
+                    is_dragging_tab: *is_dragging_tab,
                     bus: bus.clone()
                 }
             }
@@ -478,13 +506,14 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
 
     let drag_state = use_state(cx, || -> Option<TabDragState> { None });
 
-    use_window_mouseup(cx, drag_state, |drag_state| {
+    use_window_mouseup(cx, (drag_state, bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
+            bus.send_blocking(ConfigCommand::StopDraggingTab);
         }
     });
 
-    use_window_mousemove(cx, (drag_state), |(drag_state)| {
+    use_window_mousemove(cx, (drag_state, bus), |(drag_state, bus)| {
         move |evt| {
             if let Some(ref state) = *drag_state.current() {
                 if evt.held_buttons().contains(MouseButton::Primary) {
@@ -505,6 +534,7 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                                     client_start_pos: client_current_pos,
                                     client_current_pos: client_current_pos,
                                 }));
+                                bus.send_blocking(ConfigCommand::StartDraggingTab);
                             }
                         }
                         TabDragState::Dragging {
@@ -521,6 +551,7 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                     }
                 } else {
                     drag_state.set(None);
+                    bus.send_blocking(ConfigCommand::StopDraggingTab);
                 }
             }
         }
