@@ -289,6 +289,7 @@ fn TabLayoutComponent<'a>(
         TabLayout::Group(group) => cx.render(rsx! {
             TabGroupComponent {
                 group: group,
+                is_dragging_tab: *is_dragging_tab,
                 bus: bus.clone()
             }
         }),
@@ -448,7 +449,12 @@ fn TabSplitComponent(
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> Element<'a> {
+fn TabGroupComponent<'a>(
+    cx: Scoped,
+    group: &'a TabGroup,
+    is_dragging_tab: bool,
+    bus: CommandBus,
+) -> Element<'a> {
     cx.render(rsx! {
         div {
             class: "group",
@@ -460,6 +466,7 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
                             key: "{tab.tab_id}",
                             group_id: group.group_id,
                             tab: tab.clone(),
+                            is_dragging_tab: *is_dragging_tab,
                             bus: bus.clone()
                         }
                     }
@@ -501,7 +508,13 @@ enum TabDragState {
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
+fn TabHeaderComponent(
+    cx: Scoped,
+    group_id: u32,
+    tab: TabProps,
+    is_dragging_tab: bool,
+    bus: CommandBus,
+) -> Element {
     const DRAG_TRIGGER_DIST: f64 = 5.0;
 
     let drag_state = use_state(cx, || -> Option<TabDragState> { None });
@@ -590,6 +603,11 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                 }));
                 bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id }));
             },
+            onmousemove: move |evt: Event<MouseData>| {
+                if *is_dragging_tab {
+                    log::debug!("drop target");
+                }
+            },
             if is_dragging {
                 rsx! {
                     div {
@@ -599,7 +617,8 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                             active_in_group: true,
                             absolute_pos: pos,
                             opacity: 0.8,
-                            onmousedown: |_| {}
+                            onmousedown: |_| {},
+                            onmousemove: |_| {}
                         }
                     }
                 }
@@ -617,6 +636,7 @@ fn TabHeaderComponentInner<'a>(
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
+    onmousemove: EventHandler<'a, Event<MouseData>>,
     children: Element<'a>,
 ) -> Element {
     let active_in_group_class = match active_in_group {
@@ -633,6 +653,7 @@ fn TabHeaderComponentInner<'a>(
         div {
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
+            onmousemove: |evt| { onmousemove.call(evt) },
             position: position_attr,
             left: "{left_attr}px",
             top: "{top_attr}px",
