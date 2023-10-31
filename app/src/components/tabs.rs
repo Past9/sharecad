@@ -37,52 +37,67 @@ pub fn group<const N: usize>(tabs: [TabProps; N]) -> TabLayout {
 }
 
 pub fn vsplit(id: u32, split: f64, left: TabLayout, right: TabLayout) -> TabLayout {
-    TabLayout::VSplit(TabVSplit {
+    TabLayout::Split(TabSplit {
+        kind: TabSplitKind::Vertical,
         layout_id: id,
-        split,
-        left: Box::new(left),
-        right: Box::new(right),
+        location: split,
+        a: Box::new(left),
+        b: Box::new(right),
     })
 }
 
-pub fn hsplit(split: f64, top: TabLayout, bottom: TabLayout) -> TabLayout {
-    TabLayout::HSplit(TabHSplit {
-        split,
-        top: Box::new(top),
-        bottom: Box::new(bottom),
+pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayout {
+    TabLayout::Split(TabSplit {
+        kind: TabSplitKind::Horizontal,
+        layout_id: id,
+        location: split,
+        a: Box::new(top),
+        b: Box::new(bottom),
     })
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum TabLayout {
     Group(TabGroup),
-    VSplit(TabVSplit),
-    HSplit(TabHSplit),
+    Split(TabSplit),
 }
 impl TabLayout {
     fn modify(&self, command: &TabLayoutCommand) -> Self {
         match command {
-            TabLayoutCommand::Nop => self.clone(),
-            TabLayoutCommand::OnAdjustVSplit {
+            TabLayoutCommand::OnAdjustSplit {
                 layout_id,
-                new_split,
-            } => self.apply_adjust_vsplit(*layout_id, *new_split),
+                new_location,
+            } => self.apply_adjust_split(*layout_id, *new_location),
         }
     }
 
-    fn apply_adjust_vsplit(&self, target_layout_id: u32, new_split: f64) -> Self {
+    fn apply_adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
         match self {
-            TabLayout::VSplit(TabVSplit {
+            TabLayout::Split(TabSplit {
+                kind,
                 layout_id,
-                left,
-                right,
-                ..
-            }) if *layout_id == target_layout_id => TabLayout::VSplit(TabVSplit {
-                layout_id: *layout_id,
-                split: new_split,
-                left: left.clone(),
-                right: right.clone(),
-            }),
+                location,
+                a,
+                b,
+            }) => {
+                if *layout_id == target_layout_id {
+                    TabLayout::Split(TabSplit {
+                        kind: kind.clone(),
+                        layout_id: *layout_id,
+                        location: new_location,
+                        a: a.clone(),
+                        b: b.clone(),
+                    })
+                } else {
+                    TabLayout::Split(TabSplit {
+                        kind: kind.clone(),
+                        layout_id: *layout_id,
+                        location: location.clone(),
+                        a: Box::new(a.apply_adjust_split(target_layout_id, new_location)),
+                        b: Box::new(b.apply_adjust_split(target_layout_id, new_location)),
+                    })
+                }
+            }
             other => other.clone(),
         }
     }
@@ -93,19 +108,19 @@ pub struct TabGroup {
     tabs: Vec<TabProps>,
 }
 
-#[derive(Clone, Debug, PartialEq, Props)]
-pub struct TabVSplit {
-    layout_id: u32,
-    split: f64,
-    left: Box<TabLayout>,
-    right: Box<TabLayout>,
+#[derive(Clone, Debug, PartialEq)]
+enum TabSplitKind {
+    Vertical,
+    Horizontal,
 }
 
 #[derive(Clone, Debug, PartialEq, Props)]
-pub struct TabHSplit {
-    split: f64,
-    top: Box<TabLayout>,
-    bottom: Box<TabLayout>,
+pub struct TabSplit {
+    kind: TabSplitKind,
+    layout_id: u32,
+    location: f64,
+    a: Box<TabLayout>,
+    b: Box<TabLayout>,
 }
 
 #[derive(PartialEq, Debug, Clone, Props)]
@@ -115,8 +130,7 @@ pub struct TabProps {
 
 #[derive(Debug, PartialEq)]
 enum TabLayoutCommand {
-    Nop,
-    OnAdjustVSplit { layout_id: u32, new_split: f64 },
+    OnAdjustSplit { layout_id: u32, new_location: f64 },
 }
 
 #[derive(Clone)]
@@ -187,11 +201,8 @@ fn TabLayoutComponent<'a>(cx: Scoped, layout: &'a TabLayout, bus: CommandBus) ->
                 TabGroupComponent { group: group }
             })
         }
-        TabLayout::VSplit(vsplit) => cx.render(rsx! {
-            TabVSplitComponent { vsplit: vsplit.clone(), bus: bus.clone() }
-        }),
-        TabLayout::HSplit(hsplit) => cx.render(rsx! {
-            TabHSplitComponent { hsplit: hsplit.clone(), bus: bus.clone() }
+        TabLayout::Split(split) => cx.render(rsx! {
+            TabSplitComponent { split: split.clone(), bus: bus.clone() }
         }),
     }
 }
@@ -251,7 +262,7 @@ impl DragPosition {
 
 #[allow(non_snake_case)]
 #[inline_props]
-fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element<'a> {
+fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
     let drag_pos = use_state(cx, || -> Option<DragPosition> { None });
 
@@ -268,17 +279,17 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
 
     use_window_mousemove(
         cx,
-        (drag_pos, size, vsplit, bus),
+        (drag_pos, size, split, bus),
         |(drag_pos, size, vsplit, bus)| {
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
                         let new_drag_pos = pos.clone().with_current(evt.client_coordinates().x);
-                        let new_split = new_drag_pos.adjust_split(size.read().width);
+                        let new_location = new_drag_pos.adjust_split(size.read().width);
                         drag_pos.set(Some(new_drag_pos));
-                        let command = TabLayoutCommand::OnAdjustVSplit {
+                        let command = TabLayoutCommand::OnAdjustSplit {
                             layout_id: vsplit.layout_id,
-                            new_split,
+                            new_location,
                         };
 
                         block_on(bus.send(command));
@@ -310,12 +321,12 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
             },
             div {
                 class: "vsplit-pane vsplit-left",
-                flex: vsplit.split,
+                flex: split.location,
                 span {
                     "width: {size.read().width}, height: {size.read().height}"
                 }
                 TabLayoutComponent {
-                    layout: vsplit.left.as_ref(),
+                    layout: split.a.as_ref(),
                     bus: bus.clone()
                 }
             }
@@ -325,7 +336,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
                         let pos = evt.client_coordinates().x;
                         drag_pos.set(Some(DragPosition {
-                            start_split: vsplit.split,
+                            start_split: split.location,
                             start_mousepos: pos,
                             current_mousepos: pos
                         }));
@@ -334,38 +345,9 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
             }
             div {
                 class: "vsplit-pane vsplit-right",
-                flex: 1.0 - vsplit.split,
+                flex: 1.0 - split.location,
                 TabLayoutComponent {
-                    layout: vsplit.right.as_ref(),
-                    bus: bus.clone()
-                }
-            }
-        }
-    })
-}
-
-#[allow(non_snake_case)]
-#[inline_props]
-fn TabHSplitComponent(cx: Scoped, hsplit: TabHSplit, bus: CommandBus) -> Element<'a> {
-    cx.render(rsx! {
-        div {
-            class: "hsplit",
-            div {
-                class: "hsplit-pane hsplit-top",
-                flex: hsplit.split,
-                TabLayoutComponent {
-                    layout: hsplit.top.as_ref(),
-                    bus: bus.clone()
-                }
-            }
-            div {
-                class: "splitter"
-            }
-            div {
-                class: "hsplit-pane hsplit-bottom",
-                flex: 1.0 - hsplit.split,
-                TabLayoutComponent {
-                    layout: hsplit.bottom.as_ref(),
+                    layout: split.b.as_ref(),
                     bus: bus.clone()
                 }
             }
