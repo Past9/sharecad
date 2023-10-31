@@ -290,7 +290,19 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
         },
     );
 
+    let splitter_classes = match drag_pos.is_some() {
+        true => "splitter dragging",
+        false => "splitter",
+    };
+
     cx.render(rsx! {
+        if drag_pos.is_some() {
+            rsx! {
+                div {
+                    class: "overlay vsplit-cursor"
+                }
+            }
+        }
         div {
             class: "vsplit",
             onmounted: move |evt| {
@@ -308,7 +320,7 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
                 }
             }
             div {
-                class: "splitter",
+                class: splitter_classes,
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
                         let pos = evt.client_coordinates().x;
