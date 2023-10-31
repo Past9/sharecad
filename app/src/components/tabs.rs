@@ -212,7 +212,10 @@ pub fn TabArea<'a>(
 
     if let Some(command) = &**next_command {
         next_command.set(None);
-        on_layout_changed.call(layout.modify(command));
+        let new_layout = layout.modify(command);
+        if new_layout != **layout {
+            on_layout_changed.call(new_layout);
+        }
     }
 
     cx.render(rsx! {
@@ -334,7 +337,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
         if drag_pos.is_some() {
             rsx! {
                 div {
-                    class: "split-drag-overlay split-cursor"
+                    class: "split-drag-overlay {direction_class}"
                 }
             }
         }

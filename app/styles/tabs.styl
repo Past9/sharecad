@@ -50,8 +50,11 @@ overlay()
 
         // Maintains the dragging mouse cursor when the pointer
         // goes slightly off the splitter element during dragging
-        &.split-cursor
+        &.vertical
             cursor ew-resize
+
+        &.horizontal
+            cursor ns-resize
 
     .group 
         width 100%
