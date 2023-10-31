@@ -9,7 +9,6 @@ struct WindowEvents {
 }
 impl WindowEvents {
     pub fn on(event_name: String) -> Self {
-        log::debug!("new WindowEvents for {}", event_name);
         let win = web_sys::window().unwrap();
         let (sender, receiver) = async_channel::unbounded::<web_sys::Event>();
 
@@ -80,7 +79,6 @@ where
     use_window_event(cx, "mousemove", dependencies, |deps| {
         let mut f2 = f(deps);
         move |websys_evt| {
-            //
             f2(make_mousedata(websys_evt));
         }
     })

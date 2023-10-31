@@ -76,7 +76,7 @@ impl TabLayout {
                 layout_id,
                 left,
                 right,
-                split,
+                ..
             }) if *layout_id == target_layout_id => TabLayout::VSplit(TabVSplit {
                 layout_id: *layout_id,
                 split: new_split,
@@ -145,11 +145,8 @@ pub fn TabArea<'a>(
     layout: &'a TabLayout,
     on_layout_changed: EventHandler<'a, TabLayout>,
 ) -> Element {
-    //let layout = (*layout).to_owned();
-
     let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<TabLayoutCommand>());
     let bus = CommandBus::new(sender.clone());
-    //block_on(bus.send(TabLayoutCommand::Nop));
 
     let next_command = use_state::<Option<TabLayoutCommand>>(cx, || None);
 
@@ -158,6 +155,7 @@ pub fn TabArea<'a>(
         use_coroutine(cx, |_rx: UnboundedReceiver<()>| async move {
             loop {
                 if let Ok(command) = receiver.recv().await {
+                    log::debug!("receive {:?}", command);
                     next_command.set(Some(command));
                 }
             }
@@ -167,6 +165,7 @@ pub fn TabArea<'a>(
     if let Some(command) = &**next_command {
         next_command.set(None);
         on_layout_changed.call(layout.modify(command));
+        //log::debug!("process {:?}", command);
         cx.needs_update();
     }
 
@@ -242,7 +241,7 @@ impl DragPosition {
     }
 
     pub fn split_dist(&self, size: f64) -> f64 {
-        self.dist() / size
+        self.dist() / (size - 5.0)
     }
 
     pub fn adjust_split(&self, size: f64) -> f64 {
@@ -274,8 +273,9 @@ fn TabVSplitComponent(cx: Scoped, vsplit: TabVSplit, bus: CommandBus) -> Element
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
-                        drag_pos.set(Some(pos.clone().with_current(evt.client_coordinates().x)));
-                        let new_split = pos.adjust_split(size.read().width);
+                        let new_drag_pos = pos.clone().with_current(evt.client_coordinates().x);
+                        let new_split = new_drag_pos.adjust_split(size.read().width);
+                        drag_pos.set(Some(new_drag_pos));
                         let command = TabLayoutCommand::OnAdjustVSplit {
                             layout_id: vsplit.layout_id,
                             new_split,
