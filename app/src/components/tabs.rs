@@ -3,28 +3,8 @@ use crate::{
     window_events::{use_window_mousemove, use_window_mouseup},
 };
 use async_channel::Sender;
-use dioxus::{core::AttributeValue, html::input_data::MouseButton, prelude::*};
+use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
-
-struct IdSeries {
-    id: u32,
-}
-impl IdSeries {
-    pub fn new() -> Self {
-        Self::seed(0)
-    }
-
-    pub fn seed(highest_current: u32) -> Self {
-        Self {
-            id: highest_current,
-        }
-    }
-
-    pub fn next(&mut self) -> u32 {
-        self.id += 1;
-        self.id
-    }
-}
 
 pub fn tab(id: u32) -> TabProps {
     TabProps { tab_id: id }
@@ -330,7 +310,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 on_resize.mount(evt);
             },
             div {
-                class: "split-pane split-left",
+                class: "split-pane",
                 flex: split.location,
                 TabLayoutComponent {
                     layout: split.a.as_ref(),
@@ -354,7 +334,7 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                 },
             }
             div {
-                class: "split-pane split-right",
+                class: "split-pane",
                 flex: 1.0 - split.location,
                 TabLayoutComponent {
                     layout: split.b.as_ref(),

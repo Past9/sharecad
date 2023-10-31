@@ -70,8 +70,6 @@ pub fn MainWindow(cx: Scope) -> Element {
         tabs::vsplit(
             1,
             0.327,
-            //tabs::group([]),
-            //tabs::group([]),
             tabs::group([tabs::tab(1), tabs::tab(2)]),
             tabs::vsplit(
                 2,
