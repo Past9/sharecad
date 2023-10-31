@@ -422,18 +422,20 @@ fn TabGroupComponent<'a>(cx: Scoped, group: &'a TabGroup, bus: CommandBus) -> El
 #[derive(Debug)]
 enum TabDragState {
     Standby {
-        start_pos: (f64, f64),
+        element_offset: (f64, f64),
+        client_start_pos: (f64, f64),
     },
     Dragging {
-        start_pos: (f64, f64),
-        current_pos: (f64, f64),
+        element_offset: (f64, f64),
+        client_start_pos: (f64, f64),
+        client_current_pos: (f64, f64),
     },
 }
 
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus) -> Element {
-    const DRAG_TRIGGER_DIST: f64 = 25.0;
+    const DRAG_TRIGGER_DIST: f64 = 5.0;
 
     let drag_state = use_state(cx, || -> Option<TabDragState> { None });
 
@@ -449,26 +451,35 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
         move |evt| {
             if let Some(ref state) = *drag_state.current() {
                 if evt.held_buttons().contains(MouseButton::Primary) {
-                    let current_pos = evt.client_coordinates().to_tuple();
-                    log::debug!("coords {:?}", current_pos);
+                    let client_current_pos = evt.client_coordinates().to_tuple();
+                    log::debug!("coords {:?}", client_current_pos);
                     match state {
-                        TabDragState::Standby { start_pos } => {
+                        TabDragState::Standby {
+                            element_offset,
+                            client_start_pos,
+                        } => {
                             // Distance mouse has traveled from mousedown by Pythagorean theorem
-                            let dist = ((current_pos.0 - start_pos.0).powi(2)
-                                + (current_pos.1 - start_pos.1).powi(2))
+                            let dist = ((client_current_pos.0 - client_start_pos.0).powi(2)
+                                + (client_current_pos.1 - client_start_pos.1).powi(2))
                             .sqrt();
 
                             if dist > DRAG_TRIGGER_DIST {
                                 drag_state.set(Some(TabDragState::Dragging {
-                                    start_pos: current_pos,
-                                    current_pos: current_pos,
+                                    element_offset: *element_offset,
+                                    client_start_pos: client_current_pos,
+                                    client_current_pos: client_current_pos,
                                 }));
                             }
                         }
-                        TabDragState::Dragging { start_pos, .. } => {
+                        TabDragState::Dragging {
+                            element_offset,
+                            client_start_pos,
+                            ..
+                        } => {
                             drag_state.set(Some(TabDragState::Dragging {
-                                start_pos: *start_pos,
-                                current_pos,
+                                element_offset: *element_offset,
+                                client_start_pos: *client_start_pos,
+                                client_current_pos,
                             }));
                         }
                     }
@@ -479,23 +490,56 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
         }
     });
 
-    let active_in_group_class = match tab.active_in_group {
-        true => "active-in-group",
-        false => "",
+    let (is_dragging, pos) = match *drag_state.current() {
+        Some(ref drag_state) => match drag_state {
+            TabDragState::Dragging {
+                element_offset,
+                client_start_pos,
+                client_current_pos,
+            } => {
+                log::debug!("element_offset {:?}", element_offset);
+
+                (
+                    true,
+                    Some((
+                        client_current_pos.0 - element_offset.0,
+                        client_current_pos.1 - element_offset.1,
+                    )),
+                )
+            }
+            _ => (false, None),
+        },
+        None => (false, None),
     };
 
     cx.render(rsx! {
         TabHeaderComponentInner {
-            group_id: *group_id,
-            tab_id: tab.tab_id,
             title: tab.title.clone(),
             active_in_group: tab.active_in_group,
+            absolute_pos: None,
             onmousedown: move |evt: Event<MouseData>| {
+                let client_coords = evt.client_coordinates().to_tuple();
+                let element_coords = evt.element_coordinates().to_tuple();
+                //let element_offset = (element_coords.0 - client_coords.0, element_coords.1 - client_coords.1);
                 drag_state.set(Some(TabDragState::Standby {
-                    start_pos: evt.client_coordinates().to_tuple()
+                    element_offset: element_coords,
+                    client_start_pos: client_coords
                 }));
                 bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
             },
+            if is_dragging {
+                rsx! {
+                    div {
+                        class: "tab-drag-overlay",
+                        TabHeaderComponentInner {
+                            title: tab.title.clone(),
+                            active_in_group: true,
+                            absolute_pos: pos,
+                            onmousedown: |_| {}
+                        }
+                    }
+                }
+            }
         }
     })
 }
@@ -504,21 +548,31 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
 #[inline_props]
 fn TabHeaderComponentInner<'a>(
     cx: Scoped,
-    group_id: u32,
-    tab_id: u32,
     title: String,
     active_in_group: bool,
+    #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     onmousedown: EventHandler<'a, Event<MouseData>>,
+    children: Element<'a>,
 ) -> Element {
     let active_in_group_class = match active_in_group {
         true => "active-in-group",
         false => "",
     };
 
-    cx.render(rsx! {
+    let (position_attr, left_attr, top_attr) = match absolute_pos {
+        Some(pos) => ("absolute", pos.0, pos.1),
+        None => ("static", 0.0, 0.0),
+    };
+
+    log::debug!("attrs {:?}", (position_attr, left_attr, top_attr));
+
+    let div = cx.render(rsx! {
         div {
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
+            position: position_attr,
+            left: "{left_attr}px",
+            top: "{top_attr}px",
             div {
                 class: "tab-icon",
                 "Ϣ"
@@ -529,8 +583,18 @@ fn TabHeaderComponentInner<'a>(
             }
             div {
                 class: "tab-close",
+                onclick: move |evt| {
+                    log::debug!("CLOSE");
+                    evt.stop_propagation();
+                },
+                onmousedown: move |evt| {
+                    evt.stop_propagation();
+                },
                 "✕"
             }
+            children
         }
-    })
+    });
+
+    div
 }

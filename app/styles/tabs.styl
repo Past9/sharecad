@@ -4,6 +4,16 @@ splitter-color-hover = darken(light-color, 10)
 group-border-color = darken(light-color, 8)
 group-header-color = darken(light-color, 20)
 
+overlay()
+    position fixed
+    top 0
+    left 0
+    width 100%
+    height 100%
+    background-color transparent
+    //opacity 0.2
+
+
 .tab-area 
     width 100%
     height 100%
@@ -36,12 +46,7 @@ group-header-color = darken(light-color, 20)
                 cursor ns-resize
 
     .split-drag-overlay
-        position fixed
-        top 0
-        left 0
-        width 100%
-        height 100%
-        opacity 0
+        overlay()
 
         // Maintains the dragging mouse cursor when the pointer
         // goes slightly off the splitter element during dragging
@@ -59,69 +64,6 @@ group-header-color = darken(light-color, 20)
             flex-direction row
             border-bottom 1px solid surface-border-color
 
-            &>.tab-header
-                background-color inset-color
-                border-right 1px solid surface-border-color
-                padding 7px 10px
-                display flex
-                flex-direction row
-                flex-wrap nowrap
-                cursor pointer
-
-                &.active-in-group 
-                    background-color surface-color
-                    border-top 1px solid primary-color
-
-                    &>.tab-close
-                        visibility visible
-
-                &:hover>.tab-close
-                    visibility visible
-
-                &>.tab-icon
-                    user-select none
-                    margin auto 5px auto 0
-                    font-weight bold
-                    color primary-color
-                    //
-
-                &>.tab-title
-                    user-select none
-                    text-wrap nowrap
-                    text-overflow ellipsis
-                    //
-
-                &>.tab-close
-                    btn-size = 16px
-                    user-select none
-                    margin auto 0 auto 7px
-                    font-weight bold
-                    color medium-text-color
-                    font-size 0.8em
-                    line-height btn-size
-                    width btn-size
-                    height btn-size
-                    text-align center
-                    border-radius border-radius
-                    cursor pointer
-                    visibility hidden
-
-                    &:hover 
-                        background-color surface-hover-color
-
-                &>.tab-drag-overlay
-                    position fixed
-                    top 0
-                    left 0
-                    width 100%
-                    height 100%
-                    opacity 0
-
-                    // Maintains the dragging mouse cursor when the pointer
-                    // goes slightly off the splitter element during dragging
-                    &.split-cursor
-                        cursor ew-resize
-
 
         &>.active-content
             width 100%
@@ -136,3 +78,61 @@ group-header-color = darken(light-color, 20)
             font-weight bold
             display grid
             align-items center
+
+
+&>.tab-header
+    width min-content
+    background-color inset-color
+    border-right 1px solid surface-border-color
+    padding 7px 10px
+    display flex
+    flex-direction row
+    flex-wrap nowrap
+    cursor pointer
+
+    &.active-in-group 
+        background-color surface-color
+        border-top 1px solid primary-color
+
+        &>.tab-close
+            visibility visible
+
+    &:hover>.tab-close
+        visibility visible
+
+    &>.tab-icon
+        user-select none
+        margin auto 5px auto 0
+        font-weight bold
+        color primary-color
+        pointer-events none
+        //
+
+    &>.tab-title
+        user-select none
+        text-wrap nowrap
+        text-overflow ellipsis
+        pointer-events none
+        //
+
+    &>.tab-close
+        btn-size = 16px
+        user-select none
+        margin auto 0 auto 7px
+        font-weight bold
+        color medium-text-color
+        font-size 0.8em
+        line-height btn-size
+        width btn-size
+        height btn-size
+        text-align center
+        border-radius border-radius
+        cursor pointer
+        visibility hidden
+
+        &:hover 
+            background-color surface-hover-color
+
+    &>.tab-drag-overlay
+        overlay()
+        cursor grabbing
