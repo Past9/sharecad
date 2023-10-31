@@ -439,8 +439,6 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
 
     let drag_state = use_state(cx, || -> Option<TabDragState> { None });
 
-    log::debug!("drag_state {:?}", drag_state);
-
     use_window_mouseup(cx, drag_state, |drag_state| {
         move |_| {
             drag_state.set(None);
@@ -452,7 +450,6 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
             if let Some(ref state) = *drag_state.current() {
                 if evt.held_buttons().contains(MouseButton::Primary) {
                     let client_current_pos = evt.client_coordinates().to_tuple();
-                    log::debug!("coords {:?}", client_current_pos);
                     match state {
                         TabDragState::Standby {
                             element_offset,
@@ -496,17 +493,13 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                 element_offset,
                 client_start_pos,
                 client_current_pos,
-            } => {
-                log::debug!("element_offset {:?}", element_offset);
-
-                (
-                    true,
-                    Some((
-                        client_current_pos.0 - element_offset.0,
-                        client_current_pos.1 - element_offset.1,
-                    )),
-                )
-            }
+            } => (
+                true,
+                Some((
+                    client_current_pos.0 - element_offset.0,
+                    client_current_pos.1 - element_offset.1,
+                )),
+            ),
             _ => (false, None),
         },
         None => (false, None),
@@ -517,10 +510,10 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
             title: tab.title.clone(),
             active_in_group: tab.active_in_group,
             absolute_pos: None,
+            opacity: 1.0,
             onmousedown: move |evt: Event<MouseData>| {
                 let client_coords = evt.client_coordinates().to_tuple();
                 let element_coords = evt.element_coordinates().to_tuple();
-                //let element_offset = (element_coords.0 - client_coords.0, element_coords.1 - client_coords.1);
                 drag_state.set(Some(TabDragState::Standby {
                     element_offset: element_coords,
                     client_start_pos: client_coords
@@ -535,6 +528,7 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                             title: tab.title.clone(),
                             active_in_group: true,
                             absolute_pos: pos,
+                            opacity: 0.8,
                             onmousedown: |_| {}
                         }
                     }
@@ -551,6 +545,7 @@ fn TabHeaderComponentInner<'a>(
     title: String,
     active_in_group: bool,
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
+    opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
     children: Element<'a>,
 ) -> Element {
@@ -564,8 +559,6 @@ fn TabHeaderComponentInner<'a>(
         None => ("static", 0.0, 0.0),
     };
 
-    log::debug!("attrs {:?}", (position_attr, left_attr, top_attr));
-
     let div = cx.render(rsx! {
         div {
             class: "tab-header {active_in_group_class}",
@@ -573,6 +566,7 @@ fn TabHeaderComponentInner<'a>(
             position: position_attr,
             left: "{left_attr}px",
             top: "{top_attr}px",
+            opacity: "{opacity}",
             div {
                 class: "tab-icon",
                 "Ϣ"
