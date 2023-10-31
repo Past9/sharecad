@@ -66,8 +66,8 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
-    let tab_layout = use_state(cx, || {
-        tabs::vsplit(
+    let tab_config = use_state(cx, || {
+        tabs::config(tabs::vsplit(
             1,
             0.327,
             tabs::group(
@@ -94,7 +94,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                     ],
                 ),
             ),
-        )
+        ))
     });
 
     cx.render(rsx! {
@@ -111,9 +111,9 @@ pub fn MainWindow(cx: Scope) -> Element {
             section {
                 id: "workspace",
                 TabArea {
-                    layout: tab_layout,
-                    on_layout_changed: |layout| {
-                        tab_layout.set(layout);
+                    config: tab_config,
+                    on_config_changed: |config| {
+                        tab_config.set(config);
                     }
                 }
             }

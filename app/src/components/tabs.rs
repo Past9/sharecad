@@ -6,6 +6,13 @@ use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
 
+pub fn config(layout: TabLayout) -> TabConfig {
+    TabConfig {
+        is_dragging_tab: false,
+        layout,
+    }
+}
+
 pub fn tab(id: u32, title: &str, active_in_group: bool) -> TabProps {
     TabProps {
         tab_id: id,
@@ -42,18 +49,47 @@ pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayo
 }
 
 #[derive(Clone, PartialEq, Debug)]
+pub struct TabConfig {
+    is_dragging_tab: bool,
+    layout: TabLayout,
+}
+impl TabConfig {
+    fn modify(&self, command: &ConfigCommand) -> Self {
+        match command {
+            ConfigCommand::StartDraggingTab => self.clone(),
+            ConfigCommand::StopDraggingTab => self.clone(),
+            ConfigCommand::DropTabInExistingGroup {
+                into_group_id,
+                tab_id,
+            } => self.clone(),
+            ConfigCommand::Layout(command) => Self {
+                is_dragging_tab: self.is_dragging_tab,
+                layout: self.layout.modify(command),
+            },
+        }
+    }
+}
+
+enum ConfigCommand {
+    StartDraggingTab,
+    StopDraggingTab,
+    DropTabInExistingGroup { into_group_id: u32, tab_id: u32 },
+    Layout(LayoutCommand),
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub enum TabLayout {
     Group(TabGroup),
     Split(TabSplit),
 }
 impl TabLayout {
-    fn modify(&self, command: &TabLayoutCommand) -> Self {
+    fn modify(&self, command: &LayoutCommand) -> Self {
         match command {
-            TabLayoutCommand::AdjustSplit {
+            LayoutCommand::AdjustSplit {
                 layout_id,
                 new_location,
             } => self.adjust_split(*layout_id, *new_location),
-            TabLayoutCommand::SetActiveInGroup { group_id, tab_id } => {
+            LayoutCommand::SetActiveInGroup { group_id, tab_id } => {
                 self.set_active_tab_in_group(*group_id, *tab_id)
             }
         }
@@ -159,25 +195,25 @@ pub struct TabProps {
 }
 
 #[derive(Debug, PartialEq)]
-enum TabLayoutCommand {
+enum LayoutCommand {
     AdjustSplit { layout_id: u32, new_location: f64 },
     SetActiveInGroup { group_id: u32, tab_id: u32 },
 }
 
 #[derive(Clone)]
 struct CommandBus {
-    sender: Sender<TabLayoutCommand>,
+    sender: Sender<ConfigCommand>,
 }
 impl CommandBus {
-    fn new(sender: Sender<TabLayoutCommand>) -> Self {
+    fn new(sender: Sender<ConfigCommand>) -> Self {
         Self { sender }
     }
 
-    async fn send(&self, command: TabLayoutCommand) {
+    async fn send(&self, command: ConfigCommand) {
         self.sender.send(command).await.unwrap();
     }
 
-    fn send_blocking(&self, command: TabLayoutCommand) {
+    fn send_blocking(&self, command: ConfigCommand) {
         block_on(self.send(command))
     }
 }
@@ -191,13 +227,13 @@ impl PartialEq for CommandBus {
 #[inline_props]
 pub fn TabArea<'a>(
     cx: Scope,
-    layout: &'a TabLayout,
-    on_layout_changed: EventHandler<'a, TabLayout>,
+    config: &'a TabConfig,
+    on_config_changed: EventHandler<'a, TabConfig>,
 ) -> Element {
-    let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<TabLayoutCommand>());
+    let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<ConfigCommand>());
     let bus = CommandBus::new(sender.clone());
 
-    let next_command = use_state::<Option<TabLayoutCommand>>(cx, || None);
+    let next_command = use_state::<Option<ConfigCommand>>(cx, || None);
 
     let _cr = {
         to_owned![next_command, receiver];
@@ -212,9 +248,9 @@ pub fn TabArea<'a>(
 
     if let Some(command) = &**next_command {
         next_command.set(None);
-        let new_layout = layout.modify(command);
-        if new_layout != **layout {
-            on_layout_changed.call(new_layout);
+        let new_config = config.modify(command);
+        if new_config != **config {
+            on_config_changed.call(new_config);
         }
     }
 
@@ -222,7 +258,7 @@ pub fn TabArea<'a>(
         div {
             class: "tab-area",
             TabLayoutComponent {
-                layout: layout,
+                layout: &config.layout,
                 bus: bus
             }
         }
@@ -309,10 +345,10 @@ fn TabSplitComponent(cx: Scoped, split: TabSplit, bus: CommandBus) -> Element<'a
                         let new_drag_pos = pos.clone().with_current(position);
                         let new_location = new_drag_pos.adjust_split(space);
                         drag_pos.set(Some(new_drag_pos));
-                        let command = TabLayoutCommand::AdjustSplit {
+                        let command = ConfigCommand::Layout(LayoutCommand::AdjustSplit {
                             layout_id: split.layout_id,
                             new_location,
-                        };
+                        });
 
                         block_on(bus.send(command));
                     } else {
@@ -521,7 +557,7 @@ fn TabHeaderComponent(cx: Scoped, group_id: u32, tab: TabProps, bus: CommandBus)
                     element_offset: element_coords,
                     client_start_pos: client_coords
                 }));
-                bus.send_blocking(TabLayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id });
+                bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id }));
             },
             if is_dragging {
                 rsx! {
