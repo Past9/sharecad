@@ -5,6 +5,7 @@ use crate::{
 use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
+use web_sys::MouseEventInit;
 
 pub fn config(layout: TabLayout) -> TabConfig {
     TabConfig {
@@ -531,6 +532,7 @@ fn TabHeaderComponent(
             if let Some(ref state) = *drag_state.current() {
                 if evt.held_buttons().contains(MouseButton::Primary) {
                     let client_current_pos = evt.client_coordinates().to_tuple();
+                    //log::debug!("evt {:?}", evt);
                     match state {
                         TabDragState::Standby {
                             element_offset,
@@ -555,6 +557,93 @@ fn TabHeaderComponent(
                             client_start_pos,
                             ..
                         } => {
+                            {
+                                let win = web_sys::window().unwrap();
+                                let doc = win.document().unwrap();
+                                let elements = doc.elements_from_point(
+                                    client_current_pos.0 as f32,
+                                    client_current_pos.1 as f32,
+                                );
+
+                                let mut found_overlay = false;
+                                let mut element_under_cursor = None;
+                                //log::debug!("move");
+                                for el in elements.iter() {
+                                    let el = match web_sys::Element::try_from(el) {
+                                        Ok(el) => el,
+                                        Err(_) => {
+                                            continue;
+                                        }
+                                    };
+
+                                    //log::debug!("classes = {}, id = {}", el.class_name(), el.id());
+
+                                    if !found_overlay {
+                                        if el.id() == "tab-drag-overlay" {
+                                            found_overlay = true;
+                                        }
+                                        continue;
+                                    }
+
+                                    //log::debug!("classes {}", el.class_name());
+                                    //log::debug!("id {}", el.id());
+
+                                    if el.id() == "dragged-tab" {
+                                        element_under_cursor = None;
+                                        break;
+                                    }
+
+                                    if element_under_cursor.is_none() {
+                                        element_under_cursor = Some(el);
+                                    }
+
+                                    /*
+                                    break;
+
+                                    log::debug!("element {}", el.class_name());
+
+                                    //let mut event = web_sys::Event::new("mousemove").unwrap();
+
+                                    let mut event =
+                                        web_sys::MouseEvent::new_with_mouse_event_init_dict(
+                                            "mousemove",
+                                            MouseEventInit::new()
+                                                .bubbles(true)
+                                                .cancelable(true)
+                                                .view(Some(&win)),
+                                        )
+                                        .unwrap();
+
+                                    let dispatch_res = el.dispatch_event(&event);
+
+                                    log::debug!("dispatch_res {:?}", dispatch_res);
+
+                                    element_under_cursor = Some(el);
+
+                                    //let element = el as web_sys::Element;
+
+                                    break;
+                                     */
+                                }
+
+                                log::debug!("element_under_cursor {:?}", element_under_cursor);
+
+                                if let Some(element_under_cursor) = element_under_cursor {
+                                    let event =
+                                        web_sys::MouseEvent::new_with_mouse_event_init_dict(
+                                            "mousemove",
+                                            MouseEventInit::new()
+                                                .bubbles(true)
+                                                .cancelable(true)
+                                                .view(Some(&win)),
+                                        )
+                                        .unwrap();
+
+                                    let dispatch_res = element_under_cursor.dispatch_event(&event);
+                                    log::debug!("dispatch_res {:?}", dispatch_res);
+                                }
+                            }
+
                             drag_state.set(Some(TabDragState::Dragging {
                                 element_offset: *element_offset,
                                 client_start_pos: *client_start_pos,
@@ -574,8 +663,8 @@ fn TabHeaderComponent(
         Some(ref drag_state) => match drag_state {
             TabDragState::Dragging {
                 element_offset,
-                client_start_pos,
                 client_current_pos,
+                ..
             } => (
                 true,
                 Some((
@@ -590,6 +679,7 @@ fn TabHeaderComponent(
 
     cx.render(rsx! {
         TabHeaderComponentInner {
+            id: if is_dragging { "dragged-tab" } else { "" }.to_string(),
             title: tab.title.clone(),
             active_in_group: tab.active_in_group,
             absolute_pos: None,
@@ -603,7 +693,7 @@ fn TabHeaderComponent(
                 }));
                 bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id }));
             },
-            onmousemove: move |evt: Event<MouseData>| {
+            onmousemove: move |_evt: Event<MouseData>| {
                 if *is_dragging_tab {
                     log::debug!("drop target");
                 }
@@ -611,6 +701,7 @@ fn TabHeaderComponent(
             if is_dragging {
                 rsx! {
                     div {
+                        id: "tab-drag-overlay",
                         class: "tab-drag-overlay",
                         TabHeaderComponentInner {
                             title: tab.title.clone(),
@@ -631,6 +722,7 @@ fn TabHeaderComponent(
 #[inline_props]
 fn TabHeaderComponentInner<'a>(
     cx: Scoped,
+    id: Option<String>,
     title: String,
     active_in_group: bool,
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
@@ -649,8 +741,14 @@ fn TabHeaderComponentInner<'a>(
         None => ("static", 0.0, 0.0),
     };
 
+    let id = match id {
+        Some(id) => id.to_string(),
+        None => "".to_string(),
+    };
+
     let div = cx.render(rsx! {
         div {
+            id: "{id}",
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
             onmousemove: |evt| { onmousemove.call(evt) },
