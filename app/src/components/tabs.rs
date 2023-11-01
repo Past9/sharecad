@@ -86,6 +86,11 @@ impl TabConfig {
 
                 new_config
             }
+            ConfigCommand::CloseTab { tab_id } => {
+                let mut new_config = self.clone();
+                new_config.layout = new_config.layout.remove_tab(*tab_id);
+                new_config
+            }
             ConfigCommand::OfferTabDrop(ref offer) => {
                 let mut new_config = self.clone();
                 new_config.drop_tab_offer = Some(offer.clone());
@@ -113,6 +118,7 @@ struct TabDropInExistingGroup {
 enum ConfigCommand {
     DragTab { tab_id: u32 },
     DropTab,
+    CloseTab { tab_id: u32 },
     OfferTabDrop(TabDropInExistingGroup),
     Layout(LayoutCommand),
 }
@@ -929,6 +935,9 @@ fn TabHeaderComponent(
             onmounted: move |evt| {
                 on_resize.mount(evt);
             },
+            on_request_close: move |_| {
+                bus.send_blocking(ConfigCommand::CloseTab { tab_id: tab.tab_id })
+            },
             if is_dragging {
                 rsx! {
                     div {
@@ -941,6 +950,7 @@ fn TabHeaderComponent(
                             onmousedown: |_| {},
                             ondragover: |_| {},
                             onmounted: |_| {},
+                            on_request_close: |_| {}
                         }
                     }
                 }
@@ -960,6 +970,7 @@ fn TabHeaderComponentInner<'a>(
     onmousedown: EventHandler<'a, Event<MouseData>>,
     ondragover: EventHandler<'a, Event<DragData>>,
     onmounted: EventHandler<'a, Event<MountedData>>,
+    on_request_close: EventHandler<'a, ()>,
     children: Element<'a>,
 ) -> Element {
     let active_in_group_class = match active_in_group {
@@ -993,7 +1004,7 @@ fn TabHeaderComponentInner<'a>(
             div {
                 class: "tab-close",
                 onclick: move |evt| {
-                    log::debug!("CLOSE");
+                    on_request_close.call(());
                     evt.stop_propagation();
                 },
                 onmousedown: move |evt| {
