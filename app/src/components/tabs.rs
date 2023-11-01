@@ -194,7 +194,10 @@ impl TabLayout {
     fn find_highest_split_id(&self, cur_highest: u32) -> u32 {
         match self {
             TabLayout::Group(_) => cur_highest,
-            TabLayout::Split(TabSplit { split_id, .. }) => (*split_id).max(cur_highest),
+            TabLayout::Split(TabSplit { split_id, a, b, .. }) => (*split_id)
+                .max(cur_highest)
+                .max(a.find_highest_split_id(cur_highest))
+                .max(b.find_highest_split_id(cur_highest)),
         }
     }
 

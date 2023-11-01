@@ -97,6 +97,8 @@ pub fn MainWindow(cx: Scope) -> Element {
         ))
     });
 
+    log::debug!("layout {:#?}", tab_config.layout);
+
     cx.render(rsx! {
         section {
             id: "page",
