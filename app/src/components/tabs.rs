@@ -13,7 +13,7 @@ pub fn config(layout: TabLayout) -> TabConfig {
     TabConfig {
         dragged_tab: None,
         drop_tab_offer: None,
-        layout,
+        layout: layout.clean(),
     }
 }
 
@@ -60,7 +60,7 @@ pub struct TabConfig {
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
-        match command {
+        let mut new_config = match command {
             ConfigCommand::DragTab { tab_id } => {
                 let mut new_config = self.clone();
                 new_config.dragged_tab = Some(*tab_id);
@@ -74,11 +74,9 @@ impl TabConfig {
                         if let Some(tab) = self.layout.get_tab(tab_id) {
                             new_config.layout = self
                                 .layout
-                                .clone()
                                 .remove_tab(tab_id)
                                 .insert_tab(offer.group_id, offer.index, &tab)
-                                .set_active_tab_in_group(offer.group_id, tab_id)
-                                .trim_groups();
+                                .set_active_tab_in_group(offer.group_id, tab_id);
                         }
                     }
                 }
@@ -98,7 +96,10 @@ impl TabConfig {
                 new_config.layout = new_config.layout.modify(command);
                 new_config
             }
-        }
+        };
+
+        new_config.layout = new_config.layout.clean();
+        new_config
     }
 }
 
@@ -134,7 +135,7 @@ impl TabLayout {
         }
     }
 
-    fn get_tab(&self, tab_id: u32) -> Option<TabProps> {
+    pub fn get_tab(&self, tab_id: u32) -> Option<TabProps> {
         match self {
             TabLayout::Group(group) => group.tabs.iter().find(|tab| tab.tab_id == tab_id).cloned(),
             TabLayout::Split(TabSplit { a, b, .. }) => a.get_tab(tab_id).or(b.get_tab(tab_id)),
@@ -167,7 +168,7 @@ impl TabLayout {
         }
     }
 
-    fn insert_tab(&self, group_id: u32, index: usize, tab: &TabProps) -> Self {
+    pub fn insert_tab(&self, group_id: u32, index: usize, tab: &TabProps) -> Self {
         match self {
             TabLayout::Group(TabGroup {
                 group_id: current_group_id,
@@ -200,6 +201,56 @@ impl TabLayout {
                 location: *location,
                 a: Box::new(a.insert_tab(group_id, index, tab)),
                 b: Box::new(b.insert_tab(group_id, index, tab)),
+            }),
+        }
+    }
+
+    pub fn clean(&self) -> Self {
+        self.trim_groups().ensure_all_groups_have_one_active_tab()
+    }
+
+    pub fn ensure_all_groups_have_one_active_tab(&self) -> Self {
+        match self {
+            TabLayout::Group(group) => {
+                let mut new_group = group.clone();
+
+                let active_tabs = new_group
+                    .tabs
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, tab)| {
+                        if tab.active_in_group {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let active_tab_index = if active_tabs.len() == 0 {
+                    0
+                } else {
+                    active_tabs[0]
+                };
+
+                for (index, tab) in new_group.tabs.iter_mut().enumerate() {
+                    tab.active_in_group = index == active_tab_index;
+                }
+
+                TabLayout::Group(new_group)
+            }
+            TabLayout::Split(TabSplit {
+                direction,
+                layout_id,
+                location,
+                a,
+                b,
+            }) => TabLayout::Split(TabSplit {
+                direction: *direction,
+                layout_id: *layout_id,
+                location: *location,
+                a: Box::new(a.ensure_all_groups_have_one_active_tab()),
+                b: Box::new(b.ensure_all_groups_have_one_active_tab()),
             }),
         }
     }
@@ -243,7 +294,7 @@ impl TabLayout {
         }
     }
 
-    fn set_active_tab_in_group(&self, group_id: u32, tab_id: u32) -> Self {
+    pub fn set_active_tab_in_group(&self, group_id: u32, tab_id: u32) -> Self {
         match self {
             TabLayout::Group(group) => {
                 let new_group = if group.group_id == group_id {
@@ -282,7 +333,7 @@ impl TabLayout {
         }
     }
 
-    fn adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
+    pub fn adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
         match self {
             TabLayout::Split(TabSplit {
                 direction,
@@ -333,15 +384,6 @@ pub struct TabSplit {
 pub struct TabGroup {
     group_id: u32,
     tabs: Vec<TabProps>,
-}
-impl TabGroup {
-    pub fn none_if_empty(&self) -> Option<Self> {
-        if self.tabs.len() > 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
