@@ -1,3 +1,5 @@
+use std::io::Split;
+
 use crate::{
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
@@ -33,7 +35,7 @@ pub fn group<const N: usize>(id: u32, tabs: [TabProps; N]) -> TabLayout {
 pub fn vsplit(id: u32, split: f64, left: TabLayout, right: TabLayout) -> TabLayout {
     TabLayout::Split(TabSplit {
         direction: TabSplitDirection::Vertical,
-        layout_id: id,
+        split_id: id,
         location: split,
         a: Box::new(left),
         b: Box::new(right),
@@ -43,11 +45,19 @@ pub fn vsplit(id: u32, split: f64, left: TabLayout, right: TabLayout) -> TabLayo
 pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayout {
     TabLayout::Split(TabSplit {
         direction: TabSplitDirection::Horizontal,
-        layout_id: id,
+        split_id: id,
         location: split,
         a: Box::new(top),
         b: Box::new(bottom),
     })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SplitDirection {
+    Left,
+    Right,
+    Up,
+    Down,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -79,10 +89,22 @@ impl TabConfig {
                                         .insert_tab(*group_id, *index, &tab)
                                         .set_active_tab_in_group(*group_id, tab_id);
                                 }
-                                DropTabOffer::VSplitLeft { group_id } => {}
-                                DropTabOffer::VSplitRight { group_id } => {}
-                                DropTabOffer::HSplitTop { group_id } => {}
-                                DropTabOffer::HSplitBottom { group_id } => {}
+                                DropTabOffer::Split {
+                                    group_id,
+                                    direction,
+                                } => {
+                                    let (new_layout, new_group_id) = new_config
+                                        .layout
+                                        .remove_tab(tab_id)
+                                        .split_group(*group_id, *direction);
+
+                                    new_config.layout = match new_group_id {
+                                        Some(new_group_id) => {
+                                            new_layout.insert_tab(new_group_id, 0, &tab)
+                                        }
+                                        None => new_layout,
+                                    };
+                                }
                             }
                         }
                     }
@@ -117,20 +139,23 @@ impl TabConfig {
 
 #[derive(Clone, PartialEq, Debug)]
 enum DropTabOffer {
-    InGroup { group_id: u32, index: usize },
-    VSplitLeft { group_id: u32 },
-    VSplitRight { group_id: u32 },
-    HSplitTop { group_id: u32 },
-    HSplitBottom { group_id: u32 },
+    InGroup {
+        group_id: u32,
+        index: usize,
+    },
+    Split {
+        direction: SplitDirection,
+        group_id: u32,
+    },
 }
-
-/*
-#[derive(Debug, Clone, PartialEq)]
-struct TabDropInExistingGroup {
-    group_id: u32,
-    index: usize,
+impl DropTabOffer {
+    fn group_id(&self) -> u32 {
+        *match self {
+            DropTabOffer::InGroup { group_id, .. } => group_id,
+            DropTabOffer::Split { group_id, .. } => group_id,
+        }
+    }
 }
- */
 
 #[derive(Debug, PartialEq)]
 enum ConfigCommand {
@@ -150,12 +175,44 @@ impl TabLayout {
     fn modify(&self, command: &LayoutCommand) -> Self {
         match command {
             LayoutCommand::AdjustSplit {
-                layout_id,
+                split_id,
                 new_location,
-            } => self.adjust_split(*layout_id, *new_location),
+            } => self.adjust_split(*split_id, *new_location),
             LayoutCommand::SetActiveInGroup { group_id, tab_id } => {
                 self.set_active_tab_in_group(*group_id, *tab_id)
             }
+        }
+    }
+
+    pub fn next_split_id(&self) -> u32 {
+        self.highest_split_id() + 1
+    }
+
+    pub fn highest_split_id(&self) -> u32 {
+        self.find_highest_split_id(0)
+    }
+
+    fn find_highest_split_id(&self, cur_highest: u32) -> u32 {
+        match self {
+            TabLayout::Group(_) => cur_highest,
+            TabLayout::Split(TabSplit { split_id, .. }) => (*split_id).max(cur_highest),
+        }
+    }
+
+    pub fn next_group_id(&self) -> u32 {
+        self.highest_group_id() + 1
+    }
+
+    pub fn highest_group_id(&self) -> u32 {
+        self.find_highest_group_id(0)
+    }
+
+    fn find_highest_group_id(&self, cur_highest: u32) -> u32 {
+        match self {
+            TabLayout::Group(group) => group.group_id.max(cur_highest),
+            TabLayout::Split(TabSplit { a, b, .. }) => a
+                .find_highest_group_id(cur_highest)
+                .max(b.find_highest_group_id(cur_highest)),
         }
     }
 
@@ -180,15 +237,92 @@ impl TabLayout {
                 a,
                 b,
                 direction,
-                layout_id,
+                split_id,
                 location,
             }) => TabLayout::Split(TabSplit {
                 direction: *direction,
-                layout_id: *layout_id,
+                split_id: *split_id,
                 location: *location,
                 a: Box::new(a.remove_tab(tab_id)),
                 b: Box::new(b.remove_tab(tab_id)),
             }),
+        }
+    }
+
+    pub fn split_group(
+        &self,
+        group_id: u32,
+        split_direction: SplitDirection,
+    ) -> (Self, Option<u32>) {
+        match self {
+            group @ TabLayout::Group(TabGroup {
+                group_id: cur_group_id,
+                tabs,
+            }) => {
+                if group_id == *cur_group_id {
+                    let new_group_id = self.next_group_id();
+
+                    let old_tabs_group = Box::new(TabLayout::Group(TabGroup {
+                        group_id,
+                        tabs: tabs.clone(),
+                    }));
+
+                    let new_group = Box::new(TabLayout::Group(TabGroup {
+                        group_id: new_group_id,
+                        tabs: vec![],
+                    }));
+
+                    let (a, b) = match split_direction {
+                        SplitDirection::Left | SplitDirection::Up => (new_group, old_tabs_group),
+                        SplitDirection::Right | SplitDirection::Down => (old_tabs_group, new_group),
+                    };
+
+                    let new_split = TabLayout::Split(TabSplit {
+                        direction: match split_direction {
+                            SplitDirection::Left | SplitDirection::Right => {
+                                TabSplitDirection::Vertical
+                            }
+                            SplitDirection::Up | SplitDirection::Down => {
+                                TabSplitDirection::Horizontal
+                            }
+                        },
+                        split_id: self.next_split_id(),
+                        location: 0.5,
+                        a,
+                        b,
+                    });
+
+                    (new_split, Some(new_group_id))
+                } else {
+                    (group.clone(), None)
+                }
+            }
+            TabLayout::Split(TabSplit {
+                direction,
+                split_id,
+                location,
+                a,
+                b,
+            }) => {
+                //
+                let (a, new_group_id) = a.split_group(group_id, split_direction);
+
+                let (b, new_group_id) = match new_group_id {
+                    Some(new_group_id) => (*b.clone(), Some(new_group_id)),
+                    None => b.split_group(group_id, split_direction),
+                };
+
+                (
+                    TabLayout::Split(TabSplit {
+                        direction: *direction,
+                        split_id: *split_id,
+                        location: *location,
+                        a: Box::new(a),
+                        b: Box::new(b),
+                    }),
+                    new_group_id,
+                )
+            }
         }
     }
 
@@ -217,11 +351,11 @@ impl TabLayout {
                 a,
                 b,
                 direction,
-                layout_id,
+                split_id,
                 location,
             }) => TabLayout::Split(TabSplit {
                 direction: *direction,
-                layout_id: *layout_id,
+                split_id: *split_id,
                 location: *location,
                 a: Box::new(a.insert_tab(group_id, index, tab)),
                 b: Box::new(b.insert_tab(group_id, index, tab)),
@@ -265,13 +399,13 @@ impl TabLayout {
             }
             TabLayout::Split(TabSplit {
                 direction,
-                layout_id,
+                split_id,
                 location,
                 a,
                 b,
             }) => TabLayout::Split(TabSplit {
                 direction: *direction,
-                layout_id: *layout_id,
+                split_id: *split_id,
                 location: *location,
                 a: Box::new(a.ensure_all_groups_have_one_active_tab()),
                 b: Box::new(b.ensure_all_groups_have_one_active_tab()),
@@ -302,14 +436,14 @@ impl TabLayout {
                 a,
                 b,
                 direction,
-                layout_id,
+                split_id,
                 location,
             }) => match (a.remove_all_empty_groups(), b.remove_all_empty_groups()) {
                 (None, None) => None,
                 (None, Some(layout)) | (Some(layout), None) => Some(layout),
                 (Some(a), Some(b)) => Some(TabLayout::Split(TabSplit {
                     direction: *direction,
-                    layout_id: *layout_id,
+                    split_id: *split_id,
                     location: *location,
                     a: Box::new(a),
                     b: Box::new(b),
@@ -343,13 +477,13 @@ impl TabLayout {
             }
             TabLayout::Split(TabSplit {
                 direction,
-                layout_id,
+                split_id,
                 location,
                 a,
                 b,
             }) => TabLayout::Split(TabSplit {
                 direction: *direction,
-                layout_id: *layout_id,
+                split_id: *split_id,
                 location: *location,
                 a: Box::new(a.set_active_tab_in_group(group_id, tab_id)),
                 b: Box::new(b.set_active_tab_in_group(group_id, tab_id)),
@@ -357,19 +491,19 @@ impl TabLayout {
         }
     }
 
-    pub fn adjust_split(&self, target_layout_id: u32, new_location: f64) -> Self {
+    pub fn adjust_split(&self, target_split_id: u32, new_location: f64) -> Self {
         match self {
             TabLayout::Split(TabSplit {
                 direction,
-                layout_id,
+                split_id,
                 location,
                 a,
                 b,
             }) => {
-                if *layout_id == target_layout_id {
+                if *split_id == target_split_id {
                     TabLayout::Split(TabSplit {
                         direction: direction.clone(),
-                        layout_id: *layout_id,
+                        split_id: *split_id,
                         location: new_location,
                         a: a.clone(),
                         b: b.clone(),
@@ -377,10 +511,10 @@ impl TabLayout {
                 } else {
                     TabLayout::Split(TabSplit {
                         direction: direction.clone(),
-                        layout_id: *layout_id,
+                        split_id: *split_id,
                         location: location.clone(),
-                        a: Box::new(a.adjust_split(target_layout_id, new_location)),
-                        b: Box::new(b.adjust_split(target_layout_id, new_location)),
+                        a: Box::new(a.adjust_split(target_split_id, new_location)),
+                        b: Box::new(b.adjust_split(target_split_id, new_location)),
                     })
                 }
             }
@@ -398,7 +532,7 @@ enum TabSplitDirection {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TabSplit {
     direction: TabSplitDirection,
-    layout_id: u32,
+    split_id: u32,
     location: f64,
     a: Box<TabLayout>,
     b: Box<TabLayout>,
@@ -419,7 +553,7 @@ pub struct TabProps {
 
 #[derive(Debug, PartialEq)]
 enum LayoutCommand {
-    AdjustSplit { layout_id: u32, new_location: f64 },
+    AdjustSplit { split_id: u32, new_location: f64 },
     SetActiveInGroup { group_id: u32, tab_id: u32 },
 }
 
@@ -597,7 +731,7 @@ fn TabSplitComponent(
                         let new_location = new_drag_pos.adjust_split(space);
                         drag_pos.set(Some(new_drag_pos));
                         let command = ConfigCommand::Layout(LayoutCommand::AdjustSplit {
-                            layout_id: split.layout_id,
+                            split_id: split.split_id,
                             new_location,
                         });
 
@@ -704,6 +838,30 @@ fn TabGroupComponent<'a>(
         });
     }
 
+    let body_drop_target_class =
+        use_memo(
+            cx,
+            (tab_drop_offer),
+            |(tab_drop_offer)| match tab_drop_offer {
+                Some(offer) => {
+                    if offer.group_id() == group.group_id {
+                        Some(match offer {
+                            DropTabOffer::InGroup { .. } => "in-group",
+                            DropTabOffer::Split { direction, .. } => match direction {
+                                SplitDirection::Left => "split-left",
+                                SplitDirection::Right => "split-right",
+                                SplitDirection::Up => "split-up",
+                                SplitDirection::Down => "split-down",
+                            },
+                        })
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            },
+        );
+
     cx.render(rsx! {
         div {
             class: "group",
@@ -718,7 +876,7 @@ fn TabGroupComponent<'a>(
                             if *offer_group_id == group.group_id && *offer_index == index {
                                 rsx! {
                                     div {
-                                        class: "tab-drop-offer"
+                                        class: "tab-drop-target"
                                     }
                                 }
                             } else {
@@ -742,7 +900,7 @@ fn TabGroupComponent<'a>(
                     if *offer_group_id == group.group_id && *offer_index >= group.tabs.len() {
                         rsx! {
                             div {
-                                class: "tab-drop-offer"
+                                class: "tab-drop-target"
                             }
                         }
                     } else {
@@ -755,7 +913,7 @@ fn TabGroupComponent<'a>(
                 if dragged_tab.is_some() {
                     rsx! {
                         div {
-                            class: "body-drop-target",
+                            class: "body-drop-overlay",
                             onmounted: move |evt| {
                                 on_body_drop_resize.mount(evt);
                             },
@@ -786,32 +944,32 @@ fn TabGroupComponent<'a>(
                                 let offer = match (h_third, v_third) {
                                     // Top left, target is top or left depending on closest edge
                                     (0, 0) => match left_dist < top_dist {
-                                        true => DropTabOffer::VSplitLeft { group_id: group.group_id },
-                                        false => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                        true => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Left },
+                                        false => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Up },
                                     }
                                     // Top right, target is top or right depending on closest edge
                                     (2, 0) => match right_dist < top_dist {
-                                        true => DropTabOffer::VSplitRight { group_id: group.group_id },
-                                        false => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                        true => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Right },
+                                        false => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Up },
                                     }
                                     // Bottom left, target is bottom or left depending on closest edge
                                     (0, 2) => match left_dist < bottom_dist {
-                                        true => DropTabOffer::VSplitLeft { group_id: group.group_id },
-                                        false => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                        true => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Left },
+                                        false => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Down },
                                     }
                                     // Bottom right, target is bottom or right depending on closest edge
                                     (2, 2) => match right_dist < bottom_dist {
-                                        true => DropTabOffer::VSplitRight { group_id: group.group_id },
-                                        false => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                        true => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Right },
+                                        false => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Down },
                                     }
                                     // Left center, target is left
-                                    (0, 1) => DropTabOffer::VSplitLeft { group_id: group.group_id },
+                                    (0, 1) => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Left },
                                     // Right center, target is right
-                                    (2, 1) => DropTabOffer::VSplitRight { group_id: group.group_id },
+                                    (2, 1) => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Right },
                                     // Top center, target is top
-                                    (1, 0) => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                    (1, 0) => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Up },
                                     // Bottom center, target is bottom
-                                    (1, 2) => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                    (1, 2) => DropTabOffer::Split { group_id: group.group_id, direction: SplitDirection::Down },
                                     // Center, target is in group
                                     _ => DropTabOffer::InGroup {
                                         group_id: group.group_id,
@@ -821,7 +979,13 @@ fn TabGroupComponent<'a>(
 
                                 log::debug!("offer {:?}", offer);
                                 bus.send_blocking(ConfigCommand::OfferTabDrop(offer));
-
+                            },
+                            if let Some(body_drop_target_class) = body_drop_target_class {
+                                rsx! {
+                                    div {
+                                        class: "body-drop-target {body_drop_target_class}"
+                                    }
+                                }
                             }
                         }
                     }

@@ -68,7 +68,7 @@ overlay()
             flex-direction row
             border-bottom 1px solid surface-border-color
 
-            &>.tab-drop-offer
+            &>.tab-drop-target
                 width 3px
                 background-color primary-color
                 align-items stretch
@@ -81,13 +81,39 @@ overlay()
             position relative
             height 100%
 
-            &>.body-drop-target 
+            &>.body-drop-overlay 
                 position absolute
                 width 100%
                 height 100%
-                background-color red
+                //background-color red
                 opacity 0.2
-                border 1px solid black
+                z-index 1
+
+                &>.body-drop-target
+                    position relative
+                    height 100%
+                    width 100%
+                    opacity: 0.5
+                    background-color black
+                    pointer-events none
+
+                    &.in-group
+                        //
+
+                    &.split-left
+                        width 50%
+
+                    &.split-right
+                        width 50%
+                        left 50%
+
+                    &.split-top
+                        height 50%
+
+                    &.split-bottom
+                        height 50%
+                        top 50%
+
 
             &>.active-content
                 width 100%
