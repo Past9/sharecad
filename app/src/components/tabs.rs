@@ -67,8 +67,22 @@ impl TabConfig {
             }
             ConfigCommand::DropTab => {
                 let mut new_config = self.clone();
+
+                if let Some(tab_id) = self.dragged_tab {
+                    if let Some(ref offer) = self.drop_tab_offer {
+                        if let Some(tab) = self.layout.get_tab(tab_id) {
+                            new_config.layout = self.layout.remove_tab(tab_id).insert_tab(
+                                offer.group_id,
+                                offer.index,
+                                tab,
+                            );
+                        }
+                    }
+                }
+
                 new_config.dragged_tab = None;
                 new_config.drop_tab_offer = None;
+
                 new_config
             }
             ConfigCommand::OfferTabDrop(ref offer) => {
@@ -116,6 +130,43 @@ impl TabLayout {
                 self.set_active_tab_in_group(*group_id, *tab_id)
             }
         }
+    }
+
+    fn get_tab(&self, tab_id: u32) -> Option<TabProps> {
+        match self {
+            TabLayout::Group(group) => group.tabs.iter().find(|tab| tab.tab_id == tab_id).cloned(),
+            TabLayout::Split(TabSplit { a, b, .. }) => a.get_tab(tab_id).or(b.get_tab(tab_id)),
+        }
+    }
+
+    fn remove_tab(&self, tab_id: u32) -> Self {
+        match self {
+            TabLayout::Group(TabGroup { group_id, tabs }) => TabLayout::Group(TabGroup {
+                group_id: *group_id,
+                tabs: tabs
+                    .iter()
+                    .filter(|tab| tab.tab_id != tab_id)
+                    .cloned()
+                    .collect(),
+            }),
+            TabLayout::Split(TabSplit {
+                a,
+                b,
+                direction,
+                layout_id,
+                location,
+            }) => TabLayout::Split(TabSplit {
+                direction: *direction,
+                layout_id: *layout_id,
+                location: *location,
+                a: Box::new(a.remove_tab(tab_id)),
+                b: Box::new(b.remove_tab(tab_id)),
+            }),
+        }
+    }
+
+    fn insert_tab(&self, group_id: u32, index: usize, tab: TabProps) -> Self {
+        self.clone()
     }
 
     fn set_active_tab_in_group(&self, group_id: u32, tab_id: u32) -> Self {
@@ -524,7 +575,7 @@ fn TabGroupComponent<'a>(
                 rsx! {
                     div {
                         class: "active-content",
-                        "Active tab {tab.title}"
+                        "ACTIVE TAB: {tab.title}"
                     }
                 }
             } else {
