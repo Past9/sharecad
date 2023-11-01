@@ -58,20 +58,20 @@ pub struct TabConfig {
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
+        log::debug!("command {:?}", command);
         match command {
-            ConfigCommand::StartDraggingTab { tab_id } => {
+            ConfigCommand::DragTab { tab_id } => {
                 let mut new_config = self.clone();
                 new_config.dragged_tab = Some(*tab_id);
                 new_config
             }
-            ConfigCommand::StopDraggingTab => {
+            ConfigCommand::DropTab => {
                 let mut new_config = self.clone();
                 new_config.dragged_tab = None;
                 new_config.drop_tab_offer = None;
                 new_config
             }
-            ConfigCommand::DropTabInExistingGroup => self.clone(),
-            ConfigCommand::OfferTabDropInExistingGroup(ref offer) => {
+            ConfigCommand::OfferTabDrop(ref offer) => {
                 log::debug!("drop tab offer: {:?}", offer);
                 let mut new_config = self.clone();
                 new_config.drop_tab_offer = Some(offer.clone());
@@ -94,10 +94,9 @@ struct TabDropInExistingGroup {
 
 #[derive(Debug, PartialEq)]
 enum ConfigCommand {
-    StartDraggingTab { tab_id: u32 },
-    StopDraggingTab,
-    DropTabInExistingGroup,
-    OfferTabDropInExistingGroup(TabDropInExistingGroup),
+    DragTab { tab_id: u32 },
+    DropTab,
+    OfferTabDrop(TabDropInExistingGroup),
     Layout(LayoutCommand),
 }
 
@@ -579,7 +578,7 @@ fn TabHeaderComponent(
     use_window_mouseup(cx, (drag_state, bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
-            bus.send_blocking(ConfigCommand::StopDraggingTab);
+            bus.send_blocking(ConfigCommand::DropTab);
         }
     });
 
@@ -604,9 +603,7 @@ fn TabHeaderComponent(
                                     client_start_pos: client_current_pos,
                                     client_current_pos: client_current_pos,
                                 }));
-                                bus.send_blocking(ConfigCommand::StartDraggingTab {
-                                    tab_id: tab.tab_id,
-                                });
+                                bus.send_blocking(ConfigCommand::DragTab { tab_id: tab.tab_id });
                             }
                         }
                         TabDragState::Dragging {
@@ -671,7 +668,7 @@ fn TabHeaderComponent(
                     }
                 } else {
                     drag_state.set(None);
-                    bus.send_blocking(ConfigCommand::StopDraggingTab);
+                    bus.send_blocking(ConfigCommand::DropTab);
                 }
             }
         }
@@ -722,7 +719,7 @@ fn TabHeaderComponent(
                             index + 1
                         };
 
-                        bus.send_blocking(ConfigCommand::OfferTabDropInExistingGroup(TabDropInExistingGroup {
+                        bus.send_blocking(ConfigCommand::OfferTabDrop(TabDropInExistingGroup {
                             group_id: *group_id,
                             index: drop_index
                         }));
