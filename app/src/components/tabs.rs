@@ -68,7 +68,6 @@ pub struct TabConfig {
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
-        log::debug!("command {:?}", command);
         let mut new_config = match command {
             ConfigCommand::DragTab { tab_id } => {
                 let mut new_config = self.clone();
@@ -254,21 +253,34 @@ impl TabLayout {
         group_id: u32,
         split_direction: SplitDirection,
     ) -> (Self, Option<u32>) {
+        self.do_split_group(
+            group_id,
+            split_direction,
+            self.next_group_id(),
+            self.next_split_id(),
+        )
+    }
+
+    fn do_split_group(
+        &self,
+        group_id: u32,
+        split_direction: SplitDirection,
+        next_group_id: u32,
+        next_split_id: u32,
+    ) -> (Self, Option<u32>) {
         match self {
             group @ TabLayout::Group(TabGroup {
                 group_id: cur_group_id,
                 tabs,
             }) => {
                 if group_id == *cur_group_id {
-                    let new_group_id = self.next_group_id();
-
                     let old_tabs_group = Box::new(TabLayout::Group(TabGroup {
                         group_id,
                         tabs: tabs.clone(),
                     }));
 
                     let new_group = Box::new(TabLayout::Group(TabGroup {
-                        group_id: new_group_id,
+                        group_id: next_group_id,
                         tabs: vec![],
                     }));
 
@@ -286,13 +298,13 @@ impl TabLayout {
                                 TabSplitDirection::Horizontal
                             }
                         },
-                        split_id: self.next_split_id(),
+                        split_id: next_split_id,
                         location: 0.5,
                         a,
                         b,
                     });
 
-                    (new_split, Some(new_group_id))
+                    (new_split, Some(next_group_id))
                 } else {
                     (group.clone(), None)
                 }
@@ -305,11 +317,14 @@ impl TabLayout {
                 b,
             }) => {
                 //
-                let (a, new_group_id) = a.split_group(group_id, split_direction);
+                let (a, new_group_id) =
+                    a.do_split_group(group_id, split_direction, next_group_id, next_split_id);
 
                 let (b, new_group_id) = match new_group_id {
                     Some(new_group_id) => (*b.clone(), Some(new_group_id)),
-                    None => b.split_group(group_id, split_direction),
+                    None => {
+                        b.do_split_group(group_id, split_direction, next_group_id, next_split_id)
+                    }
                 };
 
                 (
@@ -918,7 +933,6 @@ fn TabGroupComponent<'a>(
                                 on_body_drop_resize.mount(evt);
                             },
                             onmousemove: move |evt| {
-                                log::debug!("move {:?}", evt.element_coordinates());
                                 let (x, y) = evt.element_coordinates().to_tuple();
                                 let body_drop_size = body_drop_size.read();
                                 let width = body_drop_size.width;
@@ -977,7 +991,6 @@ fn TabGroupComponent<'a>(
                                     }
                                 };
 
-                                log::debug!("offer {:?}", offer);
                                 bus.send_blocking(ConfigCommand::OfferTabDrop(offer));
                             },
                             if let Some(body_drop_target_class) = body_drop_target_class {
