@@ -1,3 +1,5 @@
+use std::thread::current;
+
 use crate::{
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
@@ -71,11 +73,11 @@ impl TabConfig {
                 if let Some(tab_id) = self.dragged_tab {
                     if let Some(ref offer) = self.drop_tab_offer {
                         if let Some(tab) = self.layout.get_tab(tab_id) {
-                            new_config.layout = self.layout.remove_tab(tab_id).insert_tab(
-                                offer.group_id,
-                                offer.index,
-                                tab,
-                            );
+                            new_config.layout = self
+                                .layout
+                                .remove_tab(tab_id)
+                                .insert_tab(offer.group_id, offer.index, &tab)
+                                .set_active_tab_in_group(offer.group_id, tab_id);
                         }
                     }
                 }
@@ -165,8 +167,41 @@ impl TabLayout {
         }
     }
 
-    fn insert_tab(&self, group_id: u32, index: usize, tab: TabProps) -> Self {
-        self.clone()
+    fn insert_tab(&self, group_id: u32, index: usize, tab: &TabProps) -> Self {
+        match self {
+            TabLayout::Group(TabGroup {
+                group_id: current_group_id,
+                tabs,
+            }) => {
+                let mut tabs = tabs.clone();
+
+                if group_id == *current_group_id {
+                    if index > tabs.len() {
+                        tabs.push(tab.clone());
+                    } else {
+                        tabs.insert(index, tab.clone());
+                    }
+                }
+
+                TabLayout::Group(TabGroup {
+                    group_id: *current_group_id,
+                    tabs,
+                })
+            }
+            TabLayout::Split(TabSplit {
+                a,
+                b,
+                direction,
+                layout_id,
+                location,
+            }) => TabLayout::Split(TabSplit {
+                direction: *direction,
+                layout_id: *layout_id,
+                location: *location,
+                a: Box::new(a.insert_tab(group_id, index, tab)),
+                b: Box::new(b.insert_tab(group_id, index, tab)),
+            }),
+        }
     }
 
     fn set_active_tab_in_group(&self, group_id: u32, tab_id: u32) -> Self {
