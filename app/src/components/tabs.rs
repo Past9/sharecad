@@ -1,5 +1,3 @@
-use std::thread::current;
-
 use crate::{
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
@@ -55,11 +53,12 @@ pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayo
 #[derive(Clone, PartialEq, Debug)]
 pub struct TabConfig {
     dragged_tab: Option<u32>,
-    drop_tab_offer: Option<TabDropInExistingGroup>,
+    drop_tab_offer: Option<DropTabOffer>,
     pub layout: TabLayout,
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
+        log::debug!("command {:?}", command);
         let mut new_config = match command {
             ConfigCommand::DragTab { tab_id } => {
                 let mut new_config = self.clone();
@@ -72,11 +71,19 @@ impl TabConfig {
                 if let Some(tab_id) = self.dragged_tab {
                     if let Some(ref offer) = self.drop_tab_offer {
                         if let Some(tab) = self.layout.get_tab(tab_id) {
-                            new_config.layout = self
-                                .layout
-                                .remove_tab(tab_id)
-                                .insert_tab(offer.group_id, offer.index, &tab)
-                                .set_active_tab_in_group(offer.group_id, tab_id);
+                            match offer {
+                                DropTabOffer::InGroup { group_id, index } => {
+                                    new_config.layout = self
+                                        .layout
+                                        .remove_tab(tab_id)
+                                        .insert_tab(*group_id, *index, &tab)
+                                        .set_active_tab_in_group(*group_id, tab_id);
+                                }
+                                DropTabOffer::VSplitLeft { group_id } => {}
+                                DropTabOffer::VSplitRight { group_id } => {}
+                                DropTabOffer::HSplitTop { group_id } => {}
+                                DropTabOffer::HSplitBottom { group_id } => {}
+                            }
                         }
                     }
                 }
@@ -108,18 +115,29 @@ impl TabConfig {
     }
 }
 
+#[derive(Clone, PartialEq, Debug)]
+enum DropTabOffer {
+    InGroup { group_id: u32, index: usize },
+    VSplitLeft { group_id: u32 },
+    VSplitRight { group_id: u32 },
+    HSplitTop { group_id: u32 },
+    HSplitBottom { group_id: u32 },
+}
+
+/*
 #[derive(Debug, Clone, PartialEq)]
 struct TabDropInExistingGroup {
     group_id: u32,
     index: usize,
 }
+ */
 
 #[derive(Debug, PartialEq)]
 enum ConfigCommand {
     DragTab { tab_id: u32 },
+    OfferTabDrop(DropTabOffer),
     DropTab,
     CloseTab { tab_id: u32 },
-    OfferTabDrop(TabDropInExistingGroup),
     Layout(LayoutCommand),
 }
 
@@ -477,7 +495,7 @@ pub fn TabArea<'a>(
 fn TabLayoutComponent<'a>(
     cx: Scoped,
     layout: &'a TabLayout,
-    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
+    #[props(!optional)] tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element {
@@ -534,7 +552,7 @@ impl SplitDragPosition {
 fn TabSplitComponent(
     cx: Scoped,
     split: TabSplit,
-    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
+    #[props(!optional)] tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
@@ -655,15 +673,37 @@ fn TabSplitComponent(
     })
 }
 
+#[derive(Debug)]
+enum Offer {
+    InGroup,
+    VSplitLeft,
+    VSplitRight,
+    HSplitTop,
+    HSplitBottom,
+}
+
 #[allow(non_snake_case)]
 #[inline_props]
 fn TabGroupComponent<'a>(
     cx: Scoped,
     group: &'a TabGroup,
-    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
+    #[props(!optional)] tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
+    let body_drop_size = use_ref(cx, ComponentSize::default);
+    let on_body_drop_resize = use_state(cx, || {
+        to_owned![body_drop_size];
+        OnResize::new(move |new_size: ComponentSize| body_drop_size.set(new_size))
+    });
+
+    {
+        to_owned![on_body_drop_resize];
+        use_on_unmount(cx, move || {
+            on_body_drop_resize.unmount();
+        });
+    }
+
     cx.render(rsx! {
         div {
             class: "group",
@@ -671,8 +711,11 @@ fn TabGroupComponent<'a>(
                 class: "group-header",
                 for (index, tab) in group.tabs.iter().enumerate() {
                     rsx! {
-                        if let Some(offer) = tab_drop_offer {
-                            if offer.group_id == group.group_id && offer.index == index {
+                        if let Some(DropTabOffer::InGroup {
+                            group_id: offer_group_id,
+                            index: offer_index
+                        }) = tab_drop_offer {
+                            if *offer_group_id == group.group_id && *offer_index == index {
                                 rsx! {
                                     div {
                                         class: "tab-drop-offer"
@@ -682,11 +725,6 @@ fn TabGroupComponent<'a>(
                                 rsx! { "" }
                             }
                         }
-                        /*
-                        div {
-                            class: "tab-drop-offer"
-                        }
-                         */
                         TabHeaderComponent {
                             key: "{tab.tab_id}",
                             group_id: group.group_id,
@@ -697,8 +735,11 @@ fn TabGroupComponent<'a>(
                         }
                     }
                 }
-                if let Some(offer) = tab_drop_offer {
-                    if offer.group_id == group.group_id && offer.index >= group.tabs.len() {
+                if let Some(DropTabOffer::InGroup {
+                    group_id: offer_group_id,
+                    index: offer_index
+                }) = tab_drop_offer {
+                    if *offer_group_id == group.group_id && *offer_index >= group.tabs.len() {
                         rsx! {
                             div {
                                 class: "tab-drop-offer"
@@ -709,19 +750,96 @@ fn TabGroupComponent<'a>(
                     }
                 }
             }
-            if let Some(tab) = group.tabs.iter().find(|tab| tab.active_in_group) {
-                rsx! {
-                    div {
-                        class: "active-content",
-                        "ACTIVE TAB: {tab.title}"
+            div {
+                class: "tab-content",
+                if dragged_tab.is_some() {
+                    rsx! {
+                        div {
+                            class: "body-drop-target",
+                            onmounted: move |evt| {
+                                on_body_drop_resize.mount(evt);
+                            },
+                            onmousemove: move |evt| {
+                                log::debug!("move {:?}", evt.element_coordinates());
+                                let (x, y) = evt.element_coordinates().to_tuple();
+                                let body_drop_size = body_drop_size.read();
+                                let width = body_drop_size.width;
+                                let height = body_drop_size.height;
+
+                                let h_third = match x / width {
+                                    t if t < 0.3333 => 0,
+                                    t if t > 0.6666 => 2,
+                                    _ => 1
+                                };
+
+                                let v_third = match y / height {
+                                    t if t < 0.3333 => 0,
+                                    t if t > 0.6666 => 2,
+                                    _ => 1
+                                };
+
+                                let left_dist = x.abs();
+                                let right_dist = (width - x).abs();
+                                let top_dist = y.abs();
+                                let bottom_dist = (height - y).abs();
+
+                                let offer = match (h_third, v_third) {
+                                    // Top left, target is top or left depending on closest edge
+                                    (0, 0) => match left_dist < top_dist {
+                                        true => DropTabOffer::VSplitLeft { group_id: group.group_id },
+                                        false => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                    }
+                                    // Top right, target is top or right depending on closest edge
+                                    (2, 0) => match right_dist < top_dist {
+                                        true => DropTabOffer::VSplitRight { group_id: group.group_id },
+                                        false => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                    }
+                                    // Bottom left, target is bottom or left depending on closest edge
+                                    (0, 2) => match left_dist < bottom_dist {
+                                        true => DropTabOffer::VSplitLeft { group_id: group.group_id },
+                                        false => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                    }
+                                    // Bottom right, target is bottom or right depending on closest edge
+                                    (2, 2) => match right_dist < bottom_dist {
+                                        true => DropTabOffer::VSplitRight { group_id: group.group_id },
+                                        false => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                    }
+                                    // Left center, target is left
+                                    (0, 1) => DropTabOffer::VSplitLeft { group_id: group.group_id },
+                                    // Right center, target is right
+                                    (2, 1) => DropTabOffer::VSplitRight { group_id: group.group_id },
+                                    // Top center, target is top
+                                    (1, 0) => DropTabOffer::HSplitTop { group_id: group.group_id },
+                                    // Bottom center, target is bottom
+                                    (1, 2) => DropTabOffer::HSplitBottom { group_id: group.group_id },
+                                    // Center, target is in group
+                                    _ => DropTabOffer::InGroup {
+                                        group_id: group.group_id,
+                                        index: group.tabs.len()
+                                    }
+                                };
+
+                                log::debug!("offer {:?}", offer);
+                                bus.send_blocking(ConfigCommand::OfferTabDrop(offer));
+
+                            }
+                        }
                     }
                 }
-            } else {
-                rsx! {
-                    div {
-                        class: "no-active-tab",
-                        p {
-                            "Click a tab to open it"
+                if let Some(tab) = group.tabs.iter().find(|tab| tab.active_in_group) {
+                    rsx! {
+                        div {
+                            class: "active-content",
+                            "ACTIVE TAB: {tab.title}"
+                        }
+                    }
+                } else {
+                    rsx! {
+                        div {
+                            class: "no-active-tab",
+                            p {
+                                "Click a tab to open it"
+                            }
                         }
                     }
                 }
@@ -925,7 +1043,7 @@ fn TabHeaderComponent(
                             index + 1
                         };
 
-                        bus.send_blocking(ConfigCommand::OfferTabDrop(TabDropInExistingGroup {
+                        bus.send_blocking(ConfigCommand::OfferTabDrop(DropTabOffer::InGroup {
                             group_id: *group_id,
                             index: drop_index
                         }));
