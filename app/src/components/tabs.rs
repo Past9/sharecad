@@ -5,11 +5,12 @@ use crate::{
 use async_channel::Sender;
 use dioxus::{html::input_data::MouseButton, prelude::*};
 use futures::executor::block_on;
-use web_sys::{DragEventInit, MouseEventInit};
+use web_sys::DragEventInit;
 
 pub fn config(layout: TabLayout) -> TabConfig {
     TabConfig {
-        is_dragging_tab: false,
+        dragged_tab: None,
+        tab_drop_in_existing_group_offer: None,
         layout,
     }
 }
@@ -51,39 +52,50 @@ pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayo
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct TabConfig {
-    is_dragging_tab: bool,
+    dragged_tab: Option<u32>,
+    tab_drop_in_existing_group_offer: Option<TabDropInExistingGroup>,
     layout: TabLayout,
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
         match command {
-            ConfigCommand::StartDraggingTab => {
+            ConfigCommand::StartDraggingTab { tab_id } => {
                 let mut new_config = self.clone();
-                new_config.is_dragging_tab = true;
+                new_config.dragged_tab = Some(*tab_id);
                 new_config
             }
             ConfigCommand::StopDraggingTab => {
                 let mut new_config = self.clone();
-                new_config.is_dragging_tab = false;
+                new_config.dragged_tab = None;
                 new_config
             }
-            ConfigCommand::DropTabInExistingGroup {
-                into_group_id,
-                tab_id,
-            } => self.clone(),
-            ConfigCommand::Layout(command) => Self {
-                is_dragging_tab: self.is_dragging_tab,
-                layout: self.layout.modify(command),
-            },
+            ConfigCommand::DropTabInExistingGroup => self.clone(),
+            ConfigCommand::OfferTabDropInExistingGroup(ref offer) => {
+                let mut new_config = self.clone();
+                new_config.tab_drop_in_existing_group_offer = Some(offer.clone());
+                new_config
+            }
+            ConfigCommand::Layout(command) => {
+                let mut new_config = self.clone();
+                new_config.layout = new_config.layout.modify(command);
+                new_config
+            }
         }
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct TabDropInExistingGroup {
+    group_id: u32,
+    index: usize,
+}
+
 #[derive(Debug, PartialEq)]
 enum ConfigCommand {
-    StartDraggingTab,
+    StartDraggingTab { tab_id: u32 },
     StopDraggingTab,
-    DropTabInExistingGroup { into_group_id: u32, tab_id: u32 },
+    DropTabInExistingGroup,
+    OfferTabDropInExistingGroup(TabDropInExistingGroup),
     Layout(LayoutCommand),
 }
 
@@ -243,7 +255,7 @@ pub fn TabArea<'a>(
     let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<ConfigCommand>());
     let bus = CommandBus::new(sender.clone());
 
-    log::debug!("is_dragging_tab {}", config.is_dragging_tab);
+    log::debug!("is_dragging_tab {:?}", config.dragged_tab);
 
     let next_command = use_state::<Option<ConfigCommand>>(cx, || None);
 
@@ -271,7 +283,7 @@ pub fn TabArea<'a>(
             class: "tab-area",
             TabLayoutComponent {
                 layout: &config.layout,
-                is_dragging_tab: config.is_dragging_tab,
+                dragged_tab: config.dragged_tab,
                 bus: bus
             }
         }
@@ -283,21 +295,21 @@ pub fn TabArea<'a>(
 fn TabLayoutComponent<'a>(
     cx: Scoped,
     layout: &'a TabLayout,
-    is_dragging_tab: bool,
+    #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element {
     match layout {
         TabLayout::Group(group) => cx.render(rsx! {
             TabGroupComponent {
                 group: group,
-                is_dragging_tab: *is_dragging_tab,
+                dragged_tab: dragged_tab.clone(),
                 bus: bus.clone()
             }
         }),
         TabLayout::Split(split) => cx.render(rsx! {
             TabSplitComponent {
                 split: split.clone(),
-                is_dragging_tab: *is_dragging_tab,
+                dragged_tab: dragged_tab.clone(),
                 bus: bus.clone()
             }
         }),
@@ -337,7 +349,7 @@ impl SplitDragPosition {
 fn TabSplitComponent(
     cx: Scoped,
     split: TabSplit,
-    is_dragging_tab: bool,
+    #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
@@ -415,7 +427,7 @@ fn TabSplitComponent(
                 flex: split.location,
                 TabLayoutComponent {
                     layout: split.a.as_ref(),
-                    is_dragging_tab: *is_dragging_tab,
+                    dragged_tab: dragged_tab.clone(),
                     bus: bus.clone()
                 }
             }
@@ -440,7 +452,7 @@ fn TabSplitComponent(
                 flex: 1.0 - split.location,
                 TabLayoutComponent {
                     layout: split.b.as_ref(),
-                    is_dragging_tab: *is_dragging_tab,
+                    dragged_tab: dragged_tab.clone(),
                     bus: bus.clone()
                 }
             }
@@ -453,7 +465,7 @@ fn TabSplitComponent(
 fn TabGroupComponent<'a>(
     cx: Scoped,
     group: &'a TabGroup,
-    is_dragging_tab: bool,
+    #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
     cx.render(rsx! {
@@ -461,13 +473,14 @@ fn TabGroupComponent<'a>(
             class: "group",
             div {
                 class: "group-header",
-                for tab in group.tabs.iter() {
+                for (index, tab) in group.tabs.iter().enumerate() {
                     rsx! {
                         TabHeaderComponent {
                             key: "{tab.tab_id}",
                             group_id: group.group_id,
+                            index: index,
                             tab: tab.clone(),
-                            is_dragging_tab: *is_dragging_tab,
+                            dragged_tab: dragged_tab.clone(),
                             bus: bus.clone()
                         }
                     }
@@ -512,28 +525,34 @@ enum TabDragState {
 fn TabHeaderComponent(
     cx: Scoped,
     group_id: u32,
+    index: usize,
     tab: TabProps,
-    is_dragging_tab: bool,
+    #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element {
     const DRAG_TRIGGER_DIST: f64 = 5.0;
 
+    let size = use_ref(cx, ComponentSize::default);
     let drag_state = use_state(cx, || -> Option<TabDragState> { None });
+    //let offer_tab_drop = use_state(cx, || None);
+
+    let on_resize = use_state(cx, || {
+        to_owned![size];
+        OnResize::new(move |new_size: ComponentSize| size.set(new_size))
+    });
 
     use_window_mouseup(cx, (drag_state, bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
-            log::debug!("MOUSEUP");
             bus.send_blocking(ConfigCommand::StopDraggingTab);
         }
     });
 
-    use_window_mousemove(cx, (drag_state, bus), |(drag_state, bus)| {
+    use_window_mousemove(cx, (drag_state, tab, bus), |(drag_state, tab, bus)| {
         move |evt| {
             if let Some(ref state) = *drag_state.current() {
                 if evt.held_buttons().contains(MouseButton::Primary) {
                     let client_current_pos = evt.client_coordinates().to_tuple();
-                    //log::debug!("evt {:?}", evt);
                     match state {
                         TabDragState::Standby {
                             element_offset,
@@ -550,7 +569,9 @@ fn TabHeaderComponent(
                                     client_start_pos: client_current_pos,
                                     client_current_pos: client_current_pos,
                                 }));
-                                bus.send_blocking(ConfigCommand::StartDraggingTab);
+                                bus.send_blocking(ConfigCommand::StartDraggingTab {
+                                    tab_id: tab.tab_id,
+                                });
                             }
                         }
                         TabDragState::Dragging {
@@ -568,7 +589,6 @@ fn TabHeaderComponent(
 
                                 let mut found_overlay = false;
                                 let mut element_under_cursor = None;
-                                //log::debug!("move");
                                 for el in elements.iter() {
                                     let el = match web_sys::Element::try_from(el) {
                                         Ok(el) => el,
@@ -577,8 +597,6 @@ fn TabHeaderComponent(
                                         }
                                     };
 
-                                    //log::debug!("classes = {}, id = {}", el.class_name(), el.id());
-
                                     if !found_overlay {
                                         if el.id() == "tab-drag-overlay" {
                                             found_overlay = true;
@@ -586,56 +604,11 @@ fn TabHeaderComponent(
                                         continue;
                                     }
 
-                                    //log::debug!("classes {}", el.class_name());
-                                    //log::debug!("id {}", el.id());
-
-                                    if el.id() == "dragged-tab" {
-                                        element_under_cursor = None;
-                                        break;
-                                    }
-
-                                    if element_under_cursor.is_none() {
-                                        element_under_cursor = Some(el);
-                                    }
-
-                                    /*
-                                    break;
-
-                                    log::debug!("element {}", el.class_name());
-
-                                    //let mut event = web_sys::Event::new("mousemove").unwrap();
-
-                                    let mut event =
-                                        web_sys::MouseEvent::new_with_mouse_event_init_dict(
-                                            "mousemove",
-                                            MouseEventInit::new()
-                                                .bubbles(true)
-                                                .cancelable(true)
-                                                .view(Some(&win)),
-                                        )
-                                        .unwrap();
-
-                                    let dispatch_res = el.dispatch_event(&event);
-
-                                    log::debug!("dispatch_res {:?}", dispatch_res);
-
                                     element_under_cursor = Some(el);
-
-                                    //let element = el as web_sys::Element;
-
                                     break;
-                                     */
                                 }
 
-                                //log::debug!("element_under_cursor {:?}", element_under_cursor);
-
                                 if let Some(element_under_cursor) = element_under_cursor {
-                                    log::debug!(
-                                        "element_under_cursor #{}.{}",
-                                        element_under_cursor.id(),
-                                        element_under_cursor.class_name()
-                                    );
-
                                     let event = web_sys::DragEvent::new_with_event_init_dict(
                                         "dragover",
                                         DragEventInit::new()
@@ -663,7 +636,6 @@ fn TabHeaderComponent(
                     }
                 } else {
                     drag_state.set(None);
-                    log::debug!("NO PRIMARY BTN");
                     bus.send_blocking(ConfigCommand::StopDraggingTab);
                 }
             }
@@ -690,7 +662,6 @@ fn TabHeaderComponent(
 
     cx.render(rsx! {
         TabHeaderComponentInner {
-            id: if is_dragging { "dragged-tab" } else { "" }.to_string(),
             title: tab.title.clone(),
             active_in_group: tab.active_in_group,
             absolute_pos: None,
@@ -702,12 +673,29 @@ fn TabHeaderComponent(
                     element_offset: element_coords,
                     client_start_pos: client_coords
                 }));
-                bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup { group_id: *group_id, tab_id: tab.tab_id }));
+                bus.send_blocking(ConfigCommand::Layout(LayoutCommand::SetActiveInGroup {
+                    group_id: *group_id,
+                    tab_id: tab.tab_id
+                }));
             },
             ondragover: move |evt: Event<DragData>| {
-                if *is_dragging_tab {
-                    log::debug!("drop target {:?}", evt.mouse.element_coordinates());
+                if let Some(dragged_tab) = dragged_tab {
+                    if *dragged_tab != tab.tab_id {
+                        let drop_index = if evt.mouse.element_coordinates().x < size.read().width / 2.0 {
+                            *index
+                        } else {
+                            index + 1
+                        };
+
+                        bus.send_blocking(ConfigCommand::OfferTabDropInExistingGroup(TabDropInExistingGroup {
+                            group_id: *group_id,
+                            index: drop_index
+                        }));
+                    }
                 }
+            },
+            onmounted: move |evt| {
+                on_resize.mount(evt);
             },
             if is_dragging {
                 rsx! {
@@ -720,7 +708,8 @@ fn TabHeaderComponent(
                             absolute_pos: pos,
                             opacity: 0.8,
                             onmousedown: |_| {},
-                            ondragover: |_| {}
+                            ondragover: |_| {},
+                            onmounted: |_| {},
                         }
                     }
                 }
@@ -733,13 +722,13 @@ fn TabHeaderComponent(
 #[inline_props]
 fn TabHeaderComponentInner<'a>(
     cx: Scoped,
-    id: Option<String>,
     title: String,
     active_in_group: bool,
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
     ondragover: EventHandler<'a, Event<DragData>>,
+    onmounted: EventHandler<'a, Event<MountedData>>,
     children: Element<'a>,
 ) -> Element {
     let active_in_group_class = match active_in_group {
@@ -752,18 +741,12 @@ fn TabHeaderComponentInner<'a>(
         None => ("static", 0.0, 0.0),
     };
 
-    let id = match id {
-        Some(id) => id.to_string(),
-        None => "".to_string(),
-    };
-
     let div = cx.render(rsx! {
         div {
-            id: "{id}",
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
-            //onmousemove: |evt| { onmousemove.call(evt) },
             ondragover: |evt| { ondragover.call(evt) },
+            onmounted: |evt| { onmounted.call(evt) },
             position: position_attr,
             left: "{left_attr}px",
             top: "{top_attr}px",
