@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::sync::Arc;
+
 use dioxus::prelude::Event;
 use dioxus::prelude::MountedData;
 use js_sys::Array as JsArray;
@@ -24,7 +27,8 @@ impl Default for ComponentSize {
 pub struct OnResize {
     // We keep ownership of that one so that it doesn't get dropped
     // when the constructor ends
-    _js_closure: JsClosure<dyn FnMut(JsArray)>,
+    _js_closure: Arc<JsClosure<dyn FnMut(JsArray)>>,
+    observer: RefCell<Option<JsResizeObserver>>,
 }
 
 impl OnResize {
@@ -34,7 +38,8 @@ impl OnResize {
         });
 
         Self {
-            _js_closure: _js_closure,
+            _js_closure: Arc::new(_js_closure),
+            observer: RefCell::new(None),
         }
     }
 
@@ -45,9 +50,18 @@ impl OnResize {
             .downcast_ref::<JsElement>()
             .expect("Not a `JsElement`");
 
-        JsResizeObserver::new(self._js_closure.as_ref().unchecked_ref())
-            .expect("Failed to create observer")
-            .observe(element);
+        let observer = JsResizeObserver::new(self._js_closure.as_ref().as_ref().unchecked_ref())
+            .expect("Failed to create observer");
+
+        observer.observe(element);
+
+        *self.observer.borrow_mut() = Some(observer);
+    }
+
+    pub fn unmount(&self) {
+        if let Some(ref observer) = self.observer.borrow().as_ref() {
+            observer.disconnect();
+        }
     }
 
     fn get_size(entries: JsArray) -> ComponentSize {

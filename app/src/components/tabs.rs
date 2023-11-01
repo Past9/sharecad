@@ -56,11 +56,10 @@ pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayo
 pub struct TabConfig {
     dragged_tab: Option<u32>,
     drop_tab_offer: Option<TabDropInExistingGroup>,
-    layout: TabLayout,
+    pub layout: TabLayout,
 }
 impl TabConfig {
     fn modify(&self, command: &ConfigCommand) -> Self {
-        log::debug!("command {:?}", command);
         match command {
             ConfigCommand::DragTab { tab_id } => {
                 let mut new_config = self.clone();
@@ -75,9 +74,11 @@ impl TabConfig {
                         if let Some(tab) = self.layout.get_tab(tab_id) {
                             new_config.layout = self
                                 .layout
+                                .clone()
                                 .remove_tab(tab_id)
                                 .insert_tab(offer.group_id, offer.index, &tab)
-                                .set_active_tab_in_group(offer.group_id, tab_id);
+                                .set_active_tab_in_group(offer.group_id, tab_id)
+                                .trim_groups();
                         }
                     }
                 }
@@ -88,7 +89,6 @@ impl TabConfig {
                 new_config
             }
             ConfigCommand::OfferTabDrop(ref offer) => {
-                log::debug!("drop tab offer: {:?}", offer);
                 let mut new_config = self.clone();
                 new_config.drop_tab_offer = Some(offer.clone());
                 new_config
@@ -141,7 +141,7 @@ impl TabLayout {
         }
     }
 
-    fn remove_tab(&self, tab_id: u32) -> Self {
+    pub fn remove_tab(&self, tab_id: u32) -> Self {
         match self {
             TabLayout::Group(TabGroup { group_id, tabs }) => TabLayout::Group(TabGroup {
                 group_id: *group_id,
@@ -201,6 +201,45 @@ impl TabLayout {
                 a: Box::new(a.insert_tab(group_id, index, tab)),
                 b: Box::new(b.insert_tab(group_id, index, tab)),
             }),
+        }
+    }
+
+    pub fn trim_groups(&self) -> Self {
+        match self.remove_all_empty_groups() {
+            Some(layout) => layout,
+            None => TabLayout::Group(TabGroup {
+                group_id: 1,
+                tabs: vec![],
+            }),
+        }
+    }
+
+    fn remove_all_empty_groups(&self) -> Option<Self> {
+        match self {
+            group @ TabLayout::Group(tab_group) => {
+                if tab_group.tabs.len() > 0 {
+                    Some(group.clone())
+                } else {
+                    None
+                }
+            }
+            TabLayout::Split(TabSplit {
+                a,
+                b,
+                direction,
+                layout_id,
+                location,
+            }) => match (a.remove_all_empty_groups(), b.remove_all_empty_groups()) {
+                (None, None) => None,
+                (None, Some(layout)) | (Some(layout), None) => Some(layout),
+                (Some(a), Some(b)) => Some(TabLayout::Split(TabSplit {
+                    direction: *direction,
+                    layout_id: *layout_id,
+                    location: *location,
+                    a: Box::new(a),
+                    b: Box::new(b),
+                })),
+            },
         }
     }
 
@@ -294,6 +333,15 @@ pub struct TabSplit {
 pub struct TabGroup {
     group_id: u32,
     tabs: Vec<TabProps>,
+}
+impl TabGroup {
+    pub fn none_if_empty(&self) -> Option<Self> {
+        if self.tabs.len() > 0 {
+            Some(self.clone())
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -449,6 +497,13 @@ fn TabSplitComponent(
         to_owned![size];
         OnResize::new(move |new_size: ComponentSize| size.set(new_size))
     });
+
+    {
+        to_owned![on_resize];
+        use_on_unmount(cx, move || {
+            on_resize.unmount();
+        });
+    }
 
     use_window_mouseup(cx, drag_pos, |drag_pos| {
         move |_| {
@@ -661,6 +716,13 @@ fn TabHeaderComponent(
         OnResize::new(move |new_size: ComponentSize| size.set(new_size))
     });
 
+    {
+        to_owned![on_resize];
+        use_on_unmount(cx, move || {
+            on_resize.unmount();
+        });
+    }
+
     use_window_mouseup(cx, (drag_state, bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
@@ -715,14 +777,24 @@ fn TabHeaderComponent(
                                         }
                                     };
 
+                                    let classes = el
+                                        .class_name()
+                                        .split_whitespace()
+                                        .into_iter()
+                                        .map(|c| c.to_string())
+                                        .collect::<Vec<_>>();
+
                                     if !found_overlay {
-                                        if el.id() == "tab-drag-overlay" {
+                                        if classes.iter().any(|c| c == "tab-drag-overlay") {
                                             found_overlay = true;
                                         }
                                         continue;
                                     }
 
-                                    element_under_cursor = Some(el);
+                                    if classes.iter().any(|c| c == "tab-header") {
+                                        element_under_cursor = Some(el);
+                                    }
+
                                     break;
                                 }
 
@@ -818,7 +890,6 @@ fn TabHeaderComponent(
             if is_dragging {
                 rsx! {
                     div {
-                        id: "tab-drag-overlay",
                         class: "tab-drag-overlay",
                         TabHeaderComponentInner {
                             title: tab.title.clone(),
