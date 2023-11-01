@@ -66,6 +66,15 @@ overlay()
             flex-direction row
             border-bottom 1px solid surface-border-color
 
+            &>.tab-drop-offer
+                width 5px
+                background-color primary-color
+                align-items stretch
+                display flex 
+                margin 0 -2px 0 -3px
+                z-index 1
+                //position relative
+
 
         &>.active-content
             width 100%
@@ -82,7 +91,7 @@ overlay()
             align-items center
 
 
-&>.tab-header
+.tab-header
     width min-content
     background-color inset-color
     border-right 1px solid surface-border-color

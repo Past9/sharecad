@@ -10,7 +10,7 @@ use web_sys::DragEventInit;
 pub fn config(layout: TabLayout) -> TabConfig {
     TabConfig {
         dragged_tab: None,
-        tab_drop_in_existing_group_offer: None,
+        drop_tab_offer: None,
         layout,
     }
 }
@@ -53,7 +53,7 @@ pub fn hsplit(id: u32, split: f64, top: TabLayout, bottom: TabLayout) -> TabLayo
 #[derive(Clone, PartialEq, Debug)]
 pub struct TabConfig {
     dragged_tab: Option<u32>,
-    tab_drop_in_existing_group_offer: Option<TabDropInExistingGroup>,
+    drop_tab_offer: Option<TabDropInExistingGroup>,
     layout: TabLayout,
 }
 impl TabConfig {
@@ -67,12 +67,14 @@ impl TabConfig {
             ConfigCommand::StopDraggingTab => {
                 let mut new_config = self.clone();
                 new_config.dragged_tab = None;
+                new_config.drop_tab_offer = None;
                 new_config
             }
             ConfigCommand::DropTabInExistingGroup => self.clone(),
             ConfigCommand::OfferTabDropInExistingGroup(ref offer) => {
+                log::debug!("drop tab offer: {:?}", offer);
                 let mut new_config = self.clone();
-                new_config.tab_drop_in_existing_group_offer = Some(offer.clone());
+                new_config.drop_tab_offer = Some(offer.clone());
                 new_config
             }
             ConfigCommand::Layout(command) => {
@@ -255,8 +257,6 @@ pub fn TabArea<'a>(
     let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<ConfigCommand>());
     let bus = CommandBus::new(sender.clone());
 
-    log::debug!("is_dragging_tab {:?}", config.dragged_tab);
-
     let next_command = use_state::<Option<ConfigCommand>>(cx, || None);
 
     let _cr = {
@@ -283,6 +283,7 @@ pub fn TabArea<'a>(
             class: "tab-area",
             TabLayoutComponent {
                 layout: &config.layout,
+                tab_drop_offer: config.drop_tab_offer.clone(),
                 dragged_tab: config.dragged_tab,
                 bus: bus
             }
@@ -295,6 +296,7 @@ pub fn TabArea<'a>(
 fn TabLayoutComponent<'a>(
     cx: Scoped,
     layout: &'a TabLayout,
+    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element {
@@ -302,6 +304,7 @@ fn TabLayoutComponent<'a>(
         TabLayout::Group(group) => cx.render(rsx! {
             TabGroupComponent {
                 group: group,
+                tab_drop_offer: tab_drop_offer.clone(),
                 dragged_tab: dragged_tab.clone(),
                 bus: bus.clone()
             }
@@ -309,6 +312,7 @@ fn TabLayoutComponent<'a>(
         TabLayout::Split(split) => cx.render(rsx! {
             TabSplitComponent {
                 split: split.clone(),
+                tab_drop_offer: tab_drop_offer.clone(),
                 dragged_tab: dragged_tab.clone(),
                 bus: bus.clone()
             }
@@ -349,6 +353,7 @@ impl SplitDragPosition {
 fn TabSplitComponent(
     cx: Scoped,
     split: TabSplit,
+    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
@@ -427,6 +432,7 @@ fn TabSplitComponent(
                 flex: split.location,
                 TabLayoutComponent {
                     layout: split.a.as_ref(),
+                    tab_drop_offer: tab_drop_offer.clone(),
                     dragged_tab: dragged_tab.clone(),
                     bus: bus.clone()
                 }
@@ -452,6 +458,7 @@ fn TabSplitComponent(
                 flex: 1.0 - split.location,
                 TabLayoutComponent {
                     layout: split.b.as_ref(),
+                    tab_drop_offer: tab_drop_offer.clone(),
                     dragged_tab: dragged_tab.clone(),
                     bus: bus.clone()
                 }
@@ -465,6 +472,7 @@ fn TabSplitComponent(
 fn TabGroupComponent<'a>(
     cx: Scoped,
     group: &'a TabGroup,
+    #[props(!optional)] tab_drop_offer: Option<TabDropInExistingGroup>,
     #[props(!optional)] dragged_tab: Option<u32>,
     bus: CommandBus,
 ) -> Element<'a> {
@@ -475,6 +483,22 @@ fn TabGroupComponent<'a>(
                 class: "group-header",
                 for (index, tab) in group.tabs.iter().enumerate() {
                     rsx! {
+                        if let Some(offer) = tab_drop_offer {
+                            if offer.group_id == group.group_id && offer.index == index {
+                                rsx! {
+                                    div {
+                                        class: "tab-drop-offer"
+                                    }
+                                }
+                            } else {
+                                rsx! { "" }
+                            }
+                        }
+                        /*
+                        div {
+                            class: "tab-drop-offer"
+                        }
+                         */
                         TabHeaderComponent {
                             key: "{tab.tab_id}",
                             group_id: group.group_id,
@@ -483,6 +507,17 @@ fn TabGroupComponent<'a>(
                             dragged_tab: dragged_tab.clone(),
                             bus: bus.clone()
                         }
+                    }
+                }
+                if let Some(offer) = tab_drop_offer {
+                    if offer.group_id == group.group_id && offer.index >= group.tabs.len() {
+                        rsx! {
+                            div {
+                                class: "tab-drop-offer"
+                            }
+                        }
+                    } else {
+                        rsx! { "" }
                     }
                 }
             }
