@@ -1,6 +1,7 @@
 mod group;
 mod header;
 mod layout;
+mod split;
 mod tabs;
 
 use super::Command;
@@ -10,6 +11,7 @@ use futures::executor::block_on;
 pub use group::*;
 pub use header::*;
 pub use layout::*;
+pub use split::*;
 pub use tabs::*;
 
 #[derive(Clone)]
