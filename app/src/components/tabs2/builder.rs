@@ -1,6 +1,7 @@
 use super::{
     id::{GroupId, HSplitId, IdSource, TabId, VSplitId},
     layout::{Group, HSplit, HSplitChild, Layout, Tab, VSplit, VSplitChild},
+    SplitChild,
 };
 
 fn make_default_splits(len: usize) -> Vec<f64> {
@@ -43,10 +44,20 @@ impl LayoutBuilder {
             self.tab_ids.clone(),
         );
         cb(&mut cx);
+
+        let len = cx.children.len() as f64;
+
         Layout::VSplit(VSplit {
             id: self.vsplit_ids.next(),
-            splits: make_default_splits(cx.children.len()),
-            children: cx.children,
+            children: cx
+                .children
+                .into_iter()
+                .enumerate()
+                .map(|(i, child)| SplitChild {
+                    width: i as f64 / len,
+                    child,
+                })
+                .collect(),
         })
     }
 
@@ -58,10 +69,20 @@ impl LayoutBuilder {
             self.tab_ids.clone(),
         );
         cb(&mut cx);
+
+        let len = cx.children.len() as f64;
+
         Layout::HSplit(HSplit {
             id: self.hsplit_ids.next(),
-            splits: make_default_splits(cx.children.len()),
-            children: cx.children,
+            children: cx
+                .children
+                .into_iter()
+                .enumerate()
+                .map(|(i, child)| SplitChild {
+                    width: i as f64 / len,
+                    child,
+                })
+                .collect(),
         })
     }
 }
@@ -127,10 +148,20 @@ impl VSplitBuilder {
             self.tab_ids.clone(),
         );
         cb(&mut cx);
+
+        let len = cx.children.len() as f64;
+
         self.children.push(VSplitChild::HSplit(HSplit {
             id: self.hsplit_ids.next(),
-            splits: make_default_splits(cx.children.len()),
-            children: cx.children,
+            children: cx
+                .children
+                .into_iter()
+                .enumerate()
+                .map(|(i, child)| SplitChild {
+                    width: i as f64 / len,
+                    child,
+                })
+                .collect(),
         }))
     }
 }
@@ -175,10 +206,20 @@ impl HSplitBuilder {
             self.tab_ids.clone(),
         );
         cb(&mut cx);
+
+        let len = cx.children.len() as f64;
+
         self.children.push(HSplitChild::VSplit(VSplit {
             id: self.vsplit_ids.next(),
-            splits: make_default_splits(cx.children.len()),
-            children: cx.children,
+            children: cx
+                .children
+                .into_iter()
+                .enumerate()
+                .map(|(i, child)| SplitChild {
+                    width: i as f64 / len,
+                    child,
+                })
+                .collect(),
         }))
     }
 }

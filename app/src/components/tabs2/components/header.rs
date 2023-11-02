@@ -21,17 +21,17 @@ pub enum DragState {
 }
 
 #[derive(PartialEq, Props)]
-pub struct HeaderComponentProps {
+pub struct HeaderComponentProps<'a> {
     group_id: GroupId,
     index: usize,
-    tab: Tab,
+    tab: &'a Tab,
     #[props(!optional)]
     dragged_tab: Option<TabId>,
     bus: CommandBus,
 }
 
 #[allow(non_snake_case)]
-pub fn HeaderComponent(cx: Scope<HeaderComponentProps>) -> Element {
+pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'a> {
     const DRAG_TRIGGER_DIST: f64 = 5.0;
 
     let size = use_ref(cx, ComponentSize::default);

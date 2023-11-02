@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use super::SplitOrientation;
+
 pub trait Id: Clone + Copy + PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug {
     fn zero() -> Self;
     fn next(&self) -> Self;
@@ -26,7 +28,37 @@ id_type!(VSplitId);
 id_type!(HSplitId);
 id_type!(TabId);
 
-trait IdTraits: From<u32> + Into<u32> {}
+#[derive(PartialEq, Debug, Clone)]
+pub struct GenericSplitId(u32, SplitOrientation);
+impl GenericSplitId {
+    pub fn as_hsplit_id(&self) -> HSplitId {
+        match self.1 {
+            SplitOrientation::Horizontal => HSplitId(self.0),
+            SplitOrientation::Vertical => {
+                panic!("Tried to get HSplitId from GenericSplitId with vertical orientation")
+            }
+        }
+    }
+
+    pub fn as_vsplit_id(&self) -> VSplitId {
+        match self.1 {
+            SplitOrientation::Vertical => VSplitId(self.0),
+            SplitOrientation::Horizontal => {
+                panic!("Tried to get VSplitId from GenericSplitId with horizontal orientation")
+            }
+        }
+    }
+}
+impl From<VSplitId> for GenericSplitId {
+    fn from(value: VSplitId) -> Self {
+        Self(value.0, SplitOrientation::Vertical)
+    }
+}
+impl From<HSplitId> for GenericSplitId {
+    fn from(value: HSplitId) -> Self {
+        Self(value.0, SplitOrientation::Horizontal)
+    }
+}
 
 #[derive(Clone)]
 pub struct IdSource<T: Id> {

@@ -1,10 +1,12 @@
 use super::CommandBus;
-use crate::components::{DropTabOffer, GroupComponent, Layout, TabId};
+use crate::components::{
+    DropTabOffer, GenericLayout, GroupComponent, Layout, SplitComponent, TabId,
+};
 use dioxus::prelude::*;
 
 #[derive(PartialEq, Props)]
 pub struct LayoutComponentProps<'a> {
-    layout: &'a Layout,
+    layout: &'a GenericLayout,
     #[props(!optional)]
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
@@ -15,22 +17,20 @@ pub struct LayoutComponentProps<'a> {
 #[allow(non_snake_case)]
 pub fn LayoutComponent<'a>(cx: Scope<'a, LayoutComponentProps>) -> Element<'a> {
     match cx.props.layout {
-        Layout::Group(group) => cx.render(rsx! {
+        GenericLayout::Group(group) => cx.render(rsx! {
             GroupComponent {
-                group: group,
+                group: &group,
                 tab_drop_offer: cx.props.tab_drop_offer.clone(),
                 dragged_tab: cx.props.dragged_tab.clone(),
                 bus: cx.props.bus.clone()
             }
         }),
-        Layout::VSplit(_) => cx.render(rsx! {
-            div {
-                "VSPLIT"
-            }
-        }),
-        Layout::HSplit(_) => cx.render(rsx! {
-            div {
-                "HSPLIT"
+        GenericLayout::Split(split) => cx.render(rsx! {
+            SplitComponent {
+                split: split,
+                tab_drop_offer: cx.props.tab_drop_offer.clone(),
+                dragged_tab: cx.props.dragged_tab.clone(),
+                bus: cx.props.bus.clone()
             }
         }),
         /*

@@ -1,18 +1,13 @@
-use dioxus::{html::input_data::MouseButton, prelude::*};
-
+use super::CommandBus;
 use crate::{
-    components::{Command, DropTabOffer, HSplit, VSplit},
+    components::{
+        Command, DropTabOffer, GenericSplit, HSplit, HSplitId, LayoutComponent, SplitOrientation,
+        TabId, VSplit, VSplitId,
+    },
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
 };
-
-use super::CommandBus;
-
-#[derive(PartialEq, Clone)]
-pub enum Split {
-    VSplit(VSplit),
-    HSplit(HSplit),
-}
+use dioxus::{html::input_data::MouseButton, prelude::*};
 
 #[derive(Clone, Debug)]
 struct SplitDragPosition {
@@ -43,17 +38,17 @@ impl SplitDragPosition {
 }
 
 #[derive(PartialEq, Props)]
-pub struct SplitComponentProps {
-    split: Split,
+pub struct SplitComponentProps<'a> {
+    split: &'a GenericSplit,
     #[props(!optional)]
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
-    dragged_tab: Option<u32>,
+    dragged_tab: Option<TabId>,
     bus: CommandBus,
 }
 
 #[allow(non_snake_case)]
-fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
+pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
     let drag_pos = use_state(cx, || -> Option<SplitDragPosition> { None });
 
@@ -82,21 +77,25 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
-                        let (position, space) = match split {
-                            Split::VSplit(..) => (evt.client_coordinates().x, size.read().width),
-                            Split::HSplit(..) => (evt.client_coordinates().y, size.read().height),
+                        let (position, space) = match split.orientation {
+                            SplitOrientation::Vertical => {
+                                (evt.client_coordinates().x, size.read().width)
+                            }
+                            SplitOrientation::Horizontal => {
+                                (evt.client_coordinates().y, size.read().height)
+                            }
                         };
 
                         let new_drag_pos = pos.clone().with_current(position);
                         let new_location = new_drag_pos.adjust_split(space);
                         drag_pos.set(Some(new_drag_pos));
 
-                        let command = match split {
-                            Split::VSplit(VSplit { id, .. }) => {
-                                Command::adjust_vsplit(id, 0, new_location)
+                        let command = match split.orientation {
+                            SplitOrientation::Vertical => {
+                                Command::adjust_vsplit(split.id.as_vsplit_id(), 0, new_location)
                             }
-                            Split::HSplit(HSplit { id, .. }) => {
-                                Command::adjust_hsplit(id, 0, new_location)
+                            SplitOrientation::Horizontal => {
+                                Command::adjust_hsplit(split.id.as_hsplit_id(), 0, new_location)
                             }
                         };
 
@@ -109,9 +108,9 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
         },
     );
 
-    let direction_class = match cx.props.split {
-        Split::VSplit(..) => "vertical",
-        Split::HSplit(..) => "horizontal",
+    let direction_class = match cx.props.split.orientation {
+        SplitOrientation::Vertical => "vertical",
+        SplitOrientation::Horizontal => "horizontal",
     };
 
     let dragging_class = match drag_pos.is_some() {
@@ -120,7 +119,38 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
     };
 
     cx.render(rsx! {
-        /*
+        if drag_pos.is_some() {
+            rsx! {
+                div {
+                    class: "split-drag-overlay {direction_class}"
+                }
+            }
+        }
+        div {
+            class: "split {direction_class}",
+            onmounted: move |evt| {
+                on_resize.mount(evt);
+            },
+            for child in cx.props.split.children.iter(){
+                rsx! {
+                    div {
+                        class: "split-pane",
+                        flex: child.width,
+                        LayoutComponent {
+                            layout: (&child.child).into(),
+                            tab_drop_offer: cx.props.tab_drop_offer.clone(),
+                            dragged_tab: cx.props.dragged_tab.clone(),
+                            bus: cx.props.bus.clone()
+                        }
+                    }
+                }
+
+            }
+        }
+    })
+
+    /*
+    cx.render(rsx! {
         if drag_pos.is_some() {
             rsx! {
                 div {
@@ -136,7 +166,7 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
             div {
                 class: "split-pane",
                 flex: cx.props.split.location,
-                TabLayoutComponent {
+                LayoutComponent {
                     layout: split.a.as_ref(),
                     tab_drop_offer: tab_drop_offer.clone(),
                     dragged_tab: dragged_tab.clone(),
@@ -147,9 +177,9 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
                 class: "splitter {dragging_class}",
                 onmousedown: move |evt| {
                     if let Some(MouseButton::Primary) = evt.trigger_button() {
-                        let pos = match split.direction {
-                            TabSplitDirection::Vertical => evt.client_coordinates().x,
-                            TabSplitDirection::Horizontal => evt.client_coordinates().y,
+                        let pos = match cx.props.split{
+                            Split::VSplit(..) => evt.client_coordinates().x,
+                            Split::HSplit(..) => evt.client_coordinates().y,
                         };
                         drag_pos.set(Some(SplitDragPosition {
                             start_split: split.location,
@@ -162,7 +192,7 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
             div {
                 class: "split-pane",
                 flex: 1.0 - split.location,
-                TabLayoutComponent {
+                LayoutComponent {
                     layout: split.b.as_ref(),
                     tab_drop_offer: tab_drop_offer.clone(),
                     dragged_tab: dragged_tab.clone(),
@@ -170,9 +200,6 @@ fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
                 }
             }
         }
-         */
-        div {
-            "SPLIT"
-        }
     })
+     */
 }

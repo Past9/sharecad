@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::components::{Command, Config, LayoutComponent};
+use crate::components::{Command, Config, GenericLayout, LayoutComponent};
 
 use super::CommandBus;
 
@@ -36,11 +36,13 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
         }
     }
 
+    let generic_layout = use_memo(cx, &cx.props.config.layout, |layout| layout.clone().into());
+
     cx.render(rsx! {
         div {
             class: "tab-area",
             LayoutComponent {
-                layout: &cx.props.config.layout,
+                layout: generic_layout,
                 tab_drop_offer: cx.props.config.drop_tab_offer.clone(),
                 dragged_tab: cx.props.config.dragging_tab,
                 bus: bus

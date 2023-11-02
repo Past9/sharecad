@@ -34,7 +34,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps>) -> Element<'a> {
 
     let body_drop_target_class: &Option<&'static str> = use_memo(
         cx,
-        (&cx.props.tab_drop_offer, cx.props.group),
+        (&cx.props.tab_drop_offer, &cx.props.group),
         |(tab_drop_offer, group)| match tab_drop_offer {
             Some(offer) => {
                 if offer.group_id() == group.id {
@@ -80,7 +80,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps>) -> Element<'a> {
                             key: "{tab.tab_id}",
                             group_id: cx.props.group.id,
                             index: index,
-                            tab: tab.clone(),
+                            tab: tab,
                             dragged_tab: cx.props.dragged_tab.clone(),
                             bus: cx.props.bus.clone()
                         }
