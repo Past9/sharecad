@@ -18,7 +18,7 @@ pub struct GroupComponentProps<'a> {
 }
 
 #[allow(non_snake_case)]
-pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps>) -> Element<'a> {
+pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a> {
     let body_drop_size = use_ref(cx, ComponentSize::default);
     let on_body_drop_resize = use_state(cx, || {
         to_owned![body_drop_size];
@@ -34,7 +34,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps>) -> Element<'a> {
 
     let body_drop_target_class: &Option<&'static str> = use_memo(
         cx,
-        (&cx.props.tab_drop_offer, &cx.props.group),
+        (&cx.props.tab_drop_offer, cx.props.group),
         |(tab_drop_offer, group)| match tab_drop_offer {
             Some(offer) => {
                 if offer.group_id() == group.id {

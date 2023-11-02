@@ -58,7 +58,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
 
     use_window_mousemove(
         cx,
-        (drag_state, &cx.props.tab, &cx.props.bus),
+        (drag_state, cx.props.tab, &cx.props.bus),
         |(drag_state, tab, bus)| {
             move |evt| {
                 if let Some(ref state) = *drag_state.current() {

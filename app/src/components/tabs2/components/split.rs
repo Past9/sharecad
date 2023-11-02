@@ -72,7 +72,7 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
 
     use_window_mousemove(
         cx,
-        (drag_pos, size, &cx.props.split, &cx.props.bus),
+        (drag_pos, size, cx.props.split, &cx.props.bus),
         |(drag_pos, size, split, bus)| {
             move |evt| {
                 if let Some(ref pos) = *drag_pos.current() {
