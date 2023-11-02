@@ -81,6 +81,7 @@ impl GroupBuilder {
     pub fn tab(&mut self, title: &str) {
         self.tabs.push(Tab {
             id: self.tab_ids.next(),
+            active_in_group: false,
             title: title.to_string(),
         })
     }

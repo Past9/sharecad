@@ -6,6 +6,11 @@ pub struct Config {
     pub drop_tab_offer: Option<DropTabOffer>,
     pub layout: Layout,
 }
+impl Config {
+    pub fn modify(&self, command: &Command) -> Self {
+        self.clone()
+    }
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SplitDirection {
@@ -21,14 +26,22 @@ pub enum DropTabOffer {
         group_id: GroupId,
         index: usize,
     },
-    SplitGroup {
+    Split {
         group_id: GroupId,
         direction: SplitDirection,
     },
 }
+impl DropTabOffer {
+    pub fn group_id(&self) -> GroupId {
+        match self {
+            DropTabOffer::InGroup { group_id, .. } => *group_id,
+            DropTabOffer::Split { group_id, .. } => *group_id,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
-enum Command {
+pub enum Command {
     DragTab {
         tab_id: TabId,
     },
@@ -89,36 +102,40 @@ impl Command {
         Self::OfferDropTab(DropTabOffer::InGroup { group_id, index })
     }
 
+    pub fn offer_drop_tab(offer: DropTabOffer) -> Self {
+        Self::OfferDropTab(offer)
+    }
+
     pub fn offer_drop_tab_split_group(group_id: GroupId, direction: SplitDirection) -> Self {
-        Self::OfferDropTab(DropTabOffer::SplitGroup {
+        Self::OfferDropTab(DropTabOffer::Split {
             group_id,
             direction,
         })
     }
 
     pub fn offer_drop_tab_split_group_left(group_id: GroupId) -> Self {
-        Self::OfferDropTab(DropTabOffer::SplitGroup {
+        Self::OfferDropTab(DropTabOffer::Split {
             group_id,
             direction: SplitDirection::Left,
         })
     }
 
     pub fn offer_drop_tab_split_group_right(group_id: GroupId) -> Self {
-        Self::OfferDropTab(DropTabOffer::SplitGroup {
+        Self::OfferDropTab(DropTabOffer::Split {
             group_id,
             direction: SplitDirection::Right,
         })
     }
 
     pub fn offer_drop_tab_split_group_up(group_id: GroupId) -> Self {
-        Self::OfferDropTab(DropTabOffer::SplitGroup {
+        Self::OfferDropTab(DropTabOffer::Split {
             group_id,
             direction: SplitDirection::Up,
         })
     }
 
     pub fn offer_drop_tab_split_group_down(group_id: GroupId) -> Self {
-        Self::OfferDropTab(DropTabOffer::SplitGroup {
+        Self::OfferDropTab(DropTabOffer::Split {
             group_id,
             direction: SplitDirection::Down,
         })

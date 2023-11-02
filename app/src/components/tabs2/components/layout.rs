@@ -1,0 +1,55 @@
+use super::CommandBus;
+use crate::components::{DropTabOffer, GroupComponent, Layout, TabId};
+use dioxus::prelude::*;
+
+#[derive(PartialEq, Props)]
+pub struct LayoutComponentProps<'a> {
+    layout: &'a Layout,
+    #[props(!optional)]
+    tab_drop_offer: Option<DropTabOffer>,
+    #[props(!optional)]
+    dragged_tab: Option<TabId>,
+    bus: CommandBus,
+}
+
+#[allow(non_snake_case)]
+pub fn LayoutComponent<'a>(cx: Scope<'a, LayoutComponentProps>) -> Element<'a> {
+    match cx.props.layout {
+        Layout::Group(group) => cx.render(rsx! {
+            GroupComponent {
+                group: group,
+                tab_drop_offer: cx.props.tab_drop_offer.clone(),
+                dragged_tab: cx.props.dragged_tab.clone(),
+                bus: cx.props.bus.clone()
+            }
+        }),
+        Layout::VSplit(_) => cx.render(rsx! {
+            div {
+                "VSPLIT"
+            }
+        }),
+        Layout::HSplit(_) => cx.render(rsx! {
+            div {
+                "HSPLIT"
+            }
+        }),
+        /*
+        TabLayout::VSplit(split) => cx.render(rsx! {
+            TabSplitComponent {
+                split: split.clone(),
+                tab_drop_offer: tab_drop_offer.clone(),
+                dragged_tab: dragged_tab.clone(),
+                bus: bus.clone()
+            }
+        }),
+        TabLayout::HSplit(split) => cx.render(rsx! {
+            TabSplitComponent {
+                split: split.clone(),
+                tab_drop_offer: tab_drop_offer.clone(),
+                dragged_tab: dragged_tab.clone(),
+                bus: bus.clone()
+            }
+        }),
+         */
+    }
+}

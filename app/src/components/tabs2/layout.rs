@@ -54,5 +54,6 @@ pub struct Group {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Tab {
     pub id: TabId,
+    pub active_in_group: bool,
     pub title: String,
 }
