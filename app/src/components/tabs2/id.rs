@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 pub trait Id: Clone + Copy + PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug {
     fn zero() -> Self;
@@ -30,12 +30,12 @@ trait IdTraits: From<u32> + Into<u32> {}
 
 #[derive(Clone)]
 pub struct IdSource<T: Id> {
-    current: RefCell<T>,
+    current: Rc<RefCell<T>>,
 }
 impl<T: Id> IdSource<T> {
     pub fn new() -> Self {
         Self {
-            current: RefCell::new(T::zero()),
+            current: Rc::new(RefCell::new(T::zero())),
         }
     }
 

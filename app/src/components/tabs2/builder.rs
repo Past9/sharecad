@@ -3,7 +3,14 @@ use super::{
     layout::{Group, HSplit, HSplitChild, Layout, Tab, VSplit, VSplitChild},
 };
 
-struct LayoutBuilder {
+fn make_default_splits(len: usize) -> Vec<f64> {
+    (0..len - 1)
+        .into_iter()
+        .map(|i| i as f64 / len as f64)
+        .collect()
+}
+
+pub struct LayoutBuilder {
     vsplit_ids: IdSource<VSplitId>,
     hsplit_ids: IdSource<HSplitId>,
     group_ids: IdSource<GroupId>,
@@ -38,6 +45,7 @@ impl LayoutBuilder {
         cb(&mut cx);
         Layout::VSplit(VSplit {
             id: self.vsplit_ids.next(),
+            splits: make_default_splits(cx.children.len()),
             children: cx.children,
         })
     }
@@ -52,12 +60,13 @@ impl LayoutBuilder {
         cb(&mut cx);
         Layout::HSplit(HSplit {
             id: self.hsplit_ids.next(),
+            splits: make_default_splits(cx.children.len()),
             children: cx.children,
         })
     }
 }
 
-struct GroupBuilder {
+pub struct GroupBuilder {
     tab_ids: IdSource<TabId>,
     tabs: Vec<Tab>,
 }
@@ -77,7 +86,7 @@ impl GroupBuilder {
     }
 }
 
-struct VSplitBuilder {
+pub struct VSplitBuilder {
     vsplit_ids: IdSource<VSplitId>,
     hsplit_ids: IdSource<HSplitId>,
     group_ids: IdSource<GroupId>,
@@ -119,12 +128,13 @@ impl VSplitBuilder {
         cb(&mut cx);
         self.children.push(VSplitChild::HSplit(HSplit {
             id: self.hsplit_ids.next(),
+            splits: make_default_splits(cx.children.len()),
             children: cx.children,
         }))
     }
 }
 
-struct HSplitBuilder {
+pub struct HSplitBuilder {
     vsplit_ids: IdSource<VSplitId>,
     hsplit_ids: IdSource<HSplitId>,
     group_ids: IdSource<GroupId>,
@@ -166,6 +176,7 @@ impl HSplitBuilder {
         cb(&mut cx);
         self.children.push(HSplitChild::VSplit(VSplit {
             id: self.vsplit_ids.next(),
+            splits: make_default_splits(cx.children.len()),
             children: cx.children,
         }))
     }

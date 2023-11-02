@@ -1,5 +1,5 @@
 use super::{menu, tabs};
-use crate::components::MenuBar;
+use crate::components::{LayoutBuilder, MenuBar, Tabs};
 use dioxus::prelude::*;
 use tabs::TabArea;
 
@@ -66,6 +66,7 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
+    /*
     let tab_config = use_state(cx, || {
         tabs::config(tabs::vsplit(
             1,
@@ -96,6 +97,30 @@ pub fn MainWindow(cx: Scope) -> Element {
             ),
         ))
     });
+    */
+
+    let tab_config = use_state(cx, || {
+        LayoutBuilder::new()
+            .vsplit(|cx| {
+                cx.group(|cx| {
+                    cx.tab("Some file");
+                    cx.tab("Some file with a very long path.fileextension");
+                });
+                cx.hsplit(|cx| {
+                    cx.group(|cx| {
+                        cx.tab("A file 1");
+                    });
+                    cx.group(|cx| {
+                        cx.tab("A file 2");
+                    });
+                });
+                cx.group(|cx| {
+                    cx.tab("A file 3");
+                    cx.tab("Another file");
+                });
+            })
+            .as_new_config()
+    });
 
     log::debug!("layout {:#?}", tab_config.layout);
 
@@ -112,7 +137,7 @@ pub fn MainWindow(cx: Scope) -> Element {
 
             section {
                 id: "workspace",
-                TabArea {
+                Tabs {
                     config: tab_config,
                     on_config_changed: |config| {
                         tab_config.set(config);
