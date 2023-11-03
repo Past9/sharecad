@@ -37,7 +37,14 @@ impl Config {
                 hsplit_id,
                 index,
                 new_location,
-            } => self.clone(),
+            } => {
+                let mut new_config = self.clone();
+                new_config.layout =
+                    new_config
+                        .layout
+                        .adjust_hsplit(*hsplit_id, *index, *new_location);
+                new_config
+            }
             Command::SetActiveTabInGroup { group_id, tab_id } => {
                 let mut new_config = self.clone();
                 new_config.layout = new_config
