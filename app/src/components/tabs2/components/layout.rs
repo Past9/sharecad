@@ -1,7 +1,5 @@
 use super::CommandBus;
-use crate::components::{
-    DropTabOffer, GenericLayout, GroupComponent, Layout, SplitComponent, TabId,
-};
+use crate::components::{DropTabOffer, GenericLayout, GroupComponent, SplitComponent, TabId};
 use dioxus::prelude::*;
 
 #[derive(PartialEq, Props)]

@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::components::{Command, Config, GenericLayout, LayoutComponent};
+use crate::components::{Command, Config, LayoutComponent};
 
 use super::CommandBus;
 

@@ -122,7 +122,7 @@ pub fn MainWindow(cx: Scope) -> Element {
             .as_new_config()
     });
 
-    log::debug!("layout {:#?}", tab_config.layout);
+    //log::debug!("layout {:#?}", tab_config.layout);
 
     cx.render(rsx! {
         section {

@@ -21,11 +21,14 @@ impl Config {
                 new_config.layout = new_config.layout.remove_tab(*tab_id);
                 new_config
             }
-            Command::AdjustVSplit {
+            avs @ Command::AdjustVSplit {
                 vsplit_id,
                 index,
                 new_location,
-            } => self.clone(),
+            } => {
+                log::debug!("{:?}", avs);
+                self.clone()
+            }
             Command::AdjustHSplit {
                 hsplit_id,
                 index,
