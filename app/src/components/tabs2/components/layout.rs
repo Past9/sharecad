@@ -33,23 +33,5 @@ pub fn LayoutComponent<'a>(cx: Scope<'a, LayoutComponentProps>) -> Element<'a> {
                 bus: cx.props.bus.clone()
             }
         }),
-        /*
-        TabLayout::VSplit(split) => cx.render(rsx! {
-            TabSplitComponent {
-                split: split.clone(),
-                tab_drop_offer: tab_drop_offer.clone(),
-                dragged_tab: dragged_tab.clone(),
-                bus: bus.clone()
-            }
-        }),
-        TabLayout::HSplit(split) => cx.render(rsx! {
-            TabSplitComponent {
-                split: split.clone(),
-                tab_drop_offer: tab_drop_offer.clone(),
-                dragged_tab: dragged_tab.clone(),
-                bus: bus.clone()
-            }
-        }),
-         */
     }
 }

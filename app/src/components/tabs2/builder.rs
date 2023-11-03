@@ -45,18 +45,14 @@ impl LayoutBuilder {
         );
         cb(&mut cx);
 
-        let len = cx.children.len() as f64;
+        let width = 1.0 / cx.children.len() as f64;
 
         Layout::VSplit(VSplit {
             id: self.vsplit_ids.next(),
             children: cx
                 .children
                 .into_iter()
-                .enumerate()
-                .map(|(i, child)| SplitChild {
-                    width: i as f64 / len,
-                    child,
-                })
+                .map(|child| SplitChild { width, child })
                 .collect(),
         })
     }
@@ -70,18 +66,14 @@ impl LayoutBuilder {
         );
         cb(&mut cx);
 
-        let len = cx.children.len() as f64;
+        let width = 1.0 / cx.children.len() as f64;
 
         Layout::HSplit(HSplit {
             id: self.hsplit_ids.next(),
             children: cx
                 .children
                 .into_iter()
-                .enumerate()
-                .map(|(i, child)| SplitChild {
-                    width: i as f64 / len,
-                    child,
-                })
+                .map(|child| SplitChild { width, child })
                 .collect(),
         })
     }
@@ -149,18 +141,14 @@ impl VSplitBuilder {
         );
         cb(&mut cx);
 
-        let len = cx.children.len() as f64;
+        let width = 1.0 / cx.children.len() as f64;
 
         self.children.push(VSplitChild::HSplit(HSplit {
             id: self.hsplit_ids.next(),
             children: cx
                 .children
                 .into_iter()
-                .enumerate()
-                .map(|(i, child)| SplitChild {
-                    width: i as f64 / len,
-                    child,
-                })
+                .map(|child| SplitChild { width, child })
                 .collect(),
         }))
     }
@@ -207,18 +195,14 @@ impl HSplitBuilder {
         );
         cb(&mut cx);
 
-        let len = cx.children.len() as f64;
+        let width = 1.0 / cx.children.len() as f64;
 
         self.children.push(HSplitChild::VSplit(VSplit {
             id: self.vsplit_ids.next(),
             children: cx
                 .children
                 .into_iter()
-                .enumerate()
-                .map(|(i, child)| SplitChild {
-                    width: i as f64 / len,
-                    child,
-                })
+                .map(|child| SplitChild { width, child })
                 .collect(),
         }))
     }

@@ -1,9 +1,6 @@
 use super::CommandBus;
 use crate::{
-    components::{
-        Command, DropTabOffer, GenericSplit, HSplit, HSplitId, LayoutComponent, SplitOrientation,
-        TabId, VSplit, VSplitId,
-    },
+    components::{Command, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation, TabId},
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
 };
@@ -131,7 +128,7 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
             onmounted: move |evt| {
                 on_resize.mount(evt);
             },
-            for child in cx.props.split.children.iter(){
+            for (i, child) in cx.props.split.children.iter().enumerate() {
                 rsx! {
                     div {
                         class: "split-pane",
@@ -145,61 +142,27 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
                     }
                 }
 
-            }
-        }
-    })
-
-    /*
-    cx.render(rsx! {
-        if drag_pos.is_some() {
-            rsx! {
-                div {
-                    class: "split-drag-overlay {direction_class}"
-                }
-            }
-        }
-        div {
-            class: "split {direction_class}",
-            onmounted: move |evt| {
-                on_resize.mount(evt);
-            },
-            div {
-                class: "split-pane",
-                flex: cx.props.split.location,
-                LayoutComponent {
-                    layout: split.a.as_ref(),
-                    tab_drop_offer: tab_drop_offer.clone(),
-                    dragged_tab: dragged_tab.clone(),
-                    bus: bus.clone()
-                }
-            }
-            div {
-                class: "splitter {dragging_class}",
-                onmousedown: move |evt| {
-                    if let Some(MouseButton::Primary) = evt.trigger_button() {
-                        let pos = match cx.props.split{
-                            Split::VSplit(..) => evt.client_coordinates().x,
-                            Split::HSplit(..) => evt.client_coordinates().y,
-                        };
-                        drag_pos.set(Some(SplitDragPosition {
-                            start_split: split.location,
-                            start_mousepos: pos,
-                            current_mousepos: pos
-                        }));
+                if i < cx.props.split.children.len() - 1 {
+                    rsx! {
+                        div {
+                            class: "splitter {dragging_class}",
+                            onmousedown: move |evt| {
+                                if let Some(MouseButton::Primary) = evt.trigger_button() {
+                                    let pos = match cx.props.split.orientation {
+                                        SplitOrientation::Vertical => evt.client_coordinates().x,
+                                        SplitOrientation::Horizontal => evt.client_coordinates().y,
+                                    };
+                                    drag_pos.set(Some(SplitDragPosition {
+                                        start_split: child.width,
+                                        start_mousepos: pos,
+                                        current_mousepos: pos
+                                    }));
+                                }
+                            },
+                        }
                     }
-                },
-            }
-            div {
-                class: "split-pane",
-                flex: 1.0 - split.location,
-                LayoutComponent {
-                    layout: split.b.as_ref(),
-                    tab_drop_offer: tab_drop_offer.clone(),
-                    dragged_tab: dragged_tab.clone(),
-                    bus: bus.clone()
                 }
             }
         }
     })
-     */
 }
