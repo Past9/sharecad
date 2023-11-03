@@ -185,7 +185,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                     rsx! {
                         div {
                             class: "active-content",
-                            "ACTIVE TAB: {tab.title}"
+                            "ACTIVE: {tab.title}"
                         }
                     }
                 } else {

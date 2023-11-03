@@ -103,20 +103,24 @@ pub fn MainWindow(cx: Scope) -> Element {
         LayoutBuilder::new()
             .vsplit(|cx| {
                 cx.group(|cx| {
-                    cx.tab("Some file");
-                    cx.tab("Some file with a very long path.fileextension");
+                    cx.tab("File1");
+                    //cx.tab("Some file with a very long path.fileextension");
                 });
-                cx.hsplit(|cx| {
-                    cx.group(|cx| {
-                        cx.tab("A file 1");
-                    });
-                    cx.group(|cx| {
-                        cx.tab("A file 2");
-                    });
+                //cx.hsplit(|cx| {
+                cx.group(|cx| {
+                    cx.tab("File2");
                 });
                 cx.group(|cx| {
-                    cx.tab("A file 3");
-                    cx.tab("Another file");
+                    cx.tab("File3");
+                });
+                //});
+                cx.group(|cx| {
+                    cx.tab("File4");
+                    //cx.tab("Another file");
+                });
+                cx.group(|cx| {
+                    cx.tab("File5");
+                    //cx.tab("A file 5");
                 });
             })
             .as_new_config()

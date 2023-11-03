@@ -19,6 +19,18 @@ impl Layout {
         .clean()
     }
 
+    pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        match self {
+            Layout::Group(group) => Layout::Group(group.clone()),
+            Layout::VSplit(split) => {
+                Layout::VSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            }
+            Layout::HSplit(split) => {
+                Layout::HSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            }
+        }
+    }
+
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         match self {
             Layout::Group(group) => Layout::Group(group.remove_tab(tab_id)),
@@ -142,6 +154,7 @@ pub trait OrientedSplitChild
 where
     Self: Sized,
 {
+    fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self;
     fn remove_tab(&self, tab_id: TabId) -> Self;
     fn set_active_tab_in_group(&self, group_id: GroupId, tab_id: TabId) -> Self;
     fn activate_one_tab_per_group(&self) -> Self;
@@ -159,6 +172,13 @@ pub struct SplitChild<T> {
     pub child: T,
 }
 impl<T: OrientedSplitChild> SplitChild<T> {
+    pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        Self {
+            width: self.width,
+            child: self.child.adjust_vsplit(vsplit_id, index, new_location),
+        }
+    }
+
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         Self {
             width: self.width,
@@ -219,6 +239,59 @@ pub struct VSplit {
     pub children: Vec<SplitChild<VSplitChild>>,
 }
 impl VSplit {
+    pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        const MIN_SPLIT_WIDTH: f64 = 0.1;
+
+        let mut new_children = self
+            .children
+            .iter()
+            .map(|child| child.adjust_vsplit(vsplit_id, index, new_location))
+            .collect::<Vec<SplitChild<VSplitChild>>>();
+
+        let len = new_children.len();
+
+        if self.id == vsplit_id && index < len - 1 {
+            let left_index = index;
+            let right_index = index + 1;
+
+            let left_dist = (0..left_index).map(|i| new_children[i].width).sum::<f64>();
+            let right_dist = ((right_index + 1)..len)
+                .map(|i| new_children[i].width)
+                .sum::<f64>();
+
+            let new_left_width = new_location - left_dist;
+            let new_right_width = 1.0 - new_location - right_dist;
+
+            log::debug!("dists {}, {}", left_dist, right_dist);
+            log::debug!("widths {}, {}", new_left_width, new_right_width);
+
+            new_children[left_index].width = new_left_width;
+            new_children[right_index].width = new_right_width;
+        }
+
+        /*
+        let min_left_dist = ((index + 1) as f64 * MIN_SPLIT_WIDTH).clamp(0.0, 1.0);
+        let min_right_dist =
+            ((self.children.len() - index - 1) as f64 * MIN_SPLIT_WIDTH).clamp(0.0, 1.0);
+
+        let min_pos = min_left_dist;
+        let max_pos = 1.0 - min_right_dist;
+
+        let new_location = new_location.clamp(min_pos, max_pos);
+        log::debug!("new_loc {}", new_location);
+
+        let mut positions = new_children
+            .iter()
+            .map(|child| child.width)
+            .collect::<Vec<_>>();
+             */
+
+        Self {
+            id: self.id,
+            children: new_children,
+        }
+    }
+
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         Self {
             id: self.id,
@@ -325,6 +398,15 @@ pub enum VSplitChild {
     HSplit(HSplit),
 }
 impl OrientedSplitChild for VSplitChild {
+    fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        match self {
+            VSplitChild::Group(group) => Self::Group(group.clone()),
+            VSplitChild::HSplit(split) => {
+                Self::HSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            }
+        }
+    }
+
     fn remove_tab(&self, tab_id: TabId) -> Self {
         match self {
             VSplitChild::Group(group) => Self::Group(group.remove_tab(tab_id)),
@@ -404,6 +486,17 @@ pub struct HSplit {
     pub children: Vec<SplitChild<HSplitChild>>,
 }
 impl HSplit {
+    pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.adjust_vsplit(vsplit_id, index, new_location))
+                .collect(),
+        }
+    }
+
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         Self {
             id: self.id,
@@ -510,6 +603,15 @@ pub enum HSplitChild {
     VSplit(VSplit),
 }
 impl OrientedSplitChild for HSplitChild {
+    fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
+        match self {
+            HSplitChild::Group(group) => Self::Group(group.clone()),
+            HSplitChild::VSplit(split) => {
+                Self::VSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            }
+        }
+    }
+
     fn remove_tab(&self, tab_id: TabId) -> Self {
         match self {
             HSplitChild::Group(group) => Self::Group(group.remove_tab(tab_id)),
@@ -747,5 +849,115 @@ impl From<HSplit> for GenericSplit {
                 })
                 .collect(),
         }
+    }
+}
+
+fn slide_numbers(nums: Vec<f64>, min_dist: f64, index: usize, move_to: f64) -> Vec<f64> {
+    let total: f64 = nums.iter().sum();
+
+    let mut new_nums = nums.to_vec();
+
+    let len = new_nums.len();
+
+    // Find the minimum and maximum possible value for the new position,
+    // given the number of elements before and after index.
+    let min = (index + 1) as f64 * min_dist;
+    let max = total - (len - index - 1) as f64 * min_dist;
+
+    // Clamp the movement to the min and max position
+    let move_to = move_to.clamp(min, max);
+
+    // The original position of the index
+    let original_pos = (0..=index).map(|i| new_nums[i]).sum::<f64>();
+
+    if move_to < original_pos {
+        // Compress numbers before index
+        for i in (0..index + 1).rev() {
+            // The total of all the numbers to the left of the index,
+            // not including the one touching the index
+            let leftmost_width = (0..index).map(|i| new_nums[i]).sum::<f64>();
+            // The total of all the numbers to the left of the index,
+            // including the one touching the index
+            let left_width = leftmost_width + new_nums[index];
+
+            // How much we still need to "shave off" the numbers to the left of index
+            let excess = left_width - move_to;
+
+            // If we need to shave more off...
+            if excess > 0.0 {
+                // Reduce the next number to the left by as much as possible, not
+                // making it smaller than min_dist
+                new_nums[i] = (new_nums[i] - excess).max(min_dist);
+            }
+        }
+
+        // Expand the width to the right of the index so the total is the same
+        new_nums[index + 1] += total - new_nums.iter().sum::<f64>();
+    } else if move_to > original_pos {
+        // Compress numbers after index
+        for i in index + 1..new_nums.len() {
+            // The total of all the numbers to the right of the index,
+            // not including the one touching the index
+            let rightmost_width = (index + 2..new_nums.len())
+                .map(|i| new_nums[i])
+                .sum::<f64>();
+            // The total of all the numbers to the right of the index,
+            // including the one touching the index
+            let right_width = rightmost_width + new_nums[index + 1];
+
+            // How much we still need to "shave off" the numbers to the wright
+            let excess = right_width - (total - move_to);
+
+            // If we need to shave more off...
+            if excess > 0.0 {
+                // Reduce the next number to the left by as much as possible, not
+                // making it smaller than min_dist
+                new_nums[i] = (new_nums[i] - excess).max(min_dist);
+            }
+
+            // Expand the width to the left of the index so the total is the same
+            new_nums[index] += total - new_nums.iter().sum::<f64>();
+        }
+    }
+
+    new_nums
+}
+
+#[cfg(test)]
+mod tests {
+    use super::slide_numbers;
+
+    fn approx_eq(left: Vec<f64>, right: Vec<f64>) {
+        const TOL: f64 = 0.000000000001;
+        assert!(
+            left.len() == right.len(),
+            "unequal lengths: {} != {}",
+            left.len(),
+            right.len()
+        );
+        for i in 0..left.len() {
+            assert!(
+                (left[i] - right[i]).abs() < TOL,
+                "not approx eq: {:?} != {:?}",
+                left,
+                right
+            );
+        }
+    }
+
+    #[test]
+    fn slide_numbers_left() {
+        approx_eq(
+            slide_numbers(vec![0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.1, 1, 0.25),
+            vec![0.15, 0.1, 0.35, 0.2, 0.2, 0.2],
+        );
+    }
+
+    #[test]
+    fn slide_numbers_right() {
+        approx_eq(
+            slide_numbers(vec![0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.1, 1, 0.65),
+            vec![0.2, 0.45, 0.1, 0.1, 0.15, 0.2],
+        );
     }
 }
