@@ -251,40 +251,17 @@ impl VSplit {
         let len = new_children.len();
 
         if self.id == vsplit_id && index < len - 1 {
-            let left_index = index;
-            let right_index = index + 1;
+            let widths = new_children
+                .iter()
+                .map(|child| child.width)
+                .collect::<Vec<_>>();
 
-            let left_dist = (0..left_index).map(|i| new_children[i].width).sum::<f64>();
-            let right_dist = ((right_index + 1)..len)
-                .map(|i| new_children[i].width)
-                .sum::<f64>();
+            let new_widths = slide_numbers(widths, MIN_SPLIT_WIDTH, index, new_location);
 
-            let new_left_width = new_location - left_dist;
-            let new_right_width = 1.0 - new_location - right_dist;
-
-            log::debug!("dists {}, {}", left_dist, right_dist);
-            log::debug!("widths {}, {}", new_left_width, new_right_width);
-
-            new_children[left_index].width = new_left_width;
-            new_children[right_index].width = new_right_width;
+            for (i, child) in new_children.iter_mut().enumerate() {
+                child.width = new_widths[i];
+            }
         }
-
-        /*
-        let min_left_dist = ((index + 1) as f64 * MIN_SPLIT_WIDTH).clamp(0.0, 1.0);
-        let min_right_dist =
-            ((self.children.len() - index - 1) as f64 * MIN_SPLIT_WIDTH).clamp(0.0, 1.0);
-
-        let min_pos = min_left_dist;
-        let max_pos = 1.0 - min_right_dist;
-
-        let new_location = new_location.clamp(min_pos, max_pos);
-        log::debug!("new_loc {}", new_location);
-
-        let mut positions = new_children
-            .iter()
-            .map(|child| child.width)
-            .collect::<Vec<_>>();
-             */
 
         Self {
             id: self.id,

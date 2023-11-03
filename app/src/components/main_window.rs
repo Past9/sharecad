@@ -110,16 +110,27 @@ pub fn MainWindow(cx: Scope) -> Element {
                 cx.group(|cx| {
                     cx.tab("File2");
                 });
-                cx.group(|cx| {
-                    cx.tab("File3");
+                cx.hsplit(|cx| {
+                    cx.group(|cx| {
+                        cx.tab("File3");
+                    });
+                    cx.group(|cx| {
+                        cx.tab("File4");
+                    });
+                    cx.group(|cx| {
+                        cx.tab("File5");
+                    });
+                    cx.group(|cx| {
+                        cx.tab("File6");
+                    });
                 });
                 //});
                 cx.group(|cx| {
-                    cx.tab("File4");
+                    cx.tab("File7");
                     //cx.tab("Another file");
                 });
                 cx.group(|cx| {
-                    cx.tab("File5");
+                    cx.tab("File8");
                     //cx.tab("A file 5");
                 });
             })
