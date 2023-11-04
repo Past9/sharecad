@@ -88,6 +88,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                 client_start_pos,
                                 ..
                             } => {
+                                /*
                                 {
                                     let win = web_sys::window().unwrap();
                                     let doc = win.document().unwrap();
@@ -146,6 +147,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                         element_under_cursor.dispatch_event(&event).unwrap();
                                     }
                                 }
+                                 */
 
                                 drag_state.set(Some(DragState::Dragging {
                                     element_offset: *element_offset,
@@ -301,10 +303,22 @@ fn HeaderComponentInner<'a>(
                 if *lr_mouse_targets {
                     rsx! {
                         div {
-                            class: "mouse-target left"
+                            class: "mouse-target left",
+                            onmouseover: move |evt| {
+                                onmouseover_drop_left.call(evt);
+                            },
+                            onmouseout: move |evt| {
+                                onmouseout_drop_left.call(evt);
+                            },
                         }
                         div {
-                            class: "mouse-target right"
+                            class: "mouse-target right",
+                            onmouseover: move |evt| {
+                                onmouseover_drop_right.call(evt);
+                            },
+                            onmouseout: move |evt| {
+                                onmouseout_drop_right.call(evt);
+                            },
                         }
                     }
                 }

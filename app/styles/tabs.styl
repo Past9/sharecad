@@ -82,7 +82,7 @@ overlay()
                 align-items stretch
                 display flex 
                 margin 0 -1px 0 -2px
-                z-index 1
+                //z-index 1
                 //position relative
 
         &>.tab-content
@@ -95,15 +95,15 @@ overlay()
                 height 100%
                 background-color green
                 opacity 0.2
-                z-index 1
+                z-index 2 
 
                 &>.body-drop-target
                     position relative
                     height 100%
                     width 100%
-                    opacity: 0.1
+                    opacity: 1.1
                     background-color black
-                    pointer-events none
+                    //pointer-events none
 
                     &.in-group
                         //
@@ -152,6 +152,7 @@ overlay()
             width 50%
             height 100%
             opacity 0.2
+            z-index 2
 
             &.left
                 background-color magenta
@@ -215,8 +216,9 @@ overlay()
             &>.tab-drag-overlay
                 overlay()
                 background-color blue 
-                opacity 0.05
+                opacity 0.2 
                 cursor grabbing 
+                z-index 1
 
                 &>.tab-header
                     cursor grabbing 
