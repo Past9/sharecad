@@ -5,7 +5,7 @@ use crate::{
     window_events::{use_window_mousemove, use_window_mouseup},
 };
 use dioxus::{html::input_data::MouseButton, prelude::*};
-use web_sys::DragEventInit;
+use web_sys::{DragEventInit, MouseEventInit};
 
 #[derive(Debug)]
 pub enum DragState {
@@ -128,19 +128,20 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                     }
 
                                     if let Some(element_under_cursor) = element_under_cursor {
-                                        let event = web_sys::DragEvent::new_with_event_init_dict(
-                                            "dragover",
-                                            DragEventInit::new()
-                                                .bubbles(true)
-                                                .cancelable(true)
-                                                .view(Some(&win))
-                                                .client_x(evt.client_coordinates().x as i32)
-                                                .client_y(evt.client_coordinates().y as i32)
-                                                .screen_x(evt.screen_coordinates().x as i32)
-                                                .screen_y(evt.screen_coordinates().y as i32)
-                                                .buttons(1),
-                                        )
-                                        .unwrap();
+                                        let event =
+                                            web_sys::MouseEvent::new_with_mouse_event_init_dict(
+                                                "mouseover",
+                                                MouseEventInit::new()
+                                                    .bubbles(true)
+                                                    .cancelable(true)
+                                                    .view(Some(&win))
+                                                    .client_x(evt.client_coordinates().x as i32)
+                                                    .client_y(evt.client_coordinates().y as i32)
+                                                    .screen_x(evt.screen_coordinates().x as i32)
+                                                    .screen_y(evt.screen_coordinates().y as i32)
+                                                    .buttons(1),
+                                            )
+                                            .unwrap();
 
                                         element_under_cursor.dispatch_event(&event).unwrap();
                                     }
@@ -198,21 +199,32 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                     cx.props.tab.id
                 ));
             },
-            ondragover: move |evt: Event<DragData>| {
-                if let Some(dragged_tab) = cx.props.dragged_tab {
-                    if dragged_tab != cx.props.tab.id {
-                        let drop_index = if evt.mouse.element_coordinates().x < size.read().width / 2.0 {
+            onmouseover: move |evt: Event<MouseData>| {
+                if cx.props.dragged_tab.is_some() {
+                        let drop_index = if evt.element_coordinates().x < size.read().width / 2.0 {
                             cx.props.index
                         } else {
                             cx.props.index + 1
                         };
 
                         cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, drop_index));
-                    }
                 }
             },
             onmounted: move |evt| {
                 on_resize.mount(evt);
+            },
+            lr_mouse_targets: cx.props.dragged_tab.is_some(),
+            onmouseover_drop_left: |_| {
+                log::debug!("over left");
+            },
+            onmouseover_drop_right: |_| {
+                log::debug!("over right");
+            },
+            onmouseout_drop_left: |_| {
+                log::debug!("out left");
+            },
+            onmouseout_drop_right: |_| {
+                log::debug!("out right");
             },
             on_request_close: move |_| {
                 cx.props.bus.send_blocking(Command::close_tab(cx.props.tab.id));
@@ -227,8 +239,13 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                             absolute_pos: pos,
                             opacity: 0.8,
                             onmousedown: |_| {},
-                            ondragover: |_| {},
+                            onmouseover: |_| {},
                             onmounted: |_| {},
+                            lr_mouse_targets: false,
+                            onmouseover_drop_left: |_| {},
+                            onmouseover_drop_right: |_| {},
+                            onmouseout_drop_left: |_| {},
+                            onmouseout_drop_right: |_| {},
                             on_request_close: |_| {}
                         }
                     }
@@ -247,8 +264,13 @@ fn HeaderComponentInner<'a>(
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
-    ondragover: EventHandler<'a, Event<DragData>>,
+    onmouseover: EventHandler<'a, Event<MouseData>>,
     onmounted: EventHandler<'a, Event<MountedData>>,
+    lr_mouse_targets: bool,
+    onmouseover_drop_left: EventHandler<'a, Event<MouseData>>,
+    onmouseover_drop_right: EventHandler<'a, Event<MouseData>>,
+    onmouseout_drop_left: EventHandler<'a, Event<MouseData>>,
+    onmouseout_drop_right: EventHandler<'a, Event<MouseData>>,
     on_request_close: EventHandler<'a, ()>,
     children: Element<'a>,
 ) -> Element {
@@ -264,34 +286,50 @@ fn HeaderComponentInner<'a>(
 
     let div = cx.render(rsx! {
         div {
-            class: "tab-header {active_in_group_class}",
+            class: "tab-header",
             onmousedown: |evt| { onmousedown.call(evt) },
-            ondragover: |evt| { ondragover.call(evt) },
+            onmouseover: |evt| { onmouseover.call(evt) },
             onmounted: |evt| { onmounted.call(evt) },
             position: position_attr,
             left: "{left_attr}px",
             top: "{top_attr}px",
             opacity: "{opacity}",
+
+
             div {
-                class: "tab-icon",
-                "Ϣ"
+                class: "inner {active_in_group_class}",
+            if true {
+            //if *lr_mouse_targets {
+                rsx! {
+                    div {
+                        class: "mouse-target left"
+                    }
+                    div {
+                        class: "mouse-target right"
+                    }
+                }
             }
-            div {
-                class: "tab-title",
-                "{title}"
+                div {
+                    class: "tab-icon",
+                    "Ϣ"
+                }
+                div {
+                    class: "tab-title",
+                    "{title}"
+                }
+                div {
+                    class: "tab-close",
+                    onclick: move |evt| {
+                        on_request_close.call(());
+                        evt.stop_propagation();
+                    },
+                    onmousedown: move |evt| {
+                        evt.stop_propagation();
+                    },
+                    "✕"
+                }
+                children
             }
-            div {
-                class: "tab-close",
-                onclick: move |evt| {
-                    on_request_close.call(());
-                    evt.stop_propagation();
-                },
-                onmousedown: move |evt| {
-                    evt.stop_propagation();
-                },
-                "✕"
-            }
-            children
         }
     });
 
