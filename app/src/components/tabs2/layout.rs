@@ -1,6 +1,6 @@
 use super::{
     id::{GroupId, HSplitId, TabId, VSplitId},
-    Config, GenericSplitId, Id,
+    Config, DropTabOffer, GenericSplitId, Id,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -19,63 +19,75 @@ impl Layout {
         .clean()
     }
 
+    pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        match self {
+            Self::Group(group) => group.get_tab(tab_id),
+            Self::VSplit(split) => split.get_tab(tab_id),
+            Self::HSplit(split) => split.get_tab(tab_id),
+        }
+    }
+
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        match self {
+            Self::Group(group) => Self::Group(group.insert_tab(group_id, index, tab)),
+            Self::VSplit(split) => Self::VSplit(split.insert_tab(group_id, index, tab)),
+            Self::HSplit(split) => Self::HSplit(split.insert_tab(group_id, index, tab)),
+        }
+    }
+
     pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.clone()),
-            Layout::VSplit(split) => {
-                Layout::VSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            Self::Group(group) => Self::Group(group.clone()),
+            Self::VSplit(split) => {
+                Self::VSplit(split.adjust_vsplit(vsplit_id, index, new_location))
             }
-            Layout::HSplit(split) => {
-                Layout::HSplit(split.adjust_vsplit(vsplit_id, index, new_location))
+            Self::HSplit(split) => {
+                Self::HSplit(split.adjust_vsplit(vsplit_id, index, new_location))
             }
         }
     }
 
     pub fn adjust_hsplit(&self, hsplit_id: HSplitId, index: usize, new_location: f64) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.clone()),
-            Layout::VSplit(split) => {
-                Layout::VSplit(split.adjust_hsplit(hsplit_id, index, new_location))
+            Self::Group(group) => Self::Group(group.clone()),
+            Self::VSplit(split) => {
+                Self::VSplit(split.adjust_hsplit(hsplit_id, index, new_location))
             }
-            Layout::HSplit(split) => {
-                Layout::HSplit(split.adjust_hsplit(hsplit_id, index, new_location))
+            Self::HSplit(split) => {
+                Self::HSplit(split.adjust_hsplit(hsplit_id, index, new_location))
             }
         }
     }
 
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.remove_tab(tab_id)),
-            Layout::VSplit(split) => Layout::VSplit(split.remove_tab(tab_id)),
-            Layout::HSplit(split) => Layout::HSplit(split.remove_tab(tab_id)),
+            Self::Group(group) => Self::Group(group.remove_tab(tab_id)),
+            Self::VSplit(split) => Self::VSplit(split.remove_tab(tab_id)),
+            Self::HSplit(split) => Self::HSplit(split.remove_tab(tab_id)),
         }
     }
 
     pub fn set_active_tab_in_group(&self, group_id: GroupId, tab_id: TabId) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.set_active_tab_in_group(group_id, tab_id)),
-            Layout::VSplit(split) => {
-                Layout::VSplit(split.set_active_tab_in_group(group_id, tab_id))
-            }
-            Layout::HSplit(split) => {
-                Layout::HSplit(split.set_active_tab_in_group(group_id, tab_id))
-            }
+            Self::Group(group) => Self::Group(group.set_active_tab_in_group(group_id, tab_id)),
+            Self::VSplit(split) => Self::VSplit(split.set_active_tab_in_group(group_id, tab_id)),
+            Self::HSplit(split) => Self::HSplit(split.set_active_tab_in_group(group_id, tab_id)),
         }
     }
 
     pub fn tab_exists(&self, tab_id: TabId) -> bool {
         match self {
-            Layout::Group(group) => group.tab_exists(tab_id),
-            Layout::VSplit(split) => split.tab_exists(tab_id),
-            Layout::HSplit(split) => split.tab_exists(tab_id),
+            Self::Group(group) => group.tab_exists(tab_id),
+            Self::VSplit(split) => split.tab_exists(tab_id),
+            Self::HSplit(split) => split.tab_exists(tab_id),
         }
     }
 
     pub fn group_exists(&self, group_id: GroupId) -> bool {
         match self {
-            Layout::Group(group) => group.id == group_id,
-            Layout::VSplit(split) => split.group_exists(group_id),
-            Layout::HSplit(split) => split.group_exists(group_id),
+            Self::Group(group) => group.id == group_id,
+            Self::VSplit(split) => split.group_exists(group_id),
+            Self::HSplit(split) => split.group_exists(group_id),
         }
     }
 
@@ -83,7 +95,7 @@ impl Layout {
         let next_group_id = self.next_group_id();
         match self.remove_empty_groups_and_splits() {
             Some(layout) => layout,
-            None => Layout::Group(Group {
+            None => Self::Group(Group {
                 id: next_group_id,
                 tabs: vec![],
             }),
@@ -93,35 +105,35 @@ impl Layout {
 
     pub fn normalize_splits(&self) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.clone()),
-            Layout::VSplit(split) => Layout::VSplit(split.normalize_splits()),
-            Layout::HSplit(split) => Layout::HSplit(split.normalize_splits()),
+            Self::Group(group) => Self::Group(group.clone()),
+            Self::VSplit(split) => Self::VSplit(split.normalize_splits()),
+            Self::HSplit(split) => Self::HSplit(split.normalize_splits()),
         }
     }
 
     fn remove_empty_groups_and_splits(&self) -> Option<Self> {
         match self {
-            Layout::Group(group) => {
+            Self::Group(group) => {
                 if group.tabs.len() > 0 {
                     Some(Self::Group(group.clone()))
                 } else {
                     None
                 }
             }
-            Layout::VSplit(split) => split
+            Self::VSplit(split) => split
                 .remove_empty_groups_and_splits()
-                .map(|split| Layout::VSplit(split)),
-            Layout::HSplit(split) => split
+                .map(|split| Self::VSplit(split)),
+            Self::HSplit(split) => split
                 .remove_empty_groups_and_splits()
-                .map(|split| Layout::HSplit(split)),
+                .map(|split| Self::HSplit(split)),
         }
     }
 
     pub fn activate_one_tab_per_group(&self) -> Self {
         match self {
-            Layout::Group(group) => Layout::Group(group.activate_one_tab_per_group()),
-            Layout::VSplit(split) => Layout::VSplit(split.activate_one_tab_per_group()),
-            Layout::HSplit(split) => Layout::HSplit(split.activate_one_tab_per_group()),
+            Self::Group(group) => Self::Group(group.activate_one_tab_per_group()),
+            Self::VSplit(split) => Self::VSplit(split.activate_one_tab_per_group()),
+            Self::HSplit(split) => Self::HSplit(split.activate_one_tab_per_group()),
         }
     }
 
@@ -139,9 +151,9 @@ impl Layout {
 
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         match self {
-            Layout::Group(group) => cur_highest.max(group.id),
-            Layout::VSplit(split) => split.find_highest_group_id(cur_highest),
-            Layout::HSplit(split) => split.find_highest_group_id(cur_highest),
+            Self::Group(group) => cur_highest.max(group.id),
+            Self::VSplit(split) => split.find_highest_group_id(cur_highest),
+            Self::HSplit(split) => split.find_highest_group_id(cur_highest),
         }
     }
 
@@ -155,10 +167,25 @@ impl Layout {
 
     fn find_highest_tab_id(&self, cur_highest: TabId) -> TabId {
         match self {
-            Layout::Group(group) => group.find_highest_tab_id(cur_highest),
-            Layout::VSplit(split) => split.find_highest_tab_id(cur_highest),
-            Layout::HSplit(split) => split.find_highest_tab_id(cur_highest),
+            Self::Group(group) => group.find_highest_tab_id(cur_highest),
+            Self::VSplit(split) => split.find_highest_tab_id(cur_highest),
+            Self::HSplit(split) => split.find_highest_tab_id(cur_highest),
         }
+    }
+}
+impl From<Group> for Layout {
+    fn from(group: Group) -> Self {
+        Self::Group(group)
+    }
+}
+impl From<VSplit> for Layout {
+    fn from(split: VSplit) -> Self {
+        Self::VSplit(split)
+    }
+}
+impl From<HSplit> for Layout {
+    fn from(split: HSplit) -> Self {
+        Self::HSplit(split)
     }
 }
 
@@ -166,6 +193,8 @@ pub trait OrientedSplitChild
 where
     Self: Sized,
 {
+    fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self;
+    fn get_tab(&self, tab_id: TabId) -> Option<Tab>;
     fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self;
     fn adjust_hsplit(&self, hsplit_id: HSplitId, index: usize, new_location: f64) -> Self;
     fn remove_tab(&self, tab_id: TabId) -> Self;
@@ -185,6 +214,17 @@ pub struct SplitChild<T> {
     pub child: T,
 }
 impl<T: OrientedSplitChild> SplitChild<T> {
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        Self {
+            width: self.width,
+            child: self.child.insert_tab(group_id, index, tab),
+        }
+    }
+
+    pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        self.child.get_tab(tab_id)
+    }
+
     pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         Self {
             width: self.width,
@@ -259,6 +299,24 @@ pub struct VSplit {
     pub children: Vec<SplitChild<VSplitChild>>,
 }
 impl VSplit {
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.insert_tab(group_id, index, tab))
+                .collect(),
+        }
+    }
+
+    pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        self.children
+            .iter()
+            .filter_map(|child| child.get_tab(tab_id))
+            .next()
+    }
+
     pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         const MIN_SPLIT_WIDTH: f64 = 0.1;
 
@@ -406,6 +464,20 @@ pub enum VSplitChild {
     HSplit(HSplit),
 }
 impl OrientedSplitChild for VSplitChild {
+    fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        match self {
+            VSplitChild::Group(group) => Self::Group(group.insert_tab(group_id, index, tab)),
+            VSplitChild::HSplit(split) => Self::HSplit(split.insert_tab(group_id, index, tab)),
+        }
+    }
+
+    fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        match self {
+            VSplitChild::Group(group) => group.get_tab(tab_id),
+            VSplitChild::HSplit(split) => split.get_tab(tab_id),
+        }
+    }
+
     fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         match self {
             VSplitChild::Group(group) => Self::Group(group.clone()),
@@ -503,6 +575,24 @@ pub struct HSplit {
     pub children: Vec<SplitChild<HSplitChild>>,
 }
 impl HSplit {
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.insert_tab(group_id, index, tab))
+                .collect(),
+        }
+    }
+
+    pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        self.children
+            .iter()
+            .filter_map(|child| child.get_tab(tab_id))
+            .next()
+    }
+
     pub fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         Self {
             id: self.id,
@@ -650,6 +740,20 @@ pub enum HSplitChild {
     VSplit(VSplit),
 }
 impl OrientedSplitChild for HSplitChild {
+    fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        match self {
+            HSplitChild::Group(group) => Self::Group(group.insert_tab(group_id, index, tab)),
+            HSplitChild::VSplit(split) => Self::VSplit(split.insert_tab(group_id, index, tab)),
+        }
+    }
+
+    fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        match self {
+            HSplitChild::Group(group) => group.get_tab(tab_id),
+            HSplitChild::VSplit(split) => split.get_tab(tab_id),
+        }
+    }
+
     fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self {
         match self {
             HSplitChild::Group(group) => Self::Group(group.clone()),
@@ -747,6 +851,24 @@ pub struct Group {
     pub tabs: Vec<Tab>,
 }
 impl Group {
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        let mut tabs = self.tabs.clone();
+
+        if group_id == self.id {
+            if index > tabs.len() {
+                tabs.push(tab.clone());
+            } else {
+                tabs.insert(index, tab.clone())
+            }
+        }
+
+        Self { id: self.id, tabs }
+    }
+
+    pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
+        self.tabs.iter().find(|tab| tab.id == tab_id).cloned()
+    }
+
     pub fn remove_tab(&self, tab_id: TabId) -> Self {
         Self {
             id: self.id,

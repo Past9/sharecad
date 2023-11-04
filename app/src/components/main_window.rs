@@ -115,7 +115,8 @@ pub fn MainWindow(cx: Scope) -> Element {
                         cx.tab("File3");
                     });
                     cx.group(|cx| {
-                        cx.tab("File4");
+                        cx.tab("File4-1");
+                        cx.tab("File4-2");
                     });
                     cx.group(|cx| {
                         cx.tab("File5");
