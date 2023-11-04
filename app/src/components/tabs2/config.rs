@@ -1,3 +1,5 @@
+use crate::components::tabs2::SplitDirection;
+
 use super::{Command, DropTabOffer, Layout, TabId};
 
 #[derive(Clone, PartialEq, Debug)]
@@ -36,7 +38,12 @@ impl Config {
                                 DropTabOffer::Split {
                                     group_id,
                                     direction,
-                                } => todo!(),
+                                } => {
+                                    new_config.layout = new_config
+                                        .layout
+                                        .remove_tab(tab_id)
+                                        .split(*group_id, *direction, &tab);
+                                }
                             }
                         }
                     }

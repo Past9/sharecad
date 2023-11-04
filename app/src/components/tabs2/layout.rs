@@ -1,6 +1,6 @@
 use super::{
     id::{GroupId, HSplitId, TabId, VSplitId},
-    Config, DropTabOffer, GenericSplitId, Id,
+    Config, DropTabOffer, GenericSplitId, Id, SplitDirection,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -17,6 +17,38 @@ impl Layout {
             layout: self,
         }
         .clean()
+    }
+
+    pub fn split(&self, group_id: GroupId, direction: SplitDirection, tab: &Tab) -> Self {
+        let next_group_id = self.next_group_id();
+        let next_vsplit_id = self.next_vsplit_id();
+        let next_hsplit_id = self.next_hsplit_id();
+        match self {
+            Layout::Group(group) => group.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+            Layout::VSplit(split) => split.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+            Layout::HSplit(split) => split.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+        }
     }
 
     pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {
@@ -141,6 +173,38 @@ impl Layout {
         self.trim().activate_one_tab_per_group()
     }
 
+    pub fn next_vsplit_id(&self) -> VSplitId {
+        self.highest_vsplit_id().next()
+    }
+
+    pub fn highest_vsplit_id(&self) -> VSplitId {
+        self.find_highest_vsplit_id(VSplitId::zero())
+    }
+
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        match self {
+            Self::Group(group) => cur_highest,
+            Self::VSplit(split) => split.find_highest_vsplit_id(cur_highest),
+            Self::HSplit(split) => split.find_highest_vsplit_id(cur_highest),
+        }
+    }
+
+    pub fn next_hsplit_id(&self) -> HSplitId {
+        self.highest_hsplit_id().next()
+    }
+
+    pub fn highest_hsplit_id(&self) -> HSplitId {
+        self.find_highest_hsplit_id(HSplitId::zero())
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        match self {
+            Self::Group(group) => cur_highest,
+            Self::VSplit(split) => split.find_highest_hsplit_id(cur_highest),
+            Self::HSplit(split) => split.find_highest_hsplit_id(cur_highest),
+        }
+    }
+
     pub fn next_group_id(&self) -> GroupId {
         self.highest_group_id().next()
     }
@@ -204,6 +268,8 @@ where
     fn group_exists(&self, group_id: GroupId) -> bool;
     fn normalize_splits(&self) -> Self;
     fn remove_empty_groups_and_splits(&self) -> Option<Self>;
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId;
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId;
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId;
     fn find_highest_tab_id(&self, cur_highest: TabId) -> TabId;
 }
@@ -284,6 +350,14 @@ impl<T: OrientedSplitChild> SplitChild<T> {
             })
     }
 
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        self.child.find_highest_vsplit_id(cur_highest)
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        self.child.find_highest_hsplit_id(cur_highest)
+    }
+
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         self.child.find_highest_group_id(cur_highest)
     }
@@ -299,6 +373,18 @@ pub struct VSplit {
     pub children: Vec<SplitChild<VSplitChild>>,
 }
 impl VSplit {
+    pub fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
+        todo!()
+    }
+
     pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
         Self {
             id: self.id,
@@ -439,6 +525,25 @@ impl VSplit {
         }
     }
 
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        self.children
+            .iter()
+            .map(|child| child.find_highest_vsplit_id(cur_highest))
+            .max()
+            .unwrap_or(VSplitId::zero())
+            .max(self.id)
+            .max(cur_highest)
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        self.children
+            .iter()
+            .map(|child| child.find_highest_hsplit_id(cur_highest))
+            .max()
+            .unwrap_or(HSplitId::zero())
+            .max(cur_highest)
+    }
+
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         self.children
             .iter()
@@ -554,6 +659,20 @@ impl OrientedSplitChild for VSplitChild {
         }
     }
 
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        match self {
+            VSplitChild::Group(group) => cur_highest,
+            VSplitChild::HSplit(split) => split.find_highest_vsplit_id(cur_highest),
+        }
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        match self {
+            VSplitChild::Group(group) => cur_highest,
+            VSplitChild::HSplit(split) => split.find_highest_hsplit_id(cur_highest),
+        }
+    }
+
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         match self {
             VSplitChild::Group(group) => cur_highest.max(group.id),
@@ -575,6 +694,18 @@ pub struct HSplit {
     pub children: Vec<SplitChild<HSplitChild>>,
 }
 impl HSplit {
+    pub fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
+        todo!()
+    }
+
     pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
         Self {
             id: self.id,
@@ -715,6 +846,25 @@ impl HSplit {
         }
     }
 
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        self.children
+            .iter()
+            .map(|child| child.find_highest_vsplit_id(cur_highest))
+            .max()
+            .unwrap_or(VSplitId::zero())
+            .max(cur_highest)
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        self.children
+            .iter()
+            .map(|child| child.find_highest_hsplit_id(cur_highest))
+            .max()
+            .unwrap_or(HSplitId::zero())
+            .max(self.id)
+            .max(cur_highest)
+    }
+
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         self.children
             .iter()
@@ -830,6 +980,20 @@ impl OrientedSplitChild for HSplitChild {
         }
     }
 
+    fn find_highest_vsplit_id(&self, cur_highest: VSplitId) -> VSplitId {
+        match self {
+            HSplitChild::Group(group) => cur_highest,
+            HSplitChild::VSplit(split) => split.find_highest_vsplit_id(cur_highest),
+        }
+    }
+
+    fn find_highest_hsplit_id(&self, cur_highest: HSplitId) -> HSplitId {
+        match self {
+            HSplitChild::Group(group) => cur_highest,
+            HSplitChild::VSplit(split) => split.find_highest_hsplit_id(cur_highest),
+        }
+    }
+
     fn find_highest_group_id(&self, cur_highest: GroupId) -> GroupId {
         match self {
             HSplitChild::Group(group) => cur_highest.max(group.id),
@@ -851,18 +1015,60 @@ pub struct Group {
     pub tabs: Vec<Tab>,
 }
 impl Group {
-    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
-        let mut tabs = self.tabs.clone();
-
+    pub fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
         if group_id == self.id {
+            match direction {
+                SplitDirection::Left => {
+                    //
+                    VSplit {
+                        id: next_vsplit_id,
+                        children: vec![
+                            SplitChild {
+                                width: 0.5,
+                                child: VSplitChild::Group(Group {
+                                    id: next_group_id,
+                                    tabs: vec![tab.clone()],
+                                }),
+                            },
+                            SplitChild {
+                                width: 0.5,
+                                child: VSplitChild::Group(self.clone()),
+                            },
+                        ],
+                    }
+                }
+                SplitDirection::Right => todo!(),
+                SplitDirection::Up => todo!(),
+                SplitDirection::Down => todo!(),
+            }
+            .into()
+        } else {
+            self.clone().into()
+        }
+    }
+
+    pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
+        if group_id == self.id {
+            let mut tabs = self.tabs.clone();
+
             if index > tabs.len() {
                 tabs.push(tab.clone());
             } else {
                 tabs.insert(index, tab.clone())
             }
-        }
 
-        Self { id: self.id, tabs }
+            Self { id: self.id, tabs }
+        } else {
+            self.clone()
+        }
     }
 
     pub fn get_tab(&self, tab_id: TabId) -> Option<Tab> {

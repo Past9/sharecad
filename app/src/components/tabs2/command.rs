@@ -1,6 +1,6 @@
 use super::{GroupId, HSplitId, TabId, VSplitId};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum SplitDirection {
     Left,
     Right,
