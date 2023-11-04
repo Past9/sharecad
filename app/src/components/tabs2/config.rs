@@ -23,6 +23,7 @@ impl Config {
             }
             Command::DropTab => {
                 let mut new_config = self.clone();
+
                 log::debug!("drop_tab_offer {:?}", self.drop_tab_offer);
                 if let Some(tab_id) = self.dragging_tab {
                     if let Some(tab) = new_config.layout.get_tab(tab_id) {
@@ -48,6 +49,8 @@ impl Config {
                         }
                     }
                 }
+
+                new_config.drop_tab_offer = None;
                 new_config
             }
             Command::CloseTab { tab_id } => {

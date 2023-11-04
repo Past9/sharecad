@@ -257,6 +257,15 @@ pub trait OrientedSplitChild
 where
     Self: Sized,
 {
+    fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout;
     fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self;
     fn get_tab(&self, tab_id: TabId) -> Option<Tab>;
     fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self;
@@ -280,6 +289,25 @@ pub struct SplitChild<T> {
     pub child: T,
 }
 impl<T: OrientedSplitChild> SplitChild<T> {
+    pub fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
+        self.child.split(
+            group_id,
+            direction,
+            tab,
+            next_group_id,
+            next_vsplit_id,
+            next_hsplit_id,
+        )
+    }
+
     pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
         Self {
             width: self.width,
@@ -382,7 +410,41 @@ impl VSplit {
         next_vsplit_id: VSplitId,
         next_hsplit_id: HSplitId,
     ) -> Layout {
-        todo!()
+        let mut children = vec![];
+
+        for child in self.children.iter() {
+            match child.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ) {
+                Layout::VSplit(split) => {
+                    for vs_child in split.children.into_iter() {
+                        children.push(SplitChild {
+                            width: vs_child.width * child.width,
+                            child: vs_child.child,
+                        });
+                    }
+                }
+                Layout::Group(group) => children.push(SplitChild {
+                    width: child.width,
+                    child: VSplitChild::Group(group),
+                }),
+                Layout::HSplit(split) => children.push(SplitChild {
+                    width: child.width,
+                    child: VSplitChild::HSplit(split),
+                }),
+            }
+        }
+
+        Self {
+            id: self.id,
+            children,
+        }
+        .into()
     }
 
     pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
@@ -569,6 +631,35 @@ pub enum VSplitChild {
     HSplit(HSplit),
 }
 impl OrientedSplitChild for VSplitChild {
+    fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
+        match self {
+            VSplitChild::Group(group) => group.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+            VSplitChild::HSplit(split) => split.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+        }
+    }
+
     fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
         match self {
             VSplitChild::Group(group) => Self::Group(group.insert_tab(group_id, index, tab)),
@@ -703,7 +794,41 @@ impl HSplit {
         next_vsplit_id: VSplitId,
         next_hsplit_id: HSplitId,
     ) -> Layout {
-        todo!()
+        let mut children = vec![];
+
+        for child in self.children.iter() {
+            match child.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ) {
+                Layout::HSplit(split) => {
+                    for hs_child in split.children.into_iter() {
+                        children.push(SplitChild {
+                            width: hs_child.width * child.width,
+                            child: hs_child.child,
+                        });
+                    }
+                }
+                Layout::Group(group) => children.push(SplitChild {
+                    width: child.width,
+                    child: HSplitChild::Group(group),
+                }),
+                Layout::VSplit(split) => children.push(SplitChild {
+                    width: child.width,
+                    child: HSplitChild::VSplit(split),
+                }),
+            }
+        }
+
+        Self {
+            id: self.id,
+            children,
+        }
+        .into()
     }
 
     pub fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
@@ -890,6 +1015,35 @@ pub enum HSplitChild {
     VSplit(VSplit),
 }
 impl OrientedSplitChild for HSplitChild {
+    fn split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Layout {
+        match self {
+            HSplitChild::Group(group) => group.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+            HSplitChild::VSplit(split) => split.split(
+                group_id,
+                direction,
+                tab,
+                next_group_id,
+                next_vsplit_id,
+                next_hsplit_id,
+            ),
+        }
+    }
+
     fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self {
         match self {
             HSplitChild::Group(group) => Self::Group(group.insert_tab(group_id, index, tab)),
@@ -1026,30 +1180,75 @@ impl Group {
     ) -> Layout {
         if group_id == self.id {
             match direction {
-                SplitDirection::Left => {
-                    //
-                    VSplit {
-                        id: next_vsplit_id,
-                        children: vec![
-                            SplitChild {
-                                width: 0.5,
-                                child: VSplitChild::Group(Group {
-                                    id: next_group_id,
-                                    tabs: vec![tab.clone()],
-                                }),
-                            },
-                            SplitChild {
-                                width: 0.5,
-                                child: VSplitChild::Group(self.clone()),
-                            },
-                        ],
-                    }
+                SplitDirection::Left => VSplit {
+                    id: next_vsplit_id,
+                    children: vec![
+                        SplitChild {
+                            width: 0.5,
+                            child: VSplitChild::Group(Group {
+                                id: next_group_id,
+                                tabs: vec![tab.clone()],
+                            }),
+                        },
+                        SplitChild {
+                            width: 0.5,
+                            child: VSplitChild::Group(self.clone()),
+                        },
+                    ],
                 }
-                SplitDirection::Right => todo!(),
-                SplitDirection::Up => todo!(),
-                SplitDirection::Down => todo!(),
+                .into(),
+                SplitDirection::Right => VSplit {
+                    id: next_vsplit_id,
+                    children: vec![
+                        SplitChild {
+                            width: 0.5,
+                            child: VSplitChild::Group(self.clone()),
+                        },
+                        SplitChild {
+                            width: 0.5,
+                            child: VSplitChild::Group(Group {
+                                id: next_group_id,
+                                tabs: vec![tab.clone()],
+                            }),
+                        },
+                    ],
+                }
+                .into(),
+                SplitDirection::Up => HSplit {
+                    id: next_hsplit_id,
+                    children: vec![
+                        SplitChild {
+                            width: 0.5,
+                            child: HSplitChild::Group(Group {
+                                id: next_group_id,
+                                tabs: vec![tab.clone()],
+                            }),
+                        },
+                        SplitChild {
+                            width: 0.5,
+                            child: HSplitChild::Group(self.clone()),
+                        },
+                    ],
+                }
+                .into(),
+                SplitDirection::Down => HSplit {
+                    id: next_hsplit_id,
+                    children: vec![
+                        SplitChild {
+                            width: 0.5,
+                            child: HSplitChild::Group(self.clone()),
+                        },
+                        SplitChild {
+                            width: 0.5,
+                            child: HSplitChild::Group(Group {
+                                id: next_group_id,
+                                tabs: vec![tab.clone()],
+                            }),
+                        },
+                    ],
+                }
+                .into(),
             }
-            .into()
         } else {
             self.clone().into()
         }
