@@ -1,11 +1,10 @@
 use super::CommandBus;
 use crate::{
-    components::{Command, GroupId, Tab, TabId},
+    components::{Command, DraggingTab, GroupId, Tab},
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
 };
 use dioxus::{html::input_data::MouseButton, prelude::*};
-use web_sys::{DragEventInit, MouseEventInit};
 
 #[derive(Debug)]
 pub enum DragState {
@@ -26,7 +25,7 @@ pub struct HeaderComponentProps<'a> {
     index: usize,
     tab: &'a Tab,
     #[props(!optional)]
-    dragged_tab: Option<TabId>,
+    dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
 }
 
@@ -58,8 +57,14 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
 
     use_window_mousemove(
         cx,
-        (drag_state, cx.props.tab, &cx.props.bus),
-        |(drag_state, tab, bus)| {
+        (
+            drag_state,
+            &cx.props.group_id,
+            &cx.props.index,
+            cx.props.tab,
+            &cx.props.bus,
+        ),
+        |(drag_state, group_id, index, tab, bus)| {
             move |evt| {
                 if let Some(ref state) = *drag_state.current() {
                     if evt.held_buttons().contains(MouseButton::Primary) {
@@ -80,7 +85,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                         client_start_pos: client_current_pos,
                                         client_current_pos: client_current_pos,
                                     }));
-                                    bus.send_blocking(Command::drag_tab(tab.id));
+                                    bus.send_blocking(Command::drag_tab(group_id, index, tab.id));
                                 }
                             }
                             DragState::Dragging {
@@ -88,67 +93,6 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                 client_start_pos,
                                 ..
                             } => {
-                                /*
-                                {
-                                    let win = web_sys::window().unwrap();
-                                    let doc = win.document().unwrap();
-                                    let elements = doc.elements_from_point(
-                                        client_current_pos.0 as f32,
-                                        client_current_pos.1 as f32,
-                                    );
-
-                                    let mut found_overlay = false;
-                                    let mut element_under_cursor = None;
-                                    for el in elements.iter() {
-                                        let el = match web_sys::Element::try_from(el) {
-                                            Ok(el) => el,
-                                            Err(_) => {
-                                                continue;
-                                            }
-                                        };
-
-                                        let classes = el
-                                            .class_name()
-                                            .split_whitespace()
-                                            .into_iter()
-                                            .map(|c| c.to_string())
-                                            .collect::<Vec<_>>();
-
-                                        if !found_overlay {
-                                            if classes.iter().any(|c| c == "tab-drag-overlay") {
-                                                found_overlay = true;
-                                            }
-                                            continue;
-                                        }
-
-                                        if classes.iter().any(|c| c == "tab-header") {
-                                            element_under_cursor = Some(el);
-                                        }
-
-                                        break;
-                                    }
-
-                                    if let Some(element_under_cursor) = element_under_cursor {
-                                        let event =
-                                            web_sys::MouseEvent::new_with_mouse_event_init_dict(
-                                                "mouseover",
-                                                MouseEventInit::new()
-                                                    .bubbles(true)
-                                                    .cancelable(true)
-                                                    .view(Some(&win))
-                                                    .client_x(evt.client_coordinates().x as i32)
-                                                    .client_y(evt.client_coordinates().y as i32)
-                                                    .screen_x(evt.screen_coordinates().x as i32)
-                                                    .screen_y(evt.screen_coordinates().y as i32)
-                                                    .buttons(1),
-                                            )
-                                            .unwrap();
-
-                                        element_under_cursor.dispatch_event(&event).unwrap();
-                                    }
-                                }
-                                 */
-
                                 drag_state.set(Some(DragState::Dragging {
                                     element_offset: *element_offset,
                                     client_start_pos: *client_start_pos,
@@ -201,32 +145,30 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                     cx.props.tab.id
                 ));
             },
-            onmouseover: move |evt: Event<MouseData>| {
-                if cx.props.dragged_tab.is_some() {
-                        let drop_index = if evt.element_coordinates().x < size.read().width / 2.0 {
-                            cx.props.index
-                        } else {
-                            cx.props.index + 1
-                        };
-
-                        cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, drop_index));
-                }
-            },
             onmounted: move |evt| {
                 on_resize.mount(evt);
             },
-            lr_mouse_targets: cx.props.dragged_tab.is_some(),
+            lr_mouse_targets: cx.props.dragging_tab.is_some(),
             onmouseover_drop_left: |_| {
-                log::debug!("over left");
+                cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, cx.props.index));
             },
             onmouseover_drop_right: |_| {
-                log::debug!("over right");
+                let index = match cx.props.dragging_tab {
+                    Some(ref dragging_tab) => if dragging_tab.tab_id == cx.props.tab.id {
+                        cx.props.index
+                    } else {
+                        cx.props.index + 1
+                    }
+                    None => cx.props.index + 1,
+                };
+
+                cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, index));
             },
             onmouseout_drop_left: |_| {
-                log::debug!("out left");
+                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
             },
             onmouseout_drop_right: |_| {
-                log::debug!("out right");
+                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
             },
             on_request_close: move |_| {
                 cx.props.bus.send_blocking(Command::close_tab(cx.props.tab.id));
@@ -241,7 +183,6 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                             absolute_pos: pos,
                             opacity: 0.8,
                             onmousedown: |_| {},
-                            onmouseover: |_| {},
                             onmounted: |_| {},
                             lr_mouse_targets: false,
                             onmouseover_drop_left: |_| {},
@@ -266,7 +207,6 @@ fn HeaderComponentInner<'a>(
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
-    onmouseover: EventHandler<'a, Event<MouseData>>,
     onmounted: EventHandler<'a, Event<MountedData>>,
     lr_mouse_targets: bool,
     onmouseover_drop_left: EventHandler<'a, Event<MouseData>>,
@@ -290,7 +230,6 @@ fn HeaderComponentInner<'a>(
         div {
             class: "tab-header",
             onmousedown: |evt| { onmousedown.call(evt) },
-            onmouseover: |evt| { onmouseover.call(evt) },
             onmounted: |evt| { onmounted.call(evt) },
             position: position_attr,
             left: "{left_attr}px",

@@ -44,7 +44,7 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
             LayoutComponent {
                 layout: generic_layout,
                 tab_drop_offer: cx.props.config.drop_tab_offer.clone(),
-                dragged_tab: cx.props.config.dragging_tab,
+                dragging_tab: cx.props.config.dragging_tab.clone(),
                 bus: bus
             }
         }

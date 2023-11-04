@@ -1,5 +1,5 @@
 use super::CommandBus;
-use crate::components::{DropTabOffer, GenericLayout, GroupComponent, SplitComponent, TabId};
+use crate::components::{DraggingTab, DropTabOffer, GenericLayout, GroupComponent, SplitComponent};
 use dioxus::prelude::*;
 
 #[derive(PartialEq, Props)]
@@ -8,7 +8,7 @@ pub struct LayoutComponentProps<'a> {
     #[props(!optional)]
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
-    dragged_tab: Option<TabId>,
+    dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
 }
 
@@ -19,7 +19,7 @@ pub fn LayoutComponent<'a>(cx: Scope<'a, LayoutComponentProps>) -> Element<'a> {
             GroupComponent {
                 group: &group,
                 tab_drop_offer: cx.props.tab_drop_offer.clone(),
-                dragged_tab: cx.props.dragged_tab.clone(),
+                dragging_tab: cx.props.dragging_tab.clone(),
                 bus: cx.props.bus.clone()
             }
         }),
@@ -27,7 +27,7 @@ pub fn LayoutComponent<'a>(cx: Scope<'a, LayoutComponentProps>) -> Element<'a> {
             SplitComponent {
                 split: split,
                 tab_drop_offer: cx.props.tab_drop_offer.clone(),
-                dragged_tab: cx.props.dragged_tab.clone(),
+                dragging_tab: cx.props.dragging_tab.clone(),
                 bus: cx.props.bus.clone()
             }
         }),

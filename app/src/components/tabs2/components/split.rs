@@ -1,6 +1,8 @@
 use super::CommandBus;
 use crate::{
-    components::{Command, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation, TabId},
+    components::{
+        Command, DraggingTab, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation,
+    },
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
 };
@@ -42,7 +44,7 @@ pub struct SplitComponentProps<'a> {
     #[props(!optional)]
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
-    dragged_tab: Option<TabId>,
+    dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
 }
 
@@ -148,7 +150,7 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
                         LayoutComponent {
                             layout: (&child.child).into(),
                             tab_drop_offer: cx.props.tab_drop_offer.clone(),
-                            dragged_tab: cx.props.dragged_tab.clone(),
+                            dragging_tab: cx.props.dragging_tab.clone(),
                             bus: cx.props.bus.clone()
                         }
                     }

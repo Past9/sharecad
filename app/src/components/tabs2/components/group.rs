@@ -1,7 +1,9 @@
 use dioxus::prelude::*;
 
 use crate::{
-    components::{tabs2::SplitDirection, Command, DropTabOffer, Group, HeaderComponent, TabId},
+    components::{
+        tabs2::SplitDirection, Command, DraggingTab, DropTabOffer, Group, HeaderComponent,
+    },
     on_resize::{ComponentSize, OnResize},
 };
 
@@ -13,7 +15,7 @@ pub struct GroupComponentProps<'a> {
     #[props(!optional)]
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
-    dragged_tab: Option<TabId>,
+    dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
 }
 
@@ -81,7 +83,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                             group_id: cx.props.group.id,
                             index: index,
                             tab: tab,
-                            dragged_tab: cx.props.dragged_tab.clone(),
+                            dragging_tab: cx.props.dragging_tab.clone(),
                             bus: cx.props.bus.clone()
                         }
                     }
@@ -103,7 +105,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
             }
             div {
                 class: "tab-content",
-                if cx.props.dragged_tab.is_some() {
+                if cx.props.dragging_tab.is_some() {
                     rsx! {
                         div {
                             class: "body-drop-overlay",
@@ -111,6 +113,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                                 on_body_drop_resize.mount(evt);
                             },
                             onmouseout: move |evt| {
+                                log::debug!("cancel 1");
                                 cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
                             },
                             onmousemove: move |evt| {

@@ -1,19 +1,35 @@
 use crate::components::tabs2::SplitDirection;
 
-use super::{Command, DropTabOffer, Layout, TabId};
+use super::{Command, DropTabOffer, GroupId, Layout, TabId};
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct DraggingTab {
+    pub group_id: GroupId,
+    pub index: usize,
+    pub tab_id: TabId,
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Config {
-    pub dragging_tab: Option<TabId>,
+    pub dragging_tab: Option<DraggingTab>,
     pub drop_tab_offer: Option<DropTabOffer>,
     pub layout: Layout,
 }
 impl Config {
     pub fn modify(&self, command: &Command) -> Self {
+        log::debug!("command {:?}", command);
         match command {
-            Command::DragTab { tab_id } => {
+            Command::DragTab {
+                group_id,
+                index,
+                tab_id,
+            } => {
                 let mut new_config = self.clone();
-                new_config.dragging_tab = Some(*tab_id);
+                new_config.dragging_tab = Some(DraggingTab {
+                    group_id: *group_id,
+                    index: *index,
+                    tab_id: *tab_id,
+                });
                 new_config
             }
             Command::OfferDropTab(offer) => {
@@ -29,17 +45,16 @@ impl Config {
             Command::DropTab => {
                 let mut new_config = self.clone();
 
-                log::debug!("drop_tab_offer {:?}", self.drop_tab_offer);
-                if let Some(tab_id) = self.dragging_tab {
-                    if let Some(tab) = new_config.layout.get_tab(tab_id) {
+                if let Some(ref dragging_tab) = self.dragging_tab {
+                    if let Some(tab) = new_config.layout.get_tab(dragging_tab.tab_id) {
                         if let Some(ref offer) = self.drop_tab_offer {
                             match offer {
                                 DropTabOffer::InGroup { group_id, index } => {
                                     new_config.layout = new_config
                                         .layout
-                                        .remove_tab(tab_id)
+                                        .remove_tab(dragging_tab.tab_id)
                                         .insert_tab(*group_id, *index, &tab)
-                                        .set_active_tab_in_group(*group_id, tab_id);
+                                        .set_active_tab_in_group(*group_id, dragging_tab.tab_id);
                                 }
                                 DropTabOffer::Split {
                                     group_id,
@@ -47,7 +62,7 @@ impl Config {
                                 } => {
                                     new_config.layout = new_config
                                         .layout
-                                        .remove_tab(tab_id)
+                                        .remove_tab(dragging_tab.tab_id)
                                         .split(*group_id, *direction, &tab);
                                 }
                             }
@@ -108,8 +123,8 @@ impl Config {
 
         layout = layout.clean();
 
-        if let Some(tab_id) = dragging_tab {
-            if !layout.tab_exists(tab_id) {
+        if let Some(ref d_tab) = dragging_tab {
+            if !layout.tab_exists(d_tab.tab_id) {
                 dragging_tab = None;
             }
         }

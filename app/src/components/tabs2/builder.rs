@@ -1,7 +1,7 @@
 use super::{
-    id::{GroupId, HSplitId, IdSource, TabId, VSplitId},
+    id::{GroupId, HSplitId, IdSource, VSplitId},
     layout::{Group, HSplit, HSplitChild, Layout, Tab, VSplit, VSplitChild},
-    SplitChild,
+    SplitChild, TabId,
 };
 
 fn make_default_splits(len: usize) -> Vec<f64> {
