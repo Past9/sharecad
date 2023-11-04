@@ -50,10 +50,24 @@ impl Config {
                         if let Some(ref offer) = self.drop_tab_offer {
                             match offer {
                                 DropTabOffer::InGroup { group_id, index } => {
+                                    let index = if *group_id == dragging_tab.group_id
+                                        && *index > dragging_tab.index
+                                    {
+                                        // We're going remove the tab from its current group before
+                                        // inserting it into the new group. If we're dropping it into
+                                        // the same group we're removing it from (just moving it within
+                                        // the group), this will reduce the indices after it by 1. If
+                                        // we're moving the tab to "later" in the group, we need to
+                                        // reduce the drop index by 1 as well to compensate for this.
+                                        index - 1
+                                    } else {
+                                        *index
+                                    };
+
                                     new_config.layout = new_config
                                         .layout
                                         .remove_tab(dragging_tab.tab_id)
-                                        .insert_tab(*group_id, *index, &tab)
+                                        .insert_tab(*group_id, index, &tab)
                                         .set_active_tab_in_group(*group_id, dragging_tab.tab_id);
                                 }
                                 DropTabOffer::Split {
