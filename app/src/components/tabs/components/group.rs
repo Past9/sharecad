@@ -1,9 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::{
-    components::{
-        tabs2::SplitDirection, Command, DraggingTab, DropTabOffer, Group, HeaderComponent,
-    },
+    components::{Command, DraggingTab, DropTabOffer, Group, HeaderComponent, SplitDirection},
     on_resize::{ComponentSize, OnResize},
 };
 

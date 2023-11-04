@@ -1,4 +1,4 @@
-use crate::components::tabs2::SplitDirection;
+use crate::components::tabs::SplitDirection;
 
 use super::{Command, DropTabOffer, GroupId, Layout, TabId};
 

@@ -1,7 +1,6 @@
 use super::{menu, tabs};
 use crate::components::{LayoutBuilder, MenuBar, Tabs};
 use dioxus::prelude::*;
-use tabs::TabArea;
 
 #[allow(non_snake_case)]
 pub fn MainWindow(cx: Scope) -> Element {
@@ -66,47 +65,12 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
-    /*
-    let tab_config = use_state(cx, || {
-        tabs::config(tabs::vsplit(
-            1,
-            0.327,
-            tabs::group(
-                1,
-                [
-                    tabs::tab(1, "Some file", false),
-                    tabs::tab(2, "Some file with a very long path.fileextension", true),
-                ],
-            ),
-            tabs::vsplit(
-                2,
-                0.723,
-                tabs::hsplit(
-                    3,
-                    0.4,
-                    tabs::group(2, [tabs::tab(3, "A file", true)]),
-                    tabs::group(3, [tabs::tab(4, "A file", false)]),
-                ),
-                tabs::group(
-                    4,
-                    [
-                        tabs::tab(5, "A file", false),
-                        tabs::tab(6, "Another file", true),
-                    ],
-                ),
-            ),
-        ))
-    });
-    */
-
     let tab_config = use_state(cx, || {
         LayoutBuilder::new()
             .vsplit(|cx| {
                 cx.group(|cx| {
                     cx.tab("File1");
-                    //cx.tab("Some file with a very long path.fileextension");
                 });
-                //cx.hsplit(|cx| {
                 cx.group(|cx| {
                     cx.tab("File2");
                 });
@@ -125,20 +89,15 @@ pub fn MainWindow(cx: Scope) -> Element {
                         cx.tab("File6");
                     });
                 });
-                //});
                 cx.group(|cx| {
                     cx.tab("File7");
-                    //cx.tab("Another file");
                 });
                 cx.group(|cx| {
                     cx.tab("File8");
-                    //cx.tab("A file 5");
                 });
             })
             .as_new_config()
     });
-
-    //log::debug!("layout {:#?}", tab_config.layout);
 
     cx.render(rsx! {
         section {
