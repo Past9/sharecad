@@ -211,6 +211,9 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                     }
                 }
             },
+            onmouseout: move |evt| {
+                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
+            },
             onmounted: move |evt| {
                 on_resize.mount(evt);
             },
@@ -228,6 +231,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                             opacity: 0.8,
                             onmousedown: |_| {},
                             ondragover: |_| {},
+                            onmouseout: |_| {},
                             onmounted: |_| {},
                             on_request_close: |_| {}
                         }
@@ -248,6 +252,7 @@ fn HeaderComponentInner<'a>(
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
     ondragover: EventHandler<'a, Event<DragData>>,
+    onmouseout: EventHandler<'a, Event<MouseData>>,
     onmounted: EventHandler<'a, Event<MountedData>>,
     on_request_close: EventHandler<'a, ()>,
     children: Element<'a>,
@@ -267,6 +272,7 @@ fn HeaderComponentInner<'a>(
             class: "tab-header {active_in_group_class}",
             onmousedown: |evt| { onmousedown.call(evt) },
             ondragover: |evt| { ondragover.call(evt) },
+            onmouseout: |evt| { onmouseout.call(evt) },
             onmounted: |evt| { onmounted.call(evt) },
             position: position_attr,
             left: "{left_attr}px",

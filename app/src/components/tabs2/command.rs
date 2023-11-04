@@ -34,6 +34,7 @@ pub enum Command {
         tab_id: TabId,
     },
     OfferDropTab(DropTabOffer),
+    CancelOfferDropTab,
     DropTab,
     CloseTab {
         tab_id: TabId,
@@ -88,6 +89,10 @@ impl Command {
 
     pub fn offer_drop_tab_in_group(group_id: GroupId, index: usize) -> Self {
         Self::OfferDropTab(DropTabOffer::InGroup { group_id, index })
+    }
+
+    pub fn cancel_offer_drop_tab() -> Self {
+        Self::CancelOfferDropTab
     }
 
     pub fn offer_drop_tab(offer: DropTabOffer) -> Self {

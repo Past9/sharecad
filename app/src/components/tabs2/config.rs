@@ -21,6 +21,11 @@ impl Config {
                 new_config.drop_tab_offer = Some(offer.clone());
                 new_config
             }
+            Command::CancelOfferDropTab => {
+                let mut new_config = self.clone();
+                new_config.drop_tab_offer = None;
+                new_config
+            }
             Command::DropTab => {
                 let mut new_config = self.clone();
 
@@ -50,6 +55,7 @@ impl Config {
                     }
                 }
 
+                new_config.dragging_tab = None;
                 new_config.drop_tab_offer = None;
                 new_config
             }

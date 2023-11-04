@@ -110,6 +110,10 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                             onmounted: move |evt| {
                                 on_body_drop_resize.mount(evt);
                             },
+                            onmouseout: move |evt| {
+                                //
+                                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
+                            },
                             onmousemove: move |evt| {
                                 let (x, y) = evt.element_coordinates().to_tuple();
                                 let body_drop_size = body_drop_size.read();
