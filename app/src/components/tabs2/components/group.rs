@@ -111,7 +111,6 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                                 on_body_drop_resize.mount(evt);
                             },
                             onmouseout: move |evt| {
-                                //
                                 cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
                             },
                             onmousemove: move |evt| {
