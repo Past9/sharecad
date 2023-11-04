@@ -295,40 +295,43 @@ fn HeaderComponentInner<'a>(
             top: "{top_attr}px",
             opacity: "{opacity}",
 
-
             div {
-                class: "inner {active_in_group_class}",
-            if true {
-            //if *lr_mouse_targets {
-                rsx! {
+                class: "inner",
+
+                if *lr_mouse_targets {
+                    rsx! {
+                        div {
+                            class: "mouse-target left"
+                        }
+                        div {
+                            class: "mouse-target right"
+                        }
+                    }
+                }
+
+                div {
+                    class: "padding {active_in_group_class}",
                     div {
-                        class: "mouse-target left"
+                        class: "tab-icon",
+                        "Ϣ"
                     }
                     div {
-                        class: "mouse-target right"
+                        class: "tab-title",
+                        "{title}"
                     }
+                    div {
+                        class: "tab-close",
+                        onclick: move |evt| {
+                            on_request_close.call(());
+                            evt.stop_propagation();
+                        },
+                        onmousedown: move |evt| {
+                            evt.stop_propagation();
+                        },
+                        "✕"
+                    }
+                    children
                 }
-            }
-                div {
-                    class: "tab-icon",
-                    "Ϣ"
-                }
-                div {
-                    class: "tab-title",
-                    "{title}"
-                }
-                div {
-                    class: "tab-close",
-                    onclick: move |evt| {
-                        on_request_close.call(());
-                        evt.stop_propagation();
-                    },
-                    onmousedown: move |evt| {
-                        evt.stop_propagation();
-                    },
-                    "✕"
-                }
-                children
             }
         }
     });
