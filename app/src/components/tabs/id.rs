@@ -1,16 +1,28 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, hash::Hash, rc::Rc};
+
+use dioxus::core::AttributeValue;
 
 use super::SplitOrientation;
 
-pub trait Id: Clone + Copy + PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug {
+pub trait Id: Clone + Copy + PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug + Hash {
     fn zero() -> Self;
     fn next(&self) -> Self;
+    fn as_attr_val(&self) -> AttributeValue;
 }
 
 macro_rules! id_type {
     ($type_name:ident) => {
-        #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $type_name(u32);
+        impl $type_name {
+            pub fn new(id: u32) -> Self {
+                Self(id)
+            }
+
+            pub fn num(&self) -> u32 {
+                self.0
+            }
+        }
         impl Id for $type_name {
             fn zero() -> Self {
                 Self(0)
@@ -18,6 +30,10 @@ macro_rules! id_type {
 
             fn next(&self) -> Self {
                 Self(self.0 + 1)
+            }
+
+            fn as_attr_val(&self) -> AttributeValue {
+                AttributeValue::Int(self.0 as i64)
             }
         }
     };

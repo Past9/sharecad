@@ -1,13 +1,14 @@
-use dioxus::prelude::*;
+use dioxus::{core::DynamicNode, prelude::*};
 
-use crate::components::{Command, Config, LayoutComponent};
+use crate::components::{Command, Config, LayoutComponent, TabId};
 
-use super::CommandBus;
+use super::{CommandBus, TabContent, TabContentProps};
 
 #[derive(Props)]
 pub struct TabsProps<'a> {
     config: &'a Config,
     on_config_changed: EventHandler<'a, Config>,
+    contents: Vec<TabContentProps<'a>>,
 }
 
 #[allow(non_snake_case)]
@@ -38,14 +39,37 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
 
     let generic_layout = use_memo(cx, &cx.props.config.layout, |layout| layout.clone().into());
 
+    /*
+    for child in cx.props.children.iter() {
+        log::debug!("child {:#?}", child);
+        for node in child.dynamic_nodes.iter() {
+            if let DynamicNode::Component(comp) = node {
+                //
+            }
+            log::debug!("node {:#?}", node);
+        }
+        for attr in child.dynamic_attrs.iter() {
+            log::debug!("attr {} = {:?}", attr.name, attr.value);
+        }
+    }
+
+    let tab_children = use_memo(cx, (&cx.props.children), |(children)| {
+        children
+            .iter()
+            .filter(|child| child.dynamic_attrs.iter().any(|attr| attr.name == "tab_id"))
+            .collect::<Vec<_>>()
+    });
+     */
+
     cx.render(rsx! {
+        &cx.props.contents[0].children
         div {
             class: "tab-area",
             LayoutComponent {
                 layout: generic_layout,
                 tab_drop_offer: cx.props.config.drop_tab_offer.clone(),
                 dragging_tab: cx.props.config.dragging_tab.clone(),
-                bus: bus
+                bus: bus,
             }
         }
     })

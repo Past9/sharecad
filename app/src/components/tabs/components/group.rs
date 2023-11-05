@@ -1,13 +1,13 @@
 use dioxus::prelude::*;
 
 use crate::{
-    components::{Command, DraggingTab, DropTabOffer, Group, HeaderComponent, SplitDirection},
+    components::{Command, DraggingTab, DropTabOffer, Group, HeaderComponent, Id, SplitDirection},
     on_resize::{ComponentSize, OnResize},
 };
 
 use super::CommandBus;
 
-#[derive(PartialEq, Props)]
+#[derive(Props)]
 pub struct GroupComponentProps<'a> {
     group: &'a Group,
     #[props(!optional)]
@@ -189,7 +189,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                     rsx! {
                         div {
                             class: "active-content",
-                            "ACTIVE: {tab.title}"
+                            "Tab content"
                         }
                     }
                 } else {

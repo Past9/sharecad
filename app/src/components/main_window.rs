@@ -1,5 +1,7 @@
-use super::{menu, tabs};
-use crate::components::{LayoutBuilder, MenuBar, Tabs};
+use std::collections::HashMap;
+
+use super::{menu, TabContentProps, TabId};
+use crate::components::{LayoutBuilder, MenuBar, TabContent, Tabs};
 use dioxus::prelude::*;
 
 #[allow(non_snake_case)]
@@ -65,6 +67,7 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
+    /*
     let tab_config = use_state(cx, || {
         LayoutBuilder::new()
             .vsplit(|cx| {
@@ -98,6 +101,34 @@ pub fn MainWindow(cx: Scope) -> Element {
             })
             .as_new_config()
     });
+    */
+
+    let tab_config = use_state(cx, || {
+        LayoutBuilder::new()
+            .vsplit(|cx| {
+                cx.group(|cx| {
+                    cx.tab("File1");
+                    cx.tab("File2");
+                });
+                cx.group(|cx| {
+                    cx.tab("File3");
+                });
+            })
+            .as_new_config()
+    });
+
+    let get_content = Box::new(move |tab_id: TabId| {
+        cx.render(rsx! {
+            div {
+                "some tab {tab_id.num()}"
+            }
+        })
+    });
+
+    let x = rsx! {
+        div { "FOO" }
+    }
+    .call(cx.scope);
 
     cx.render(rsx! {
         section {
@@ -116,7 +147,17 @@ pub fn MainWindow(cx: Scope) -> Element {
                     config: tab_config,
                     on_config_changed: |config| {
                         tab_config.set(config);
-                    }
+                    },
+                    contents: vec![
+                        TabContentProps {
+                            tab_id: TabId::new(1),
+                            children: Some(rsx! {
+                                div {
+                                    "TAB 1"
+                                }
+                            }.call(cx.scope))
+                        }
+                    ]
                 }
             }
 

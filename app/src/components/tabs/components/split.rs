@@ -38,7 +38,7 @@ impl DragState {
     }
 }
 
-#[derive(PartialEq, Props)]
+#[derive(Props)]
 pub struct SplitComponentProps<'a> {
     split: &'a GenericSplit,
     #[props(!optional)]
@@ -49,7 +49,7 @@ pub struct SplitComponentProps<'a> {
 }
 
 #[allow(non_snake_case)]
-pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
+pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps<'a>>) -> Element<'a> {
     let size = use_ref(cx, ComponentSize::default);
     let drag = use_state(cx, || -> Option<DragState> { None });
 
@@ -151,7 +151,7 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps>) -> Element<'a> {
                             layout: (&child.child).into(),
                             tab_drop_offer: cx.props.tab_drop_offer.clone(),
                             dragging_tab: cx.props.dragging_tab.clone(),
-                            bus: cx.props.bus.clone()
+                            bus: cx.props.bus.clone(),
                         }
                     }
                 }

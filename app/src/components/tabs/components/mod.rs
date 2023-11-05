@@ -1,3 +1,4 @@
+mod content;
 mod group;
 mod header;
 mod layout;
@@ -8,6 +9,7 @@ use super::Command;
 use async_channel::Sender;
 use futures::executor::block_on;
 
+pub use content::*;
 pub use group::*;
 pub use header::*;
 pub use layout::*;
