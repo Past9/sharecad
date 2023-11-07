@@ -1,5 +1,10 @@
-use super::{CommandBus, TabContentProps};
-use crate::components::{DraggingTab, DropTabOffer, GenericLayout, GroupComponent, SplitComponent};
+use super::TabContentProps;
+use crate::{
+    command::CommandBus,
+    components::{
+        DraggingTab, DropTabOffer, GenericLayout, GroupComponent, SplitComponent, TabsCommand,
+    },
+};
 use dioxus::prelude::*;
 
 #[derive(Props)]
@@ -9,7 +14,7 @@ pub struct LayoutComponentProps<'a> {
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
-    bus: CommandBus,
+    bus: CommandBus<TabsCommand>,
     render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 

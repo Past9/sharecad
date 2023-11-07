@@ -1,8 +1,6 @@
-use std::{cell::RefCell, hash::Hash, rc::Rc};
-
-use dioxus::core::AttributeValue;
-
 use super::SplitOrientation;
+use dioxus::core::AttributeValue;
+use std::{cell::RefCell, hash::Hash, rc::Rc};
 
 pub trait Id: Clone + Copy + PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug + Hash {
     fn zero() -> Self;

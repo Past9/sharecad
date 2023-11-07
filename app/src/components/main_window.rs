@@ -1,11 +1,56 @@
 use std::collections::HashMap;
 
-use super::{menu, TabContentProps, TabId};
-use crate::components::{LayoutBuilder, MenuBar, TabContent, Tabs};
+use super::{menu, TabId, WorkspaceView, WorkspaceViews};
+use crate::{
+    command::CommandBus,
+    components::{LayoutBuilder, MenuBar, Tabs, WorkspaceTabContent},
+};
 use dioxus::prelude::*;
+
+pub enum GlobalCommand {
+    NewPart,
+    NewAssembly,
+}
+
+pub struct AppState {
+    //
+}
+impl AppState {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn modify(&mut self, command: &GlobalCommand) {
+        todo!()
+    }
+}
 
 #[allow(non_snake_case)]
 pub fn MainWindow(cx: Scope) -> Element {
+    /*
+    let (sender, receiver) = cx.use_hook(|| async_channel::unbounded::<GlobalCommand>());
+    let bus = CommandBus::new(sender.clone());
+
+    let next_command = use_state::<Option<GlobalCommand>>(cx, || None);
+
+    let _cr = {
+        to_owned![next_command, receiver];
+        use_coroutine(cx, |_rx: UnboundedReceiver<()>| async move {
+            loop {
+                if let Ok(command) = receiver.recv().await {
+                    next_command.set(Some(command));
+                }
+            }
+        })
+    };
+
+    if let Some(command) = &**next_command {
+        next_command.set(None);
+
+        let new_config = cx.props.state.modify(command);
+    }
+     */
+
     let menu_items = [
         menu::item(
             "File",
@@ -67,68 +112,18 @@ pub fn MainWindow(cx: Scope) -> Element {
     ]
     .to_vec();
 
-    /*
     let tab_config = use_state(cx, || {
         LayoutBuilder::new()
-            .vsplit(|cx| {
-                cx.group(|cx| {
-                    cx.tab("File1");
-                });
-                cx.group(|cx| {
-                    cx.tab("File2");
-                });
-                cx.hsplit(|cx| {
-                    cx.group(|cx| {
-                        cx.tab("File3");
-                    });
-                    cx.group(|cx| {
-                        cx.tab("File4-1");
-                        cx.tab("File4-2");
-                    });
-                    cx.group(|cx| {
-                        cx.tab("File5");
-                    });
-                    cx.group(|cx| {
-                        cx.tab("File6");
-                    });
-                });
-                cx.group(|cx| {
-                    cx.tab("File7");
-                });
-                cx.group(|cx| {
-                    cx.tab("File8");
-                });
-            })
-            .as_new_config()
-    });
-    */
-
-    let tab_config = use_state(cx, || {
-        LayoutBuilder::new()
-            .vsplit(|cx| {
-                cx.group(|cx| {
-                    cx.tab("File1");
-                    cx.tab("File2");
-                });
-                cx.group(|cx| {
-                    cx.tab("File3");
-                });
+            .group(|cx| {
+                cx.tab("Welcome");
+                cx.tab("Something");
             })
             .as_new_config()
     });
 
-    let get_content = Box::new(move |tab_id: TabId| {
-        cx.render(rsx! {
-            div {
-                "some tab {tab_id.num()}"
-            }
-        })
+    use_shared_state_provider(cx, || WorkspaceViews {
+        views: HashMap::from([(TabId::new(1), WorkspaceView::Welcome)]),
     });
-
-    let x = rsx! {
-        div { "FOO" }
-    };
-    //.call(cx.scope);
 
     cx.render(rsx! {
         section {
@@ -148,7 +143,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                     on_config_changed: |config| {
                         tab_config.set(config);
                     },
-                    render_content: TabContent
+                    render_content: WorkspaceTabContent
                 }
             }
 
@@ -159,15 +154,4 @@ pub fn MainWindow(cx: Scope) -> Element {
 
 
     })
-}
-
-trait TabRenderer {
-    fn render<'a>() -> Element<'a>;
-}
-
-struct TabStore {}
-impl TabRenderer for TabStore {
-    fn render<'a>() -> Element<'a> {
-        todo!()
-    }
 }

@@ -1,11 +1,12 @@
 use dioxus::prelude::*;
 
 use crate::{
-    components::{Command, DraggingTab, DropTabOffer, Group, HeaderComponent, Id, SplitDirection},
+    command::CommandBus,
+    components::{DraggingTab, DropTabOffer, Group, HeaderComponent, SplitDirection, TabsCommand},
     on_resize::{ComponentSize, OnResize},
 };
 
-use super::{CommandBus, TabContentProps};
+use super::TabContentProps;
 
 #[derive(Props)]
 pub struct GroupComponentProps<'a> {
@@ -14,7 +15,7 @@ pub struct GroupComponentProps<'a> {
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
-    bus: CommandBus,
+    bus: CommandBus<TabsCommand>,
     render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 
@@ -111,9 +112,8 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                             onmounted: move |evt| {
                                 on_body_drop_resize.mount(evt);
                             },
-                            onmouseout: move |evt| {
-                                log::debug!("cancel 1");
-                                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
+                            onmouseout: move |_| {
+                                cx.props.bus.send_blocking(TabsCommand::cancel_offer_drop_tab());
                             },
                             onmousemove: move |evt| {
                                 let (x, y) = evt.element_coordinates().to_tuple();
@@ -174,7 +174,7 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                                     }
                                 };
 
-                                cx.props.bus.send_blocking(Command::offer_drop_tab(offer));
+                                cx.props.bus.send_blocking(TabsCommand::offer_drop_tab(offer));
                             },
                             if let Some(body_drop_target_class) = body_drop_target_class {
                                 rsx! {

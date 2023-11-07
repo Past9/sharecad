@@ -1,6 +1,4 @@
-use crate::components::tabs::SplitDirection;
-
-use super::{Command, DropTabOffer, GroupId, Layout, TabId};
+use super::{DropTabOffer, GroupId, Layout, TabId, TabsCommand};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct DraggingTab {
@@ -16,10 +14,10 @@ pub struct Config {
     pub layout: Layout,
 }
 impl Config {
-    pub fn modify(&self, command: &Command) -> Self {
+    pub fn modify(&self, command: &TabsCommand) -> Self {
         log::debug!("command {:?}", command);
         match command {
-            Command::DragTab {
+            TabsCommand::DragTab {
                 group_id,
                 index,
                 tab_id,
@@ -32,17 +30,17 @@ impl Config {
                 });
                 new_config
             }
-            Command::OfferDropTab(offer) => {
+            TabsCommand::OfferDropTab(offer) => {
                 let mut new_config = self.clone();
                 new_config.drop_tab_offer = Some(offer.clone());
                 new_config
             }
-            Command::CancelOfferDropTab => {
+            TabsCommand::CancelOfferDropTab => {
                 let mut new_config = self.clone();
                 new_config.drop_tab_offer = None;
                 new_config
             }
-            Command::DropTab => {
+            TabsCommand::DropTab => {
                 let mut new_config = self.clone();
 
                 if let Some(ref dragging_tab) = self.dragging_tab {
@@ -88,12 +86,12 @@ impl Config {
                 new_config.drop_tab_offer = None;
                 new_config
             }
-            Command::CloseTab { tab_id } => {
+            TabsCommand::CloseTab { tab_id } => {
                 let mut new_config = self.clone();
                 new_config.layout = new_config.layout.remove_tab(*tab_id);
                 new_config
             }
-            Command::AdjustVSplit {
+            TabsCommand::AdjustVSplit {
                 vsplit_id,
                 index,
                 new_location,
@@ -105,7 +103,7 @@ impl Config {
                         .adjust_vsplit(*vsplit_id, *index, *new_location);
                 new_config
             }
-            Command::AdjustHSplit {
+            TabsCommand::AdjustHSplit {
                 hsplit_id,
                 index,
                 new_location,
@@ -117,7 +115,7 @@ impl Config {
                         .adjust_hsplit(*hsplit_id, *index, *new_location);
                 new_config
             }
-            Command::SetActiveTabInGroup { group_id, tab_id } => {
+            TabsCommand::SetActiveTabInGroup { group_id, tab_id } => {
                 let mut new_config = self.clone();
                 new_config.layout = new_config
                     .layout

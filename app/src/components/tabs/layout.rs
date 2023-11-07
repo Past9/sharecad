@@ -1,6 +1,6 @@
 use super::{
     id::{GroupId, HSplitId, TabId, VSplitId},
-    Config, DropTabOffer, GenericSplitId, Id, SplitDirection,
+    Config, GenericSplitId, Id, SplitDirection,
 };
 
 #[derive(Clone, Debug, PartialEq)]

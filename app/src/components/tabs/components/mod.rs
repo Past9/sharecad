@@ -5,7 +5,7 @@ mod layout;
 mod split;
 mod tabs;
 
-use super::Command;
+use super::TabsCommand;
 use async_channel::Sender;
 use futures::executor::block_on;
 
@@ -16,25 +16,28 @@ pub use layout::*;
 pub use split::*;
 pub use tabs::*;
 
+/*
 #[derive(Clone)]
-pub struct CommandBus {
-    sender: Sender<Command>,
+pub struct TabsCommandBus {
+    sender: Sender<TabsCommand>,
 }
-impl CommandBus {
-    fn new(sender: Sender<Command>) -> Self {
+impl TabsCommandBus {
+    fn new(sender: Sender<TabsCommand>) -> Self {
         Self { sender }
     }
 
-    async fn send(&self, command: Command) {
+    async fn send(&self, command: TabsCommand) {
         self.sender.send(command).await.unwrap();
     }
 
-    fn send_blocking(&self, command: Command) {
+    fn send_blocking(&self, command: TabsCommand) {
         block_on(self.send(command))
     }
 }
-impl PartialEq for CommandBus {
+impl PartialEq for TabsCommandBus {
     fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
+
+ */

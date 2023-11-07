@@ -1,7 +1,8 @@
-use super::{CommandBus, TabContentProps};
+use super::TabContentProps;
 use crate::{
+    command::CommandBus,
     components::{
-        Command, DraggingTab, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation,
+        DraggingTab, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation, TabsCommand,
     },
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
@@ -45,7 +46,7 @@ pub struct SplitComponentProps<'a> {
     tab_drop_offer: Option<DropTabOffer>,
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
-    bus: CommandBus,
+    bus: CommandBus<TabsCommand>,
     render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 
@@ -93,12 +94,12 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps<'a>>) -> Element<'a>
                         drag.set(Some(new_drag_pos));
 
                         let command = match split.orientation {
-                            SplitOrientation::Vertical => Command::adjust_vsplit(
+                            SplitOrientation::Vertical => TabsCommand::adjust_vsplit(
                                 split.id.as_vsplit_id(),
                                 pos.splitter_index,
                                 new_location,
                             ),
-                            SplitOrientation::Horizontal => Command::adjust_hsplit(
+                            SplitOrientation::Horizontal => TabsCommand::adjust_hsplit(
                                 split.id.as_hsplit_id(),
                                 pos.splitter_index,
                                 new_location,

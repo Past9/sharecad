@@ -1,4 +1,4 @@
-use super::{DraggingTab, GroupId, HSplitId, TabId, VSplitId};
+use super::{GroupId, HSplitId, TabId, VSplitId};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum SplitDirection {
@@ -29,7 +29,7 @@ impl DropTabOffer {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Command {
+pub enum TabsCommand {
     DragTab {
         group_id: GroupId,
         index: usize,
@@ -56,7 +56,7 @@ pub enum Command {
         tab_id: TabId,
     },
 }
-impl Command {
+impl TabsCommand {
     pub fn drag_tab(group_id: GroupId, index: usize, tab_id: TabId) -> Self {
         Self::DragTab {
             group_id,

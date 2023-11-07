@@ -1,6 +1,6 @@
-use super::CommandBus;
 use crate::{
-    components::{Command, DraggingTab, GroupId, Tab},
+    command::CommandBus,
+    components::{DraggingTab, GroupId, Tab, TabsCommand},
     on_resize::{ComponentSize, OnResize},
     window_events::{use_window_mousemove, use_window_mouseup},
 };
@@ -26,7 +26,7 @@ pub struct HeaderComponentProps<'a> {
     tab: &'a Tab,
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
-    bus: CommandBus,
+    bus: CommandBus<TabsCommand>,
 }
 
 #[allow(non_snake_case)]
@@ -51,7 +51,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
     use_window_mouseup(cx, (drag_state, &cx.props.bus), |(drag_state, bus)| {
         move |_| {
             drag_state.set(None);
-            bus.send_blocking(Command::drop_tab());
+            bus.send_blocking(TabsCommand::drop_tab());
         }
     });
 
@@ -85,7 +85,9 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                                         client_start_pos: client_current_pos,
                                         client_current_pos: client_current_pos,
                                     }));
-                                    bus.send_blocking(Command::drag_tab(group_id, index, tab.id));
+                                    bus.send_blocking(TabsCommand::drag_tab(
+                                        group_id, index, tab.id,
+                                    ));
                                 }
                             }
                             DragState::Dragging {
@@ -102,7 +104,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                         }
                     } else {
                         drag_state.set(None);
-                        bus.send_blocking(Command::drop_tab());
+                        bus.send_blocking(TabsCommand::drop_tab());
                     }
                 }
             }
@@ -140,7 +142,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                     element_offset: element_coords,
                     client_start_pos: client_coords
                 }));
-                cx.props.bus.send_blocking(Command::set_active_tab_in_group(
+                cx.props.bus.send_blocking(TabsCommand::set_active_tab_in_group(
                     cx.props.group_id,
                     cx.props.tab.id
                 ));
@@ -150,7 +152,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
             },
             lr_mouse_targets: cx.props.dragging_tab.is_some(),
             onmouseover_drop_left: |_| {
-                cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, cx.props.index));
+                cx.props.bus.send_blocking(TabsCommand::offer_drop_tab_in_group(cx.props.group_id, cx.props.index));
             },
             onmouseover_drop_right: |_| {
                 let index = match cx.props.dragging_tab {
@@ -162,16 +164,16 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                     None => cx.props.index + 1,
                 };
 
-                cx.props.bus.send_blocking(Command::offer_drop_tab_in_group(cx.props.group_id, index));
+                cx.props.bus.send_blocking(TabsCommand::offer_drop_tab_in_group(cx.props.group_id, index));
             },
             onmouseout_drop_left: |_| {
-                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
+                cx.props.bus.send_blocking(TabsCommand::cancel_offer_drop_tab());
             },
             onmouseout_drop_right: |_| {
-                cx.props.bus.send_blocking(Command::cancel_offer_drop_tab());
+                cx.props.bus.send_blocking(TabsCommand::cancel_offer_drop_tab());
             },
             on_request_close: move |_| {
-                cx.props.bus.send_blocking(Command::close_tab(cx.props.tab.id));
+                cx.props.bus.send_blocking(TabsCommand::close_tab(cx.props.tab.id));
             },
             if is_dragging {
                 rsx! {
