@@ -1,14 +1,30 @@
 use dioxus::{core::DynamicNode, prelude::*};
 
-use crate::components::{Command, Config, LayoutComponent, TabId};
+use crate::components::{Command, Config, LayoutComponent, Tab, TabId};
 
-use super::{CommandBus, TabContent, TabContentProps};
+use super::CommandBus;
+
+#[derive(Props, PartialEq)]
+pub struct TabContentProps {
+    tab_id: TabId,
+}
+
+#[allow(non_snake_case)]
+pub fn TabContent<'a>(cx: Scope<'a, TabContentProps>) -> Element {
+    cx.render(rsx! {
+        div {
+            "TAB CONTENT {cx.props.tab_id.num()}"
+        }
+    })
+}
+
+//trait Component: FnMut(Scope<TabContentProps>) -> Element {} // + Sized {}
 
 #[derive(Props)]
 pub struct TabsProps<'a> {
     config: &'a Config,
     on_config_changed: EventHandler<'a, Config>,
-    contents: Vec<TabContentProps<'a>>,
+    render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 
 #[allow(non_snake_case)]
@@ -61,8 +77,25 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
     });
      */
 
+    //(cx.props.render_content)(TabId::new(10));
+
+    /*
+    cx.scope.component(
+        cx.props.render_content,
+        TabContentProps {
+            tab_id: TabId::new(1),
+        },
+        "ActiveTab",
+    );
+     */
+
+    let ActiveTab = cx.props.render_content;
+
     cx.render(rsx! {
-        &cx.props.contents[0].children
+        //&cx.props.children
+        ActiveTab {
+            tab_id: TabId::new(12)
+        }
         div {
             class: "tab-area",
             LayoutComponent {

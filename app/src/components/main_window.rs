@@ -127,8 +127,8 @@ pub fn MainWindow(cx: Scope) -> Element {
 
     let x = rsx! {
         div { "FOO" }
-    }
-    .call(cx.scope);
+    };
+    //.call(cx.scope);
 
     cx.render(rsx! {
         section {
@@ -148,16 +148,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                     on_config_changed: |config| {
                         tab_config.set(config);
                     },
-                    contents: vec![
-                        TabContentProps {
-                            tab_id: TabId::new(1),
-                            children: Some(rsx! {
-                                div {
-                                    "TAB 1"
-                                }
-                            }.call(cx.scope))
-                        }
-                    ]
+                    render_content: TabContent
                 }
             }
 
@@ -168,4 +159,15 @@ pub fn MainWindow(cx: Scope) -> Element {
 
 
     })
+}
+
+trait TabRenderer {
+    fn render<'a>() -> Element<'a>;
+}
+
+struct TabStore {}
+impl TabRenderer for TabStore {
+    fn render<'a>() -> Element<'a> {
+        todo!()
+    }
 }
