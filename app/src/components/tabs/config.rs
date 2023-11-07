@@ -15,7 +15,6 @@ pub struct Config {
 }
 impl Config {
     pub fn modify(&self, command: &TabsCommand) -> Self {
-        log::debug!("command {:?}", command);
         match command {
             TabsCommand::DragTab {
                 group_id,

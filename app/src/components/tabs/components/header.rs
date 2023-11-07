@@ -50,8 +50,10 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
 
     use_window_mouseup(cx, (drag_state, &cx.props.bus), |(drag_state, bus)| {
         move |_| {
-            drag_state.set(None);
-            bus.send_blocking(TabsCommand::drop_tab());
+            if drag_state.is_some() {
+                drag_state.set(None);
+                bus.send_blocking(TabsCommand::drop_tab());
+            }
         }
     });
 
@@ -103,8 +105,10 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                             }
                         }
                     } else {
-                        drag_state.set(None);
-                        bus.send_blocking(TabsCommand::drop_tab());
+                        if drag_state.is_some() {
+                            drag_state.set(None);
+                            bus.send_blocking(TabsCommand::drop_tab());
+                        }
                     }
                 }
             }

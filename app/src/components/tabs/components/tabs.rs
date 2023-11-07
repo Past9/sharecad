@@ -27,8 +27,8 @@ pub struct TabsProps<'a> {
 
 #[allow(non_snake_case)]
 pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
-    let bus = cx.use_hook(|| CommandBus::new()).listen(cx, |command| {
-        let new_config = cx.props.config.modify(command);
+    let bus = cx.use_hook(|| CommandBus::new()).listen(cx, |cmd| {
+        let new_config = cx.props.config.modify(cmd);
         if new_config != *cx.props.config {
             cx.props.on_config_changed.call(new_config);
         }

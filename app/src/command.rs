@@ -8,7 +8,6 @@ pub struct CommandBus<TCommand: std::fmt::Debug + 'static> {
 }
 impl<TCommand: std::fmt::Debug + 'static> CommandBus<TCommand> {
     pub fn new() -> Self {
-        log::debug!("new command bus");
         let (sender, receiver) = async_channel::unbounded::<TCommand>();
         Self { sender, receiver }
     }
