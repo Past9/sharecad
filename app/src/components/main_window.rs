@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::{menu, Tab, TabId, TabsCommand, WorkspaceView, WorkspaceViews};
 use crate::{
     command::{Command, CommandBus},
-    components::{LayoutBuilder, MenuBar, Part, Tabs, WorkspaceTabContent},
+    components::{LayoutBuilder, MenuBar, PartView, Tabs, WorkspaceTabContent},
 };
 use dioxus::prelude::*;
 
@@ -140,7 +140,7 @@ pub fn MainWindow(cx: Scope) -> Element {
                     let tab_id = new_layout.highest_tab_id();
                     workspace_views.write().views.insert(
                         tab_id,
-                        WorkspaceView::Part(Part {
+                        WorkspaceView::Part(PartView {
                             text: "This is a part".to_string(),
                         }),
                     );

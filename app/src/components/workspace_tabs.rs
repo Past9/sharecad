@@ -6,15 +6,15 @@ use super::{TabContentProps, TabId};
 
 pub enum WorkspaceView {
     Welcome,
-    Part(Part),
-    Assembly(Assembly),
+    Part(PartView),
+    Assembly(AssemblyView),
 }
 
-pub struct Part {
+pub struct PartView {
     pub text: String,
 }
 
-pub struct Assembly {}
+pub struct AssemblyView {}
 
 pub struct WorkspaceViews {
     pub views: HashMap<TabId, WorkspaceView>,
