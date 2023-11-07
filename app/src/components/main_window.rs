@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::{menu, Tab, TabId, TabsCommand, WorkspaceView, WorkspaceViews};
 use crate::{
     command::{Command, CommandBus},
-    components::{LayoutBuilder, MenuBar, Tabs, WorkspaceTabContent},
+    components::{LayoutBuilder, MenuBar, Part, Tabs, WorkspaceTabContent},
 };
 use dioxus::prelude::*;
 
@@ -114,6 +114,8 @@ pub fn MainWindow(cx: Scope) -> Element {
         views: HashMap::from([(TabId::new(1), WorkspaceView::Welcome)]),
     });
 
+    let workspace_views = use_shared_state::<WorkspaceViews>(cx).unwrap();
+
     bus.listen(cx, |cmd| {
         match cmd {
             GlobalCommand::NewPart => {
@@ -136,6 +138,12 @@ pub fn MainWindow(cx: Scope) -> Element {
                         .clean();
 
                     let tab_id = new_layout.highest_tab_id();
+                    workspace_views.write().views.insert(
+                        tab_id,
+                        WorkspaceView::Part(Part {
+                            text: "This is a part".to_string(),
+                        }),
+                    );
 
                     new_layout = new_layout.focus_tab(tab_id).activate_one_tab_per_group();
 

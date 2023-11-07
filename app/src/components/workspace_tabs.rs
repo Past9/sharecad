@@ -10,7 +10,9 @@ pub enum WorkspaceView {
     Assembly(Assembly),
 }
 
-pub struct Part {}
+pub struct Part {
+    pub text: String,
+}
 
 pub struct Assembly {}
 
@@ -76,8 +78,16 @@ pub fn WorkspaceTabContent<'a>(cx: Scope<'a, TabContentProps>) -> Element {
                     }
                 }
             }),
-            WorkspaceView::Part(_) => todo!(),
-            WorkspaceView::Assembly(_) => todo!(),
+            WorkspaceView::Part(part) => cx.render(rsx! {
+                div {
+                    "Some part: {part.text}"
+                }
+            }),
+            WorkspaceView::Assembly(assembly) => cx.render(rsx! {
+                div {
+                    "Some assembly"
+                }
+            }),
         }
     } else {
         cx.render(rsx! {
