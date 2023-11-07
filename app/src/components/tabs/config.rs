@@ -121,6 +121,11 @@ impl Config {
                     .set_active_tab_in_group(*group_id, *tab_id);
                 new_config
             }
+            TabsCommand::FocusTab { tab_id } => {
+                let mut new_config = self.clone();
+                new_config.layout = new_config.layout.focus_tab(*tab_id);
+                new_config
+            }
         }
         .clean()
     }

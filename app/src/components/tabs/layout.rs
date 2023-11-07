@@ -23,6 +23,25 @@ impl Layout {
         let next_group_id = self.next_group_id();
         let next_vsplit_id = self.next_vsplit_id();
         let next_hsplit_id = self.next_hsplit_id();
+        self.do_split(
+            group_id,
+            direction,
+            tab,
+            next_group_id,
+            next_vsplit_id,
+            next_hsplit_id,
+        )
+    }
+
+    fn do_split(
+        &self,
+        group_id: GroupId,
+        direction: SplitDirection,
+        tab: &Tab,
+        next_group_id: GroupId,
+        next_vsplit_id: VSplitId,
+        next_hsplit_id: HSplitId,
+    ) -> Self {
         match self {
             Layout::Group(group) => group.split(
                 group_id,
@@ -48,6 +67,53 @@ impl Layout {
                 next_vsplit_id,
                 next_hsplit_id,
             ),
+        }
+    }
+
+    pub fn create_new_tab(&self, group_id: GroupId, index: usize, title: &str) -> Self {
+        let next_tab_id = self.next_tab_id();
+        match self {
+            Layout::Group(group) => group
+                .create_new_tab(group_id, index, title, next_tab_id)
+                .into(),
+            Layout::VSplit(split) => split
+                .create_new_tab(group_id, index, title, next_tab_id)
+                .into(),
+            Layout::HSplit(split) => split
+                .create_new_tab(group_id, index, title, next_tab_id)
+                .into(),
+        }
+    }
+
+    pub fn find_focused_tab(&self) -> Option<TabId> {
+        match self {
+            Layout::Group(group) => group.find_focused_tab(),
+            Layout::VSplit(split) => split.find_focused_tab(),
+            Layout::HSplit(split) => split.find_focused_tab(),
+        }
+    }
+
+    pub fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        match self {
+            Layout::Group(group) => group.find_tab_group(tab_id),
+            Layout::VSplit(split) => split.find_tab_group(tab_id),
+            Layout::HSplit(split) => split.find_tab_group(tab_id),
+        }
+    }
+
+    pub fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        match self {
+            Layout::Group(group) => group.find_tab_index(tab_id),
+            Layout::VSplit(split) => split.find_tab_index(tab_id),
+            Layout::HSplit(split) => split.find_tab_index(tab_id),
+        }
+    }
+
+    pub fn focus_tab(&self, tab_id: TabId) -> Self {
+        match self {
+            Layout::Group(group) => group.focus_tab(tab_id).into(),
+            Layout::VSplit(split) => split.focus_tab(tab_id).into(),
+            Layout::HSplit(split) => split.focus_tab(tab_id).into(),
         }
     }
 
@@ -266,6 +332,17 @@ where
         next_vsplit_id: VSplitId,
         next_hsplit_id: HSplitId,
     ) -> Layout;
+    fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self;
+    fn find_focused_tab(&self) -> Option<TabId>;
+    fn find_tab_index(&self, tab_id: TabId) -> Option<usize>;
+    fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId>;
+    fn focus_tab(&self, tab_id: TabId) -> Self;
     fn insert_tab(&self, group_id: GroupId, index: usize, tab: &Tab) -> Self;
     fn get_tab(&self, tab_id: TabId) -> Option<Tab>;
     fn adjust_vsplit(&self, vsplit_id: VSplitId, index: usize, new_location: f64) -> Self;
@@ -289,6 +366,40 @@ pub struct SplitChild<T> {
     pub child: T,
 }
 impl<T: OrientedSplitChild> SplitChild<T> {
+    pub fn find_focused_tab(&self) -> Option<TabId> {
+        self.child.find_focused_tab()
+    }
+
+    pub fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        Self {
+            width: self.width,
+            child: self
+                .child
+                .create_new_tab(group_id, index, title, next_tab_id),
+        }
+    }
+
+    pub fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        self.child.find_tab_group(tab_id)
+    }
+
+    pub fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        self.child.find_tab_index(tab_id)
+    }
+
+    pub fn focus_tab(&self, tab_id: TabId) -> Self {
+        Self {
+            width: self.width,
+            child: self.child.focus_tab(tab_id),
+        }
+    }
+
     pub fn split(
         &self,
         group_id: GroupId,
@@ -401,6 +512,56 @@ pub struct VSplit {
     pub children: Vec<SplitChild<VSplitChild>>,
 }
 impl VSplit {
+    pub fn find_focused_tab(&self) -> Option<TabId> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_focused_tab())
+            .next()
+    }
+
+    pub fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.create_new_tab(group_id, index, title, next_tab_id))
+                .collect(),
+        }
+    }
+
+    pub fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_tab_group(tab_id))
+            .next()
+    }
+
+    pub fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_tab_index(tab_id))
+            .next()
+    }
+
+    pub fn focus_tab(&self, tab_id: TabId) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.focus_tab(tab_id))
+                .collect(),
+        }
+        .into()
+    }
+
     pub fn split(
         &self,
         group_id: GroupId,
@@ -631,6 +792,51 @@ pub enum VSplitChild {
     HSplit(HSplit),
 }
 impl OrientedSplitChild for VSplitChild {
+    fn find_focused_tab(&self) -> Option<TabId> {
+        match self {
+            VSplitChild::Group(group) => group.find_focused_tab(),
+            VSplitChild::HSplit(split) => split.find_focused_tab(),
+        }
+    }
+
+    fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        match self {
+            VSplitChild::Group(group) => {
+                Self::Group(group.create_new_tab(group_id, index, title, next_tab_id))
+            }
+            VSplitChild::HSplit(split) => {
+                Self::HSplit(split.create_new_tab(group_id, index, title, next_tab_id))
+            }
+        }
+    }
+
+    fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        match self {
+            VSplitChild::Group(group) => group.find_tab_group(tab_id),
+            VSplitChild::HSplit(split) => split.find_tab_group(tab_id),
+        }
+    }
+
+    fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        match self {
+            VSplitChild::Group(group) => group.find_tab_index(tab_id),
+            VSplitChild::HSplit(split) => split.find_tab_index(tab_id),
+        }
+    }
+
+    fn focus_tab(&self, tab_id: TabId) -> Self {
+        match self {
+            VSplitChild::Group(group) => VSplitChild::Group(group.focus_tab(tab_id)),
+            VSplitChild::HSplit(split) => VSplitChild::HSplit(split.focus_tab(tab_id)),
+        }
+    }
+
     fn split(
         &self,
         group_id: GroupId,
@@ -785,6 +991,55 @@ pub struct HSplit {
     pub children: Vec<SplitChild<HSplitChild>>,
 }
 impl HSplit {
+    fn find_focused_tab(&self) -> Option<TabId> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_focused_tab())
+            .next()
+    }
+
+    fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.create_new_tab(group_id, index, title, next_tab_id))
+                .collect(),
+        }
+    }
+
+    pub fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_tab_group(tab_id))
+            .next()
+    }
+
+    pub fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        self.children
+            .iter()
+            .filter_map(|child| child.find_tab_index(tab_id))
+            .next()
+    }
+
+    pub fn focus_tab(&self, tab_id: TabId) -> Self {
+        Self {
+            id: self.id,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.focus_tab(tab_id))
+                .collect(),
+        }
+    }
+
     pub fn split(
         &self,
         group_id: GroupId,
@@ -1015,6 +1270,51 @@ pub enum HSplitChild {
     VSplit(VSplit),
 }
 impl OrientedSplitChild for HSplitChild {
+    fn find_focused_tab(&self) -> Option<TabId> {
+        match self {
+            HSplitChild::Group(group) => group.find_focused_tab(),
+            HSplitChild::VSplit(split) => split.find_focused_tab(),
+        }
+    }
+
+    fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        match self {
+            HSplitChild::Group(group) => {
+                Self::Group(group.create_new_tab(group_id, index, title, next_tab_id))
+            }
+            HSplitChild::VSplit(split) => {
+                Self::VSplit(split.create_new_tab(group_id, index, title, next_tab_id))
+            }
+        }
+    }
+
+    fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        match self {
+            HSplitChild::Group(group) => group.find_tab_group(tab_id),
+            HSplitChild::VSplit(split) => split.find_tab_group(tab_id),
+        }
+    }
+
+    fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        match self {
+            HSplitChild::Group(group) => group.find_tab_index(tab_id),
+            HSplitChild::VSplit(split) => split.find_tab_index(tab_id),
+        }
+    }
+
+    fn focus_tab(&self, tab_id: TabId) -> Self {
+        match self {
+            HSplitChild::Group(group) => HSplitChild::Group(group.focus_tab(tab_id)),
+            HSplitChild::VSplit(split) => HSplitChild::VSplit(split.focus_tab(tab_id)),
+        }
+    }
+
     fn split(
         &self,
         group_id: GroupId,
@@ -1169,6 +1469,86 @@ pub struct Group {
     pub tabs: Vec<Tab>,
 }
 impl Group {
+    pub fn find_focused_tab(&self) -> Option<TabId> {
+        self.tabs
+            .iter()
+            .filter_map(|tab| if tab.focused { Some(tab.id) } else { None })
+            .next()
+    }
+
+    pub fn create_new_tab(
+        &self,
+        group_id: GroupId,
+        index: usize,
+        title: &str,
+        next_tab_id: TabId,
+    ) -> Self {
+        let mut new_tabs = self.tabs.clone();
+
+        if self.id == group_id {
+            let new_tab = Tab {
+                id: next_tab_id,
+                active_in_group: false,
+                focused: false,
+                title: title.to_string(),
+            };
+
+            if index <= self.tabs.len() {
+                new_tabs.insert(index, new_tab);
+            } else {
+                new_tabs.push(new_tab);
+            }
+        }
+
+        Self {
+            id: self.id,
+            tabs: new_tabs,
+        }
+    }
+
+    pub fn find_tab_group(&self, tab_id: TabId) -> Option<GroupId> {
+        if self.tabs.iter().any(|tab| tab.id == tab_id) {
+            Some(self.id)
+        } else {
+            None
+        }
+    }
+
+    pub fn find_tab_index(&self, tab_id: TabId) -> Option<usize> {
+        self.tabs
+            .iter()
+            .enumerate()
+            .filter_map(|(i, tab)| if tab.id == tab_id { Some(i) } else { None })
+            .next()
+    }
+
+    pub fn focus_tab(&self, tab_id: TabId) -> Self {
+        Self {
+            id: self.id,
+            tabs: if self.tab_exists(tab_id) {
+                self.tabs
+                    .iter()
+                    .map(|tab| Tab {
+                        id: tab.id,
+                        active_in_group: tab.active_in_group,
+                        focused: tab.id == tab_id,
+                        title: tab.title.clone(),
+                    })
+                    .collect()
+            } else {
+                self.tabs
+                    .iter()
+                    .map(|tab| Tab {
+                        id: tab.id,
+                        active_in_group: tab.active_in_group,
+                        focused: false,
+                        title: tab.title.clone(),
+                    })
+                    .collect()
+            },
+        }
+    }
+
     pub fn split(
         &self,
         group_id: GroupId,
@@ -1304,23 +1684,40 @@ impl Group {
     }
 
     pub fn activate_one_tab_per_group(&self) -> Self {
-        let active_tabs = self
+        let active_tab_index = match self
             .tabs
             .iter()
             .enumerate()
-            .filter_map(|(index, tab)| {
-                if tab.active_in_group {
-                    Some(index)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+            .filter_map(|(index, tab)| if tab.focused { Some(index) } else { None })
+            .next()
+        {
+            // If a tab has focus, that's the active tab
+            Some(index) => index,
+            // Otherwise, we need to choose one
+            None => {
+                // Get all the tabs that are marked as active.
+                let active_tab_indices = self
+                    .tabs
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, tab)| {
+                        if tab.active_in_group {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
-        let active_tab_index = if active_tabs.len() == 0 {
-            0
-        } else {
-            active_tabs[0]
+                if active_tab_indices.len() == 0 {
+                    // If none are active, activate the first one
+                    0
+                } else {
+                    // Otherwise, use the first of the active ones. The
+                    // others will be deactivated.
+                    active_tab_indices[0]
+                }
+            }
         };
 
         Self {
@@ -1356,6 +1753,7 @@ impl Group {
 pub struct Tab {
     pub id: TabId,
     pub active_in_group: bool,
+    pub focused: bool,
     pub title: String,
 }
 

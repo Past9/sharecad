@@ -95,6 +95,7 @@ impl GroupBuilder {
         self.tabs.push(Tab {
             id: self.tab_ids.next(),
             active_in_group: false,
+            focused: false,
             title: title.to_string(),
         })
     }

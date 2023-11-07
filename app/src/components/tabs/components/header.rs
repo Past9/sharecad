@@ -137,6 +137,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
         HeaderComponentInner {
             title: cx.props.tab.title.clone(),
             active_in_group: cx.props.tab.active_in_group,
+            focused: cx.props.tab.focused,
             absolute_pos: None,
             opacity: 1.0,
             onmousedown: move |evt: Event<MouseData>| {
@@ -148,6 +149,9 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                 }));
                 cx.props.bus.send_blocking(TabsCommand::set_active_tab_in_group(
                     cx.props.group_id,
+                    cx.props.tab.id
+                ));
+                cx.props.bus.send_blocking(TabsCommand::focus_tab(
                     cx.props.tab.id
                 ));
             },
@@ -186,6 +190,7 @@ pub fn HeaderComponent<'a>(cx: Scope<'a, HeaderComponentProps<'a>>) -> Element<'
                         HeaderComponentInner {
                             title: cx.props.tab.title.clone(),
                             active_in_group: true,
+                            focused: true,
                             absolute_pos: pos,
                             opacity: 0.8,
                             onmousedown: |_| {},
@@ -210,6 +215,7 @@ fn HeaderComponentInner<'a>(
     cx: Scoped,
     title: String,
     active_in_group: bool,
+    focused: bool,
     #[props(!optional)] absolute_pos: Option<(f64, f64)>,
     opacity: f64,
     onmousedown: EventHandler<'a, Event<MouseData>>,
@@ -224,6 +230,11 @@ fn HeaderComponentInner<'a>(
 ) -> Element {
     let active_in_group_class = match active_in_group {
         true => "active-in-group",
+        false => "",
+    };
+
+    let focused_class = match focused {
+        true => "focused",
         false => "",
     };
 
@@ -269,7 +280,11 @@ fn HeaderComponentInner<'a>(
                 }
 
                 div {
-                    class: "padding {active_in_group_class}",
+                    class: "status {active_in_group_class} {focused_class}"
+                }
+
+                div {
+                    class: "padding {active_in_group_class} {focused_class}",
                     div {
                         class: "tab-icon",
                         "Ϣ"

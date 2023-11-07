@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use super::{menu, TabId, WorkspaceView, WorkspaceViews};
+use super::{menu, Tab, TabId, TabsCommand, WorkspaceView, WorkspaceViews};
 use crate::{
-    command::CommandBus,
+    command::{Command, CommandBus},
     components::{LayoutBuilder, MenuBar, Tabs, WorkspaceTabContent},
 };
 use dioxus::prelude::*;
@@ -11,6 +11,9 @@ use dioxus::prelude::*;
 pub enum GlobalCommand {
     NewPart,
     NewAssembly,
+}
+impl Command for GlobalCommand {
+    const TYPE_NAME: &'static str = "GlobalCommand";
 }
 
 pub struct AppState {
@@ -28,11 +31,7 @@ impl AppState {
 
 #[allow(non_snake_case)]
 pub fn MainWindow(cx: Scope) -> Element {
-    let bus = cx
-        .use_hook(|| CommandBus::<GlobalCommand>::new())
-        .listen(cx, |cmd| {
-            log::debug!("cmd {:?}", cmd);
-        });
+    let bus = cx.use_hook(|| CommandBus::<GlobalCommand>::new());
 
     let menu_items = [
         menu::item(
@@ -107,12 +106,51 @@ pub fn MainWindow(cx: Scope) -> Element {
                 cx.tab("Welcome");
                 cx.tab("Something");
             })
+            .focus_tab(TabId::new(1))
             .as_new_config()
     });
 
     use_shared_state_provider(cx, || WorkspaceViews {
         views: HashMap::from([(TabId::new(1), WorkspaceView::Welcome)]),
     });
+
+    bus.listen(cx, |cmd| {
+        match cmd {
+            GlobalCommand::NewPart => {
+                tab_config.modify(|cfg| {
+                    let mut cfg = cfg.clone();
+                    let (group_id, index) = match cfg.layout.find_focused_tab() {
+                        Some(tab_id) => match cfg.layout.find_tab_group(tab_id) {
+                            Some(group_id) => match cfg.layout.find_tab_index(tab_id) {
+                                Some(index) => (group_id, index + 1),
+                                None => return cfg,
+                            },
+                            None => return cfg,
+                        },
+                        None => return cfg,
+                    };
+
+                    let mut new_layout = cfg
+                        .layout
+                        .create_new_tab(group_id, index, "Untitled Part")
+                        .clean();
+
+                    let tab_id = new_layout.highest_tab_id();
+
+                    new_layout = new_layout.focus_tab(tab_id).activate_one_tab_per_group();
+
+                    cfg.layout = new_layout;
+
+                    cfg
+                });
+            }
+            GlobalCommand::NewAssembly => {
+                //
+            }
+        }
+    });
+
+    log::debug!("layout {:#?}", tab_config.layout);
 
     cx.render(rsx! {
         section {

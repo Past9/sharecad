@@ -2,11 +2,15 @@ use async_channel::{Receiver, Sender};
 use dioxus::prelude::*;
 use futures::executor::block_on;
 
-pub struct CommandBus<TCommand: std::fmt::Debug + 'static> {
+pub trait Command: std::fmt::Debug + 'static {
+    const TYPE_NAME: &'static str;
+}
+
+pub struct CommandBus<TCommand: Command> {
     sender: Sender<TCommand>,
     receiver: Receiver<TCommand>,
 }
-impl<TCommand: std::fmt::Debug + 'static> CommandBus<TCommand> {
+impl<TCommand: Command> CommandBus<TCommand> {
     pub fn new() -> Self {
         let (sender, receiver) = async_channel::unbounded::<TCommand>();
         Self { sender, receiver }
@@ -33,7 +37,7 @@ impl<TCommand: std::fmt::Debug + 'static> CommandBus<TCommand> {
             use_coroutine(&cx, |_rx: UnboundedReceiver<()>| async move {
                 loop {
                     if let Ok(command) = receiver.recv().await {
-                        log::debug!("command {:?}", command);
+                        log::debug!("{}::{:?}", TCommand::TYPE_NAME, command);
                         next_command.set(Some(command));
                     }
                 }
@@ -48,12 +52,12 @@ impl<TCommand: std::fmt::Debug + 'static> CommandBus<TCommand> {
         self
     }
 }
-impl<TCommand: std::fmt::Debug> PartialEq for CommandBus<TCommand> {
+impl<TCommand: Command> PartialEq for CommandBus<TCommand> {
     fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
-impl<TCommand: std::fmt::Debug> Clone for CommandBus<TCommand> {
+impl<TCommand: Command> Clone for CommandBus<TCommand> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),

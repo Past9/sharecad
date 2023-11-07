@@ -158,6 +158,21 @@ overlay()
             &.right
                 right 0px
 
+        &>.status 
+            background-color primary-color
+            height 0px
+            margin-bottom 0px
+
+            &.active-in-group 
+                position relative
+                height 1px
+                margin-bottom -1px
+
+            &.focused 
+                position relative
+                height 2px
+                margin-bottom -2px
+
         &>.padding 
             width min-content
             display flex
@@ -168,10 +183,11 @@ overlay()
 
             &.active-in-group 
                 background-color surface-color
-                border-top 1px solid primary-color
 
                 .tab-close
                     visibility visible
+
+
 
             &:hover .tab-close
                 visibility visible

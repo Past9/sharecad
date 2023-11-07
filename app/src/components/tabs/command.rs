@@ -1,3 +1,5 @@
+use crate::command::Command;
+
 use super::{GroupId, HSplitId, TabId, VSplitId};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -55,6 +57,12 @@ pub enum TabsCommand {
         group_id: GroupId,
         tab_id: TabId,
     },
+    FocusTab {
+        tab_id: TabId,
+    },
+}
+impl Command for TabsCommand {
+    const TYPE_NAME: &'static str = "TabsCommand";
 }
 impl TabsCommand {
     pub fn drag_tab(group_id: GroupId, index: usize, tab_id: TabId) -> Self {
@@ -87,6 +95,10 @@ impl TabsCommand {
             index,
             new_location,
         }
+    }
+
+    pub fn focus_tab(tab_id: TabId) -> Self {
+        Self::FocusTab { tab_id }
     }
 
     pub fn set_active_tab_in_group(group_id: GroupId, tab_id: TabId) -> Self {
