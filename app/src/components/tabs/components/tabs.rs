@@ -89,13 +89,7 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
     );
      */
 
-    let ActiveTab = cx.props.render_content;
-
     cx.render(rsx! {
-        //&cx.props.children
-        ActiveTab {
-            tab_id: TabId::new(12)
-        }
         div {
             class: "tab-area",
             LayoutComponent {
@@ -103,6 +97,7 @@ pub fn Tabs<'a>(cx: Scope<'a, TabsProps<'a>>) -> Element<'a> {
                 tab_drop_offer: cx.props.config.drop_tab_offer.clone(),
                 dragging_tab: cx.props.config.dragging_tab.clone(),
                 bus: bus,
+                render_content: cx.props.render_content
             }
         }
     })

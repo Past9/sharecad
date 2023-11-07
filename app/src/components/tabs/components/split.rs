@@ -1,4 +1,4 @@
-use super::CommandBus;
+use super::{CommandBus, TabContentProps};
 use crate::{
     components::{
         Command, DraggingTab, DropTabOffer, GenericSplit, LayoutComponent, SplitOrientation,
@@ -46,6 +46,7 @@ pub struct SplitComponentProps<'a> {
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
+    render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 
 #[allow(non_snake_case)]
@@ -152,6 +153,7 @@ pub fn SplitComponent<'a>(cx: Scope<'a, SplitComponentProps<'a>>) -> Element<'a>
                             tab_drop_offer: cx.props.tab_drop_offer.clone(),
                             dragging_tab: cx.props.dragging_tab.clone(),
                             bus: cx.props.bus.clone(),
+                            render_content: cx.props.render_content
                         }
                     }
                 }

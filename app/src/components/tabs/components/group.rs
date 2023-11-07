@@ -5,7 +5,7 @@ use crate::{
     on_resize::{ComponentSize, OnResize},
 };
 
-use super::CommandBus;
+use super::{CommandBus, TabContentProps};
 
 #[derive(Props)]
 pub struct GroupComponentProps<'a> {
@@ -15,6 +15,7 @@ pub struct GroupComponentProps<'a> {
     #[props(!optional)]
     dragging_tab: Option<DraggingTab>,
     bus: CommandBus,
+    render_content: fn(Scope<'a, TabContentProps>) -> Element<'a>,
 }
 
 #[allow(non_snake_case)]
@@ -186,10 +187,13 @@ pub fn GroupComponent<'a>(cx: Scope<'a, GroupComponentProps<'a>>) -> Element<'a>
                     }
                 }
                 if let Some(tab) = cx.props.group.tabs.iter().find(|tab| tab.active_in_group) {
+                    let ActiveContent = cx.props.render_content;
                     rsx! {
                         div {
                             class: "active-content",
-                            "Tab content"
+                            ActiveContent {
+                                tab_id: tab.id
+                            }
                         }
                     }
                 } else {
