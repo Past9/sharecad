@@ -39,8 +39,8 @@ pub fn MainWindow(cx: Scope) -> Element {
             "File",
             true,
             [
-                menu::item("New part", true, [], None),
-                menu::item("New assembly", true, [], None),
+                menu::item("New part", true, [], Some(GlobalCommand::NewPart)),
+                menu::item("New assembly", true, [], Some(GlobalCommand::NewAssembly)),
                 menu::sep(),
                 menu::item("Open file", true, [], None),
                 menu::item(
