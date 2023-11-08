@@ -5,11 +5,10 @@ members = [
     "app",
     "geometry",
     "render2d",
-    "render3d",
+    "viewer",
     "space",
     "view2d",
     "lines",
-    "viewer",
     "render",
     #
 ]

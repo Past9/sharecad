@@ -81,12 +81,10 @@ impl Scene {
     }
 
     async fn load_string(file_path: &str) -> String {
-        println!("load_string file_path = {}", file_path);
         std::fs::read_to_string(file_path).unwrap()
     }
 
     async fn load_binary(file_path: &str) -> Vec<u8> {
-        println!("load_binary file_path = {}", file_path);
         std::fs::read(file_path).unwrap()
     }
 
@@ -96,7 +94,6 @@ impl Scene {
         file_path: &str,
         kind: ImageTextureKind,
     ) -> Texture {
-        println!("load_texture file_path = {}", file_path);
         let data = Self::load_binary(file_path).await;
         Texture::from_bytes(id, &data, file_path, kind)
     }
@@ -106,8 +103,7 @@ impl Scene {
         file_path: &str,
         mut instances: Vec<Vec<T>>,
     ) {
-        println!("load_model_file file_path = {}", file_path);
-        let mut parent_path = Path::new(file_path).parent().unwrap();
+        let parent_path = Path::new(file_path).parent().unwrap();
 
         let obj_text = Self::load_string(file_path).await;
         let obj_cursor = Cursor::new(obj_text);

@@ -1,4 +1,4 @@
-use crate::input::{InputEvent, MouseButton};
+use crate::input::{InputEvent, Key, MouseButton};
 
 use super::Camera;
 use space::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
@@ -106,14 +106,17 @@ impl CameraController {
 
     pub fn process_events(&mut self, event: &InputEvent) -> EventResult {
         let result = match event {
-            InputEvent::ModifiersChanged(modifiers) => {
-                if self.is_ctrl_pressed != modifiers.ctrl() {
-                    self.is_ctrl_pressed = modifiers.ctrl();
-
-                    if !self.is_ctrl_pressed {
-                        self.stop_orbit();
-                        self.stop_pan();
-                    }
+            InputEvent::KeyDown(key) => {
+                if key.is_control() {
+                    self.is_ctrl_pressed = true;
+                }
+                EventResult::processed([])
+            }
+            InputEvent::KeyUp(key) => {
+                if key.is_control() {
+                    self.is_ctrl_pressed = false;
+                    self.stop_orbit();
+                    self.stop_pan();
                 }
                 EventResult::processed([])
             }
