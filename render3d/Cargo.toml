@@ -6,22 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-space = { path = "../space" }
-image = { version = "0.24", default-features = false, features = [
-    "png",
-    "jpeg",
-] }
-wgpu = "0.17"
-bytemuck = { version = "1.12", features = ["derive"] }
-tobj = { version = "3.2.1", features = ["async"] }
-winit = "0.28"
+render = { path = "../render", features = ["winit"] }
+winit = "0.29.3"
 env_logger = "0.10"
 log = "0.4"
+raw-window-handle = "0.6.0"
 pollster = "0.3"
-rand = "0.8.5"
-futures-intrusive = "0.5.0"
-parking_lot = "0.12.1"
-raw-window-handle = "0.5.2"
 
 [build-dependencies]
 anyhow = "1.0"

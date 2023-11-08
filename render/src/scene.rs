@@ -80,39 +80,36 @@ impl Scene {
         self.light = light;
     }
 
-    async fn load_string(file_name: &str) -> String {
-        let path = std::path::Path::new(env!("OUT_DIR"))
-            .join("res")
-            .join(file_name);
-        println!("loading {}", path.display());
-        std::fs::read_to_string(path).unwrap()
+    async fn load_string(file_path: &str) -> String {
+        println!("load_string file_path = {}", file_path);
+        std::fs::read_to_string(file_path).unwrap()
     }
 
-    async fn load_binary(file_name: &str) -> Vec<u8> {
-        let path = std::path::Path::new(env!("OUT_DIR"))
-            .join("res")
-            .join(file_name);
-        std::fs::read(path).unwrap()
+    async fn load_binary(file_path: &str) -> Vec<u8> {
+        println!("load_binary file_path = {}", file_path);
+        std::fs::read(file_path).unwrap()
     }
 
     async fn load_texture(
         &self,
         id: TextureId,
-        file_name: &str,
+        file_path: &str,
         kind: ImageTextureKind,
     ) -> Texture {
-        let data = Self::load_binary(file_name).await;
-        Texture::from_bytes(id, &data, file_name, kind)
+        println!("load_texture file_path = {}", file_path);
+        let data = Self::load_binary(file_path).await;
+        Texture::from_bytes(id, &data, file_path, kind)
     }
 
     pub async fn load_model_file<T: SceneObjectInstance>(
         &mut self,
-        file_name: &str,
+        file_path: &str,
         mut instances: Vec<Vec<T>>,
     ) {
-        let mut parent_path = Path::new(file_name).parent().unwrap();
+        println!("load_model_file file_path = {}", file_path);
+        let mut parent_path = Path::new(file_path).parent().unwrap();
 
-        let obj_text = Self::load_string(file_name).await;
+        let obj_text = Self::load_string(file_path).await;
         let obj_cursor = Cursor::new(obj_text);
         let mut obj_reader = BufReader::new(obj_cursor);
 
@@ -260,7 +257,7 @@ impl Scene {
                 v.bitangent = (Vec3::from(v.bitangent) * denom).to_f32s();
             }
 
-            let mesh = Mesh::new(file_name.into(), vertices, m.mesh.indices);
+            let mesh = Mesh::new(file_path.into(), vertices, m.mesh.indices);
 
             let object = MeshObject::new(
                 mesh,

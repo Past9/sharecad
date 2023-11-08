@@ -1,12 +1,15 @@
+use std::path::Path;
+
 use crate::{
     camera::{Camera, CameraController, CameraControllerRequest},
+    input::InputEvent,
     light::Light,
     model::{InstanceId, TransformedInstance},
-    render::{PositionRenderer, RenderContext, VisualRenderer},
+    render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use winit::{event::WindowEvent, window::Window};
+use wgpu::Surface;
 
 const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
@@ -16,14 +19,28 @@ pub struct State {
     position_renderer: PositionRenderer,
     camera_controller: CameraController,
     scene: Scene,
-    window: Window,
     needs_position_update: bool,
 }
 impl State {
-    pub async fn new(window: Window) -> Self {
+    #[cfg(feature = "winit")]
+    pub async fn new_on_window(window: &winit::window::Window, out_dir: &str) -> Self {
         let render_context = RenderContext::new().await;
+        let visual_render_target = render_context.render_on_window(window);
+        Self::create(render_context, visual_render_target, out_dir).await
+    }
 
-        let visual_renderer = VisualRenderer::new(render_context.render_on_window(&window)).await;
+    pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> Self {
+        let render_context = RenderContext::new().await;
+        let visual_render_target = render_context.render_on_surface(surface, size);
+        Self::create(render_context, visual_render_target, out_dir).await
+    }
+
+    async fn create(
+        render_context: RenderContext,
+        visual_render_target: RenderTarget,
+        out_dir: &str,
+    ) -> Self {
+        let visual_renderer = VisualRenderer::new(visual_render_target).await;
         let position_renderer = PositionRenderer::new(
             render_context
                 .render_into_memory(visual_renderer.size(), wgpu::TextureFormat::Rgba32Float),
@@ -76,9 +93,14 @@ impl State {
                 })
                 .collect::<Vec<_>>();
 
+            let path = Path::new(out_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
+
+            let path_str = path.to_str().unwrap();
+
             scene
                 .load_model_file::<TransformedInstance>(
-                    "rounded-cube/rounded-cube.obj",
+                    //"rounded-cube/rounded-cube.obj",
+                    path_str,
                     vec![instances],
                 )
                 .await;
@@ -91,27 +113,20 @@ impl State {
         Self {
             visual_renderer,
             position_renderer,
-            //camera,
             camera_controller,
             scene,
-            window,
             needs_position_update: true,
         }
     }
 
-    pub fn window(&self) -> &Window {
-        &self.window
-    }
-
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        let new_size = (new_size.width, new_size.height);
+    pub fn resize(&mut self, new_size: (u32, u32)) {
         self.visual_renderer.resize(new_size);
         self.position_renderer
             .resize((new_size.0 / 10, new_size.1 / 10));
         self.camera_controller.resize(new_size)
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, event: &InputEvent) -> bool {
         let result = self.camera_controller.process_events(event);
 
         for request in result.requests {

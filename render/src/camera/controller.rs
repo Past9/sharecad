@@ -1,10 +1,7 @@
-use space::{deg, vec2, Angle, Point3, Quat, Vec3};
-use winit::{
-    dpi::PhysicalPosition,
-    event::{ElementState, MouseButton, WindowEvent},
-};
+use crate::input::{InputEvent, MouseButton};
 
 use super::Camera;
+use space::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
 
 const ZOOM_SENSITIVITY: f64 = 0.2;
 const ORBIT_SENSITIVITY: f64 = 0.4;
@@ -20,9 +17,9 @@ enum DragState<T> {
     None,
     Dragging {
         params: T,
-        start_pos: PhysicalPosition<f64>,
-        last_pos: PhysicalPosition<f64>,
-        current_pos: PhysicalPosition<f64>,
+        start_pos: Point2,
+        last_pos: Point2,
+        current_pos: Point2,
     },
 }
 
@@ -64,7 +61,7 @@ pub struct CameraController {
     orbit_point_mode: OrbitPointMode,
     scroll_delta: f64,
     is_ctrl_pressed: bool,
-    mouse_pos: PhysicalPosition<f64>,
+    mouse_pos: Point2,
     orbit_drag_state: DragState<OrbitParams>,
     pan_drag_state: DragState<()>,
 }
@@ -77,7 +74,7 @@ impl CameraController {
             orbit_point_mode: OrbitPointMode::Adaptive,
             scroll_delta: 0.0,
             is_ctrl_pressed: false,
-            mouse_pos: PhysicalPosition::new(0.0, 0.0),
+            mouse_pos: Point2::ZERO,
             orbit_drag_state: DragState::None,
             pan_drag_state: DragState::None,
         }
@@ -107,11 +104,11 @@ impl CameraController {
         self.orbit_point_mode
     }
 
-    pub fn process_events(&mut self, event: &WindowEvent) -> EventResult {
+    pub fn process_events(&mut self, event: &InputEvent) -> EventResult {
         let result = match event {
-            WindowEvent::ModifiersChanged(state) => {
-                if self.is_ctrl_pressed != state.ctrl() {
-                    self.is_ctrl_pressed = state.ctrl();
+            InputEvent::ModifiersChanged(modifiers) => {
+                if self.is_ctrl_pressed != modifiers.ctrl() {
+                    self.is_ctrl_pressed = modifiers.ctrl();
 
                     if !self.is_ctrl_pressed {
                         self.stop_orbit();
@@ -120,50 +117,45 @@ impl CameraController {
                 }
                 EventResult::processed([])
             }
-            WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_pos = position.cast();
+            InputEvent::CursorMoved(position) => {
+                self.mouse_pos = *position;
 
                 self.update_orbit();
                 self.update_pan();
 
                 EventResult::processed([])
             }
-            WindowEvent::MouseInput { state, button, .. } => {
-                if *button == MouseButton::Right {
+            InputEvent::MouseDown(button) => {
+                if *button == MouseButton::Secondary {
                     if self.is_ctrl_pressed {
-                        if *state == ElementState::Pressed {
-                            self.stop_orbit();
-                            self.start_pan()
-                        } else {
-                            self.stop_pan()
-                        }
-                    } else {
-                        if *state == ElementState::Pressed {
-                            self.stop_pan();
-                            self.start_orbit()
-                        } else {
-                            self.stop_orbit()
-                        }
-                    }
-                } else if *button == MouseButton::Middle {
-                    if *state == ElementState::Pressed {
                         self.stop_orbit();
                         self.start_pan()
                     } else {
-                        self.stop_pan()
+                        self.stop_pan();
+                        self.start_orbit()
                     }
+                } else if *button == MouseButton::Aux {
+                    self.stop_orbit();
+                    self.start_pan()
                 } else {
                     self.stop_pan()
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.scroll_delta = match delta {
-                    winit::event::MouseScrollDelta::LineDelta(_, y) => *y as f64,
-                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x: _, y }) => {
-                        *y as f64
+            InputEvent::MouseUp(button) => {
+                if *button == MouseButton::Secondary {
+                    if self.is_ctrl_pressed {
+                        self.stop_pan()
+                    } else {
+                        self.stop_orbit()
                     }
-                };
-
+                } else if *button == MouseButton::Aux {
+                    self.stop_pan()
+                } else {
+                    self.stop_pan()
+                }
+            }
+            InputEvent::MouseWheel(delta) => {
+                self.scroll_delta = delta.y;
                 EventResult::processed([])
             }
             _ => EventResult::unprocessed([]),

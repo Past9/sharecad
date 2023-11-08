@@ -3,9 +3,8 @@ mod texture;
 mod visual;
 
 use bytemuck::{Pod, Zeroable};
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::sync::Arc;
-use winit::window::Window;
+use wgpu::Surface;
 
 pub use position::*;
 pub use visual::*;
@@ -26,6 +25,7 @@ impl RenderContext {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
         let adapter = instance
@@ -70,11 +70,14 @@ impl RenderContext {
         }
     }
 
-    pub fn render_on_window(&self, window: &Window) -> RenderTarget {
-        println!("window handle: {:?}", window.raw_window_handle());
-        println!("display handle: {:?}", window.raw_display_handle());
+    #[cfg(feature = "winit")]
+    pub fn render_on_window(&self, window: &winit::window::Window) -> RenderTarget {
         let surface = unsafe { self.inner.instance.create_surface(&window) }.unwrap();
+        let dimensions = window.inner_size();
+        self.render_on_surface(surface, (dimensions.width, dimensions.height))
+    }
 
+    pub fn render_on_surface(&self, surface: Surface, size: (u32, u32)) -> RenderTarget {
         let surface_caps = surface.get_capabilities(&self.inner.adapter);
 
         let surface_format = surface_caps
@@ -84,13 +87,11 @@ impl RenderContext {
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
-        let dimensions = window.inner_size();
-
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: dimensions.width,
-            height: dimensions.height,
+            width: size.0,
+            height: size.1,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
