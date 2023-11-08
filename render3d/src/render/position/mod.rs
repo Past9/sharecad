@@ -4,7 +4,7 @@ use crate::{
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
 };
-use space::{point3, vec3, Point3, Vec3};
+use space::{vec3, Point3, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 

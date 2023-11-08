@@ -1,5 +1,4 @@
 use image::GenericImageView;
-use std::sync::Arc;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TextureId(pub u32);

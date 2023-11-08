@@ -1,13 +1,13 @@
 use space::{deg, vec2, Angle, Point3, Quat, Vec3};
 use winit::{
     dpi::PhysicalPosition,
-    event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
+    event::{ElementState, MouseButton, WindowEvent},
 };
 
 use super::Camera;
 
 const ZOOM_SENSITIVITY: f64 = 0.2;
-const ORBIT_SENSITIVITY: f64 = 0.2;
+const ORBIT_SENSITIVITY: f64 = 0.4;
 
 #[derive(Debug, Clone)]
 struct OrbitParams {

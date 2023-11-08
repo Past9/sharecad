@@ -3,10 +3,7 @@ mod texture;
 mod visual;
 
 use bytemuck::{Pod, Zeroable};
-use futures_intrusive::channel::shared::{GenericOneshotReceiver, GenericOneshotSender};
-use parking_lot::RawMutex;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use space::{point3, Point3};
 use std::sync::Arc;
 use winit::window::Window;
 
