@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use render::state::State as RenderState;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;
 
@@ -10,6 +11,15 @@ pub fn PartEditor<'a>(cx: Scope<'a, PartEditorProps>) -> Element {
     let canvas = use_state::<Option<HtmlCanvasElement>>(cx, || None);
 
     log::debug!("canvas {:?}", canvas);
+
+    use_future(cx, (canvas), |(canvas)| async move {
+        if let Some(canvas) = canvas.current().as_ref() {
+            //
+            let mut render_state = RenderState::new_on_canvas(canvas.clone(), "").await;
+
+            render_state.render().unwrap();
+        }
+    });
 
     cx.render(rsx! {
         div {
@@ -27,6 +37,7 @@ pub fn PartEditor<'a>(cx: Scope<'a, PartEditorProps>) -> Element {
                         .expect("Could not cast to canvas");
 
                     canvas.set(Some(element));
+
                 }
             }
         }

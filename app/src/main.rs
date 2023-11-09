@@ -9,6 +9,7 @@ use dioxus::prelude::*;
 fn main() {
     dioxus_logger::init(log::LevelFilter::Debug).expect("Failed to init logger");
 
+    #[cfg(target_arch = "wasm32")]
     dioxus_web::launch(app);
 }
 

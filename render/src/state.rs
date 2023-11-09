@@ -29,6 +29,17 @@ impl State {
         Self::create(render_context, visual_render_target, out_dir).await
     }
 
+    #[cfg(all(
+        feature = "canvas",
+        target_arch = "wasm32",
+        //not(target_os = "emscripten"),
+    ))]
+    pub async fn new_on_canvas(canvas: web_sys::HtmlCanvasElement, out_dir: &str) -> Self {
+        let render_context = RenderContext::new().await;
+        let visual_render_target = render_context.render_on_canvas(canvas);
+        Self::create(render_context, visual_render_target, out_dir).await
+    }
+
     pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> Self {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);

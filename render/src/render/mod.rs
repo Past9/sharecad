@@ -77,6 +77,22 @@ impl RenderContext {
         self.render_on_surface(surface, (dimensions.width, dimensions.height))
     }
 
+    #[cfg(all(
+        feature = "canvas",
+        target_arch = "wasm32",
+        //not(target_os = "emscripten"),
+    ))]
+    pub fn render_on_canvas(&self, canvas: web_sys::HtmlCanvasElement) -> RenderTarget {
+        let size = (canvas.width(), canvas.height());
+        let surface = self
+            .inner
+            .instance
+            .create_surface_from_canvas(canvas)
+            .unwrap();
+
+        self.render_on_surface(surface, size)
+    }
+
     pub fn render_on_surface(&self, surface: Surface, size: (u32, u32)) -> RenderTarget {
         let surface_caps = surface.get_capabilities(&self.inner.adapter);
 

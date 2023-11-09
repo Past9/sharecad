@@ -6,19 +6,24 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-winit = []
+winit = ["dep:winit"]
+canvas = ["web-sys", "wgpu/webgl"]
 
 [dependencies]
 space = { path = "../space" }
+log = "0.4.20"
 image = { version = "0.24", default-features = false, features = [
     "png",
     "jpeg",
 ] }
-wgpu = "0.18"
+wgpu = { version = "0.18" }
 bytemuck = { version = "1.12", features = ["derive"] }
 tobj = { version = "3.2.1", features = ["async"] }
 rand = "0.8.5"
 futures-intrusive = "0.5.0"
 parking_lot = "0.12.1"
 pollster = "0.3"
-winit = { version = "0.29.3", features = ["rwh_05"] }
+winit = { version = "0.29.3", features = ["rwh_05"], optional = true }
+web-sys = { version = "0.3.64", features = [
+    "HtmlCanvasElement",
+], optional = true }

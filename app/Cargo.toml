@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+render = { path = "../render", features = ["canvas"] }
 dioxus = "0.4.0"
 dioxus-web = "0.4.0"
 dioxus-logger = "0.4.1"
@@ -32,4 +33,4 @@ web-sys = { version = "0.3.64", features = [
     "ResizeObserverEntry",
 ] }
 js-sys = { version = "0.3.64" }
-wgpu = { version = "0.17.0", features = ["webgl"] }
+wgpu = { version = "0.18.0", features = ["webgl"] }
