@@ -261,12 +261,14 @@ impl RenderTarget {
                 .surface
                 .configure(&self.context.device, &target.config);
         } else if let TargetInner::Texture(target) = &self.target {
+            /*
             self.target = TargetInner::Texture(TargetTexture::new(
                 self.device(),
                 size,
                 target.texture.format(),
                 Some(target.texture.usage()),
             ));
+             */
         } else {
             todo!("Resize not yet implemented for target type");
         }

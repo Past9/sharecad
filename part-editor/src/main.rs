@@ -113,9 +113,10 @@ impl egui_wgpu::CallbackTrait for EditorState {
     ) {
         let mut state = self.inner.lock().unwrap();
 
-        state
-            .view_state
-            .resize((info.screen_size_px[0], info.screen_size_px[1]));
+        state.view_state.resize((
+            info.viewport_in_pixels().width_px as u32,
+            info.viewport_in_pixels().height_px as u32,
+        ));
         state.view_state.render().unwrap();
 
         let transfer: &EguiTransfer = callback_resources.get().unwrap();

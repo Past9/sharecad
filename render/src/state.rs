@@ -34,7 +34,7 @@ impl ViewState {
             render_state.queue.clone(),
         );
         let visual_render_target = render_context.render_into_memory(
-            (1, 1),
+            (1000, 1000),
             render_state.target_format,
             visual_texture_usage,
         );

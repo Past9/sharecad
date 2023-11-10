@@ -8,27 +8,27 @@ const RENDER_LABEL: Option<&'static str> = Some("EguiTransfer");
 
 const QUAD_VERTS: [Vertex2; 6] = [
     Vertex2 {
-        position: [-1.0, -1.0],
+        position: [-1.0, 1.0],
         tex_coords: [0.0, 0.0],
     },
     Vertex2 {
-        position: [-1.0, 1.0],
-        tex_coords: [0.0, 1.0],
-    },
-    Vertex2 {
-        position: [1.0, -1.0],
-        tex_coords: [1.0, 0.0],
-    },
-    Vertex2 {
-        position: [1.0, -1.0],
-        tex_coords: [1.0, 0.0],
-    },
-    Vertex2 {
-        position: [-1.0, 1.0],
+        position: [-1.0, -1.0],
         tex_coords: [0.0, 1.0],
     },
     Vertex2 {
         position: [1.0, 1.0],
+        tex_coords: [1.0, 0.0],
+    },
+    Vertex2 {
+        position: [1.0, 1.0],
+        tex_coords: [1.0, 0.0],
+    },
+    Vertex2 {
+        position: [-1.0, -1.0],
+        tex_coords: [0.0, 1.0],
+    },
+    Vertex2 {
+        position: [1.0, -1.0],
         tex_coords: [1.0, 1.0],
     },
 ];
