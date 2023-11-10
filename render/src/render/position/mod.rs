@@ -21,7 +21,7 @@ pub struct PositionRenderer {
     output_buffer: OnceCell<wgpu::Buffer>,
 }
 impl PositionRenderer {
-    pub async fn new(target: RenderTarget) -> Self {
+    pub fn new(target: RenderTarget) -> Self {
         let device = target.device();
 
         let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {

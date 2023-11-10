@@ -4,10 +4,14 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use render::{render::RenderContext, state::ViewState};
+use render::{
+    render::{EguiTransfer, RenderContext},
+    state::ViewState,
+};
 use std::{
     cell::OnceCell,
-    sync::{Arc, Mutex, OnceLock},
+    iter::Once,
+    sync::{Arc, Mutex},
 };
 
 fn main() -> Result<(), eframe::Error> {
@@ -30,80 +34,95 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    let mut editor_state = PartEditorState::new();
-
-    let mut renderer_initialized = false;
+    let mut editor_state: Option<EditorState> = None;
 
     eframe::run_simple_native("Part Editor", options, move |ctx, frame| {
-        if !renderer_initialized {
-            let render_state = frame.wgpu_render_state().unwrap();
-            let render_context = ViewState::new_from_resources(render_state, env!("OUT_DIR"));
-
-            renderer_initialized = true;
-        }
+        let editor_state =
+            editor_state.get_or_insert_with(|| EditorState::new(frame, PartModel::new()));
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Part Editor");
             ui.allocate_ui([800.0, 800.0].into(), |ui| {
-                ui.part_editor(&mut editor_state);
+                ui.part_editor(editor_state);
                 //
             });
         });
     })
 }
 
-struct PartEditorStateInner<'a> {
-    view_state: OnceLock<ViewState<'a>>,
-}
-impl<'a> PartEditorStateInner<'a> {
+struct PartModel {}
+impl PartModel {
     pub fn new() -> Self {
+        Self {}
+    }
+}
+
+struct EditorStateInner {
+    view_state: ViewState,
+    transfer: EguiTransfer,
+    model: PartModel,
+}
+impl EditorStateInner {
+    pub fn new(frame: &eframe::Frame, model: PartModel) -> Self {
+        println!("EditorStateInner::new");
+        let render_state = frame.wgpu_render_state().unwrap();
+
+        let view_state = ViewState::new_from_resources(
+            render_state,
+            env!("OUT_DIR"),
+            Some(wgpu::TextureUsages::TEXTURE_BINDING),
+        );
+        let transfer = EguiTransfer::new(
+            render_state,
+            view_state.visual_target().texture_view().unwrap(),
+        );
+
         Self {
-            view_state: OnceLock::new(),
+            view_state,
+            transfer,
+            model,
         }
     }
-
-    /*
-    fn view_state(&self, frame: eframe::Frame) -> &ViewState {
-        self.view_state.get_or_init(|| {
-            let render_state = frame.wgpu_render_state().unwrap();
-            let view_state = ViewState::new_from_resources(render_state, env!("OUT_DIR"));
-            view_state
-        })
-    }
-     */
 }
 
 #[derive(Clone)]
-struct PartEditorState<'a> {
-    inner: Arc<Mutex<PartEditorStateInner<'a>>>,
+struct EditorState {
+    inner: Arc<Mutex<EditorStateInner>>,
 }
-impl<'a> PartEditorState<'a> {
-    pub fn new() -> Self {
-        let inner = Arc::new(Mutex::new(PartEditorStateInner::new()));
+impl EditorState {
+    pub fn new(frame: &eframe::Frame, model: PartModel) -> Self {
+        println!("EditorState::new");
+        let inner = Arc::new(Mutex::new(EditorStateInner::new(frame, model)));
         Self { inner }
     }
 }
-impl<'a> egui_wgpu::CallbackTrait for PartEditorState<'a> {
+impl egui_wgpu::CallbackTrait for EditorState {
     fn paint<'p>(
         &'p self,
         info: eframe::epaint::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'p>,
         callback_resources: &'p egui_wgpu::CallbackResources,
     ) {
-        //todo!()
+        let mut state = self.inner.lock().unwrap();
+
+        state
+            .view_state
+            .resize((info.screen_size_px[0], info.screen_size_px[1]));
+        state.view_state.render().unwrap();
+        state.transfer.transfer(render_pass);
     }
 }
 
 trait PartEditorUi {
-    fn part_editor(self, state: &mut PartEditorState);
+    fn part_editor(self, state: &mut EditorState);
 }
 impl PartEditorUi for &mut egui::Ui {
-    fn part_editor(self, state: &mut PartEditorState) {
-        let s = state.clone();
+    fn part_editor(self, state: &mut EditorState) {
+        let state = state.clone();
         egui::Frame::canvas(self.style()).show(self, move |ui| {
             let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
             ui.painter()
-                .add(egui_wgpu::Callback::new_paint_callback(rect, s));
+                .add(egui_wgpu::Callback::new_paint_callback(rect, state));
         });
     }
 }

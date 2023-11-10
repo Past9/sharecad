@@ -14,28 +14,31 @@ use wgpu::Surface;
 const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
 
-pub struct ViewState<'a> {
+pub struct ViewState {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
     camera_controller: CameraController,
-    scene: Scene<'a>,
+    scene: Scene,
     needs_position_update: bool,
 }
-impl<'a> ViewState<'a> {
+impl ViewState {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
-    pub async fn new_from_resources(
+    pub fn new_from_resources(
         render_state: &egui_wgpu::RenderState,
         out_dir: &str,
-    ) -> ViewState<'a> {
+        visual_texture_usage: Option<wgpu::TextureUsages>,
+    ) -> ViewState {
         let render_context = RenderContext::from_resources(
             render_state.adapter.clone(),
             render_state.device.clone(),
             render_state.queue.clone(),
-        )
-        .await;
-        let visual_render_target =
-            render_context.render_into_memory((1, 1), render_state.target_format);
-        Self::create(render_context, visual_render_target, out_dir).await
+        );
+        let visual_render_target = render_context.render_into_memory(
+            (1, 1),
+            render_state.target_format,
+            visual_texture_usage,
+        );
+        Self::create(render_context, visual_render_target, out_dir)
     }
 
     #[cfg(feature = "winit")]
@@ -45,27 +48,23 @@ impl<'a> ViewState<'a> {
         Self::create(render_context, visual_render_target, out_dir).await
     }
 
-    pub async fn new_on_surface(
-        surface: Surface,
-        size: (u32, u32),
-        out_dir: &str,
-    ) -> ViewState<'a> {
+    pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> ViewState {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);
-        Self::create(render_context, visual_render_target, out_dir).await
+        Self::create(render_context, visual_render_target, out_dir)
     }
 
-    async fn create(
+    fn create(
         render_context: RenderContext,
         visual_render_target: RenderTarget,
         out_dir: &str,
-    ) -> ViewState<'a> {
-        let visual_renderer = VisualRenderer::new(visual_render_target).await;
-        let position_renderer = PositionRenderer::new(
-            render_context
-                .render_into_memory(visual_renderer.size(), wgpu::TextureFormat::Rgba32Float),
-        )
-        .await;
+    ) -> ViewState {
+        let visual_renderer = VisualRenderer::new(visual_render_target);
+        let position_renderer = PositionRenderer::new(render_context.render_into_memory(
+            visual_renderer.size(),
+            wgpu::TextureFormat::Rgba32Float,
+            None,
+        ));
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
@@ -117,13 +116,11 @@ impl<'a> ViewState<'a> {
 
             let path_str = path.to_str().unwrap();
 
-            scene
-                .load_model_file::<TransformedInstance>(
-                    //"rounded-cube/rounded-cube.obj",
-                    path_str,
-                    vec![instances],
-                )
-                .await;
+            scene.load_model_file::<TransformedInstance>(
+                //"rounded-cube/rounded-cube.obj",
+                path_str,
+                vec![instances],
+            );
 
             scene.set_light(Light::new(point3(2.0, 2.0, 2.0), [1.0, 1.0, 1.0]));
 
@@ -139,11 +136,17 @@ impl<'a> ViewState<'a> {
         }
     }
 
+    pub fn visual_target(&self) -> &RenderTarget {
+        self.visual_renderer.target()
+    }
+
     pub fn resize(&mut self, new_size: (u32, u32)) {
-        self.visual_renderer.resize(new_size);
-        self.position_renderer
-            .resize((new_size.0 / 10, new_size.1 / 10));
-        self.camera_controller.resize(new_size)
+        if new_size != self.visual_renderer.size() {
+            self.visual_renderer.resize(new_size);
+            self.position_renderer
+                .resize((new_size.0 / 10, new_size.1 / 10));
+            self.camera_controller.resize(new_size)
+        }
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {

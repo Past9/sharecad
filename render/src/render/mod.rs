@@ -31,13 +31,11 @@ pub struct RenderContext {
 }
 impl RenderContext {
     #[cfg(not(feature = "winit"))]
-    pub async fn from_resources(
+    pub fn from_resources(
         adapter: Arc<wgpu::Adapter>,
         device: Arc<wgpu::Device>,
         queue: Arc<wgpu::Queue>,
     ) -> Self {
-        use std::task::Context;
-
         Self {
             inner: Arc::new(ContextInner {
                 adapter,
@@ -93,10 +91,16 @@ impl RenderContext {
         &self,
         size: (u32, u32),
         format: wgpu::TextureFormat,
+        usage: Option<wgpu::TextureUsages>,
     ) -> RenderTarget {
         RenderTarget {
             context: self.inner.clone(),
-            target: TargetInner::Texture(TargetTexture::new(&self.inner.device, size, format)),
+            target: TargetInner::Texture(TargetTexture::new(
+                &self.inner.device,
+                size,
+                format,
+                usage,
+            )),
         }
     }
 
@@ -158,7 +162,18 @@ struct TargetTexture {
     view: wgpu::TextureView,
 }
 impl TargetTexture {
-    pub fn new(device: &wgpu::Device, size: (u32, u32), format: wgpu::TextureFormat) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        size: (u32, u32),
+        format: wgpu::TextureFormat,
+        usage: Option<wgpu::TextureUsages>,
+    ) -> Self {
+        let usage = match usage {
+            Some(addl_usage) => {
+                wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT | addl_usage
+            }
+            None => wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+        };
         let desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
                 width: size.0,
@@ -169,7 +184,7 @@ impl TargetTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage,
             label: None,
             view_formats: &[],
         };
@@ -226,6 +241,13 @@ impl RenderTarget {
         }
     }
 
+    pub fn texture_view(&self) -> Option<&wgpu::TextureView> {
+        match self.target {
+            TargetInner::Surface(_) => None,
+            TargetInner::Texture(ref target) => Some(&target.view),
+        }
+    }
+
     pub fn resize(&mut self, size: (u32, u32)) {
         if size.0 == 0 || size.1 == 0 {
             return;
@@ -242,6 +264,7 @@ impl RenderTarget {
                 self.device(),
                 size,
                 target.texture.format(),
+                Some(target.texture.usage()),
             ));
         } else {
             todo!("Resize not yet implemented for target type");

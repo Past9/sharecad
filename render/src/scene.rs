@@ -34,8 +34,8 @@ impl<T: From<u32>> IdSeries<T> {
 }
 
 #[derive(Debug)]
-pub struct Scene<'a> {
-    objects: Vec<Box<dyn SceneObject + 'a>>,
+pub struct Scene {
+    objects: Vec<Box<dyn SceneObject>>,
 
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
@@ -45,8 +45,8 @@ pub struct Scene<'a> {
 
     light: Light,
 }
-unsafe impl<'a> Send for Scene<'a> {}
-impl<'a> Scene<'a> {
+unsafe impl Send for Scene {}
+impl Scene {
     pub fn new() -> Self {
         Self {
             objects: vec![],
@@ -61,7 +61,7 @@ impl<'a> Scene<'a> {
         }
     }
 
-    pub fn objects(&self) -> &[Box<dyn SceneObject + 'a>] {
+    pub fn objects(&self) -> &[Box<dyn SceneObject>] {
         &self.objects
     }
 
@@ -81,53 +81,46 @@ impl<'a> Scene<'a> {
         self.light = light;
     }
 
-    async fn load_string(file_path: &str) -> String {
+    fn load_string(file_path: &str) -> String {
         std::fs::read_to_string(file_path).unwrap()
     }
 
-    async fn load_binary(file_path: &str) -> Vec<u8> {
+    fn load_binary(file_path: &str) -> Vec<u8> {
         std::fs::read(file_path).unwrap()
     }
 
-    async fn load_texture(
-        &self,
-        id: TextureId,
-        file_path: &str,
-        kind: ImageTextureKind,
-    ) -> Texture {
-        let data = Self::load_binary(file_path).await;
+    fn load_texture(&self, id: TextureId, file_path: &str, kind: ImageTextureKind) -> Texture {
+        let data = Self::load_binary(file_path);
         Texture::from_bytes(id, &data, file_path, kind)
     }
 
-    pub async fn load_model_file<T: SceneObjectInstance>(
+    pub fn load_model_file<T: SceneObjectInstance>(
         &mut self,
         file_path: &str,
         mut instances: Vec<Vec<T>>,
     ) {
         let parent_path = Path::new(file_path).parent().unwrap();
 
-        let obj_text = Self::load_string(file_path).await;
+        let obj_text = Self::load_string(file_path);
         let obj_cursor = Cursor::new(obj_text);
         let mut obj_reader = BufReader::new(obj_cursor);
 
-        let (models, obj_materials) = tobj::load_obj_buf_async(
+        let (models, obj_materials) = tobj::load_obj_buf(
             &mut obj_reader,
             &tobj::LoadOptions {
                 triangulate: true,
                 single_index: true,
                 ..Default::default()
             },
-            |p| async move {
+            |p| {
                 let mut material_pathbuf = PathBuf::from(parent_path);
                 material_pathbuf.push(p);
 
                 let mat_text =
-                    Self::load_string(&material_pathbuf.into_os_string().into_string().unwrap())
-                        .await;
+                    Self::load_string(&material_pathbuf.into_os_string().into_string().unwrap());
                 tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
             },
         )
-        .await
         .unwrap();
 
         for m in obj_materials.unwrap().into_iter() {
@@ -144,8 +137,7 @@ impl<'a> Scene<'a> {
                     diffuse_tex_id,
                     &diffuse_pathbuf.into_os_string().into_string().unwrap(),
                     ImageTextureKind::Diffuse,
-                )
-                .await,
+                ),
             );
 
             let mut normal_pathbuf = PathBuf::from(parent_path);
@@ -157,8 +149,7 @@ impl<'a> Scene<'a> {
                     normal_tex_id,
                     &normal_pathbuf.into_os_string().into_string().unwrap(),
                     ImageTextureKind::NormalMap,
-                )
-                .await,
+                ),
             );
 
             let material = Material::new(material_id, &m.name, diffuse_tex_id, normal_tex_id);

@@ -28,7 +28,7 @@ pub struct VisualRenderer {
     mesh_render_pipeline: wgpu::RenderPipeline,
 }
 impl VisualRenderer {
-    pub async fn new(target: RenderTarget) -> Self {
+    pub fn new(target: RenderTarget) -> Self {
         let device = target.device();
 
         let texture_bind_group_layout =
@@ -224,6 +224,10 @@ impl VisualRenderer {
 
             mesh_render_pipeline,
         }
+    }
+
+    pub fn target(&self) -> &RenderTarget {
+        &self.target
     }
 
     pub fn size(&self) -> (u32, u32) {
