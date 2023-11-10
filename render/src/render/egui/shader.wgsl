@@ -28,5 +28,6 @@ var s_diffuse: sampler;
 fn fs_main(
     in: FragInput
 ) -> @location(0) vec4<f32> {
-    return textureSample(t_diffuse, s_diffuse, in.tex_coord);
+    //return textureSample(t_diffuse, s_diffuse, in.tex_coord);
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }

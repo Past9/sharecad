@@ -59,7 +59,7 @@ impl PartModel {
 
 struct EditorStateInner {
     view_state: ViewState,
-    transfer: EguiTransfer,
+    //transfer: EguiTransfer,
     model: PartModel,
 }
 impl EditorStateInner {
@@ -72,14 +72,22 @@ impl EditorStateInner {
             env!("OUT_DIR"),
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
-        let transfer = EguiTransfer::new(
+
+        init_transfer(
             render_state,
             view_state.visual_target().texture_view().unwrap(),
         );
 
+        /*
+        let transfer = EguiTransfer::new(
+            render_state,
+            view_state.visual_target().texture_view().unwrap(),
+        );
+         */
+
         Self {
             view_state,
-            transfer,
+            //transfer,
             model,
         }
     }
@@ -109,7 +117,9 @@ impl egui_wgpu::CallbackTrait for EditorState {
             .view_state
             .resize((info.screen_size_px[0], info.screen_size_px[1]));
         state.view_state.render().unwrap();
-        state.transfer.transfer(render_pass);
+
+        let transfer: &EguiTransfer = callback_resources.get().unwrap();
+        transfer.transfer(render_pass);
     }
 }
 
@@ -127,6 +137,11 @@ impl PartEditorUi for &mut egui::Ui {
     }
 }
 
-fn init_renderer(render_state: &RenderState) -> ViewState {
-    todo!()
+fn init_transfer(render_state: &RenderState, texture_view: &wgpu::TextureView) {
+    let transfer = EguiTransfer::new(render_state, texture_view);
+    render_state
+        .renderer
+        .write()
+        .callback_resources
+        .insert(transfer);
 }

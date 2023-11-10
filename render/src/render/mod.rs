@@ -249,6 +249,7 @@ impl RenderTarget {
     }
 
     pub fn resize(&mut self, size: (u32, u32)) {
+        println!("RenderTarget::resize({}, {})", size.0, size.1);
         if size.0 == 0 || size.1 == 0 {
             return;
         }
