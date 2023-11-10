@@ -50,7 +50,7 @@ pub async fn run() {
                             ..
                         } => elwt.exit(),
                         WindowEvent::Resized(physical_size) => {
-                            state.resize((physical_size.width, physical_size.height))
+                            state.resize((physical_size.width, physical_size.height));
                         }
                         WindowEvent::RedrawRequested => {
                             state.update();

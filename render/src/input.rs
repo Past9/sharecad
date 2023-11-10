@@ -12,10 +12,29 @@ pub enum InputEvent {
     Unhandled,
 }
 #[cfg(feature = "egui")]
-impl From<egui::Event> for InputEvent {
-    fn from(value: egui::Event) -> Self {
-        match value {
-            egui::Event::PointerMoved(pos) => Self::CursorMoved(point2(pos.x as f64, pos.y as f64)),
+impl InputEvent {
+    fn correct_pos(pos: &egui::Pos2, rect: &egui::Rect, pixels_per_point: f32) -> Option<Point2> {
+        let pos = vec2((pos.x - rect.left()) as f64, (pos.y - rect.top()) as f64);
+        if pos.x >= 0.0
+            && pos.y >= 0.0
+            && pos.x <= rect.width() as f64
+            && pos.y <= rect.height() as f64
+        {
+            Some((pos * pixels_per_point as f64).into_point())
+        } else {
+            None
+        }
+    }
+
+    pub fn from_egui_event(event: &egui::Event, rect: &egui::Rect, pixels_per_point: f32) -> Self {
+        match event {
+            egui::Event::PointerMoved(pos) => {
+                if let Some(pos) = Self::correct_pos(pos, rect, pixels_per_point) {
+                    Self::CursorMoved(point2(pos.x as f64, pos.y as f64))
+                } else {
+                    Self::Unhandled
+                }
+            }
             egui::Event::Key { key, pressed, .. } => {
                 if let Some(key) = Key::from_egui_key(key) {
                     match pressed {
@@ -42,7 +61,7 @@ impl From<egui::Event> for InputEvent {
                 }
             }
             egui::Event::MouseWheel { delta, .. } => {
-                Self::MouseWheel(vec2(delta.x as f64, delta.y as f64))
+                Self::MouseWheel(vec2(delta.x as f64, delta.y as f64) * pixels_per_point as f64)
             }
             _ => Self::Unhandled,
         }
@@ -325,7 +344,7 @@ impl Key {
     }
 
     #[cfg(feature = "egui")]
-    fn from_egui_key(key: egui::Key) -> Option<Self> {
+    fn from_egui_key(key: &egui::Key) -> Option<Self> {
         match key {
             egui::Key::ArrowDown => Some(Self::ArrowDown),
             egui::Key::ArrowLeft => Some(Self::ArrowLeft),

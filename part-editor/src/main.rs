@@ -179,27 +179,15 @@ impl PartEditorUi for &mut egui::Ui {
         egui::Frame::canvas(self.style()).show(self, move |ui| {
             let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
 
-            // Mousemove events
-            if let Some(hover_pos) = response.hover_pos() {
-                let pos = point2(
-                    (hover_pos.x - rect.left()) as f64,
-                    (hover_pos.y - rect.top()) as f64,
-                );
-
-                if pos.x >= 0.0
-                    && pos.y >= 0.0
-                    && pos.x <= rect.width() as f64
-                    && pos.y <= rect.height() as f64
-                {
-                    println!("mousemove {}", pos);
-                }
-            }
-
             ui.input(|input| {
                 if input.events.len() > 0 {
                     let mut inner = state.inner.lock().unwrap();
                     for event in input.events.iter() {
-                        inner.view_state.input(&InputEvent::from(event.to_owned()));
+                        inner.view_state.input(&InputEvent::from_egui_event(
+                            event,
+                            &rect,
+                            ui.ctx().pixels_per_point(),
+                        ));
                     }
                 }
             });

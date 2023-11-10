@@ -45,7 +45,7 @@ impl ViewState {
     pub async fn new_on_window(window: &winit::window::Window, out_dir: &str) -> Self {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_window(window);
-        Self::create(render_context, visual_render_target, out_dir).await
+        Self::create(render_context, visual_render_target, out_dir)
     }
 
     pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> ViewState {
