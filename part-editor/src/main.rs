@@ -112,14 +112,17 @@ impl egui_wgpu::CallbackTrait for EditorState {
         callback_resources: &'p egui_wgpu::CallbackResources,
     ) {
         let mut state = self.inner.lock().unwrap();
+        let transfer: &mut EguiTransfer = callback_resources.get_mut().unwrap();
 
-        state.view_state.resize((
+        if state.view_state.resize((
             info.viewport_in_pixels().width_px as u32,
             info.viewport_in_pixels().height_px as u32,
-        ));
+        )) {
+            transfer.rebind_texture(state.view_state.visual_target().texture_view().unwrap())
+        }
+
         state.view_state.render().unwrap();
 
-        let transfer: &EguiTransfer = callback_resources.get().unwrap();
         transfer.transfer(render_pass);
     }
 }

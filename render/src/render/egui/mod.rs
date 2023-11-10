@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 use egui_wgpu::RenderState;
@@ -34,39 +34,41 @@ const QUAD_VERTS: [Vertex2; 6] = [
 ];
 
 pub struct EguiTransfer {
+    device: Arc<wgpu::Device>,
     pipeline: Arc<wgpu::RenderPipeline>,
     quad_buffer: wgpu::Buffer,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+    texture_sampler: wgpu::Sampler,
     texture_bind_group: wgpu::BindGroup,
 }
 impl EguiTransfer {
     pub fn new(render_state: &RenderState, texture_view: &wgpu::TextureView) -> Self {
         let device = &render_state.device;
 
-        let (texture_bind_group_layout, texture_bind_group) = {
-            let texture_bind_group_layout =
-                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: RENDER_LABEL,
-                    entries: &[
-                        // Texture
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                            },
-                            count: None,
+        let (texture_bind_group_layout, texture_sampler, texture_bind_group) = {
+            let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: RENDER_LABEL,
+                entries: &[
+                    // Texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
                         },
-                        // Sampler
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
+                        count: None,
+                    },
+                    // Sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
 
             let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -78,22 +80,9 @@ impl EguiTransfer {
                 ..Default::default()
             });
 
-            let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: RENDER_LABEL,
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-            });
+            let bind_group = Self::make_texture_bind_group(device, &layout, &sampler, texture_view);
 
-            (texture_bind_group_layout, texture_bind_group)
+            (layout, sampler, bind_group)
         };
 
         let quad_buffer = {
@@ -155,8 +144,11 @@ impl EguiTransfer {
         };
 
         Self {
+            device: device.clone(),
             pipeline: Arc::new(pipeline),
             quad_buffer,
+            texture_bind_group_layout,
+            texture_sampler,
             texture_bind_group,
         }
     }
@@ -167,6 +159,37 @@ impl EguiTransfer {
         render_pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
         render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
         render_pass.draw(0..QUAD_VERTS.len() as u32, 0..1);
+    }
+
+    pub fn rebind_texture(&mut self, texture_view: &wgpu::TextureView) {
+        self.texture_bind_group = Self::make_texture_bind_group(
+            &self.device,
+            &self.texture_bind_group_layout,
+            &self.texture_sampler,
+            texture_view,
+        );
+    }
+
+    fn make_texture_bind_group(
+        device: &Arc<wgpu::Device>,
+        layout: &wgpu::BindGroupLayout,
+        sampler: &wgpu::Sampler,
+        texture_view: &wgpu::TextureView,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: RENDER_LABEL,
+            layout: &layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+        })
     }
 }
 

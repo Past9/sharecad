@@ -255,20 +255,20 @@ impl RenderTarget {
         }
 
         if let TargetInner::Surface(ref mut target) = self.target {
+            println!("surface target resize");
             target.config.width = size.0;
             target.config.height = size.1;
             target
                 .surface
                 .configure(&self.context.device, &target.config);
         } else if let TargetInner::Texture(target) = &self.target {
-            /*
+            println!("texture target resize");
             self.target = TargetInner::Texture(TargetTexture::new(
                 self.device(),
                 size,
                 target.texture.format(),
                 Some(target.texture.usage()),
             ));
-             */
         } else {
             todo!("Resize not yet implemented for target type");
         }

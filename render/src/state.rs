@@ -34,7 +34,7 @@ impl ViewState {
             render_state.queue.clone(),
         );
         let visual_render_target = render_context.render_into_memory(
-            (1000, 1000),
+            (300, 300),
             render_state.target_format,
             visual_texture_usage,
         );
@@ -140,12 +140,15 @@ impl ViewState {
         self.visual_renderer.target()
     }
 
-    pub fn resize(&mut self, new_size: (u32, u32)) {
+    pub fn resize(&mut self, new_size: (u32, u32)) -> bool {
         if new_size != self.visual_renderer.size() {
             self.visual_renderer.resize(new_size);
             self.position_renderer
                 .resize((new_size.0 / 10, new_size.1 / 10));
-            self.camera_controller.resize(new_size)
+            self.camera_controller.resize(new_size);
+            true
+        } else {
+            false
         }
     }
 
