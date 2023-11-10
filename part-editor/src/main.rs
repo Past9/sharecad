@@ -5,7 +5,10 @@ use eframe::{
     Renderer,
 };
 use render::{render::RenderContext, state::ViewState};
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::OnceCell,
+    sync::{Arc, Mutex, OnceLock},
+};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -49,30 +52,43 @@ fn main() -> Result<(), eframe::Error> {
     })
 }
 
-#[derive(Clone)]
-struct PartEditorStateInner {}
-impl PartEditorStateInner {
+struct PartEditorStateInner<'a> {
+    view_state: OnceLock<ViewState<'a>>,
+}
+impl<'a> PartEditorStateInner<'a> {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            view_state: OnceLock::new(),
+        }
     }
+
+    /*
+    fn view_state(&self, frame: eframe::Frame) -> &ViewState {
+        self.view_state.get_or_init(|| {
+            let render_state = frame.wgpu_render_state().unwrap();
+            let view_state = ViewState::new_from_resources(render_state, env!("OUT_DIR"));
+            view_state
+        })
+    }
+     */
 }
 
 #[derive(Clone)]
-struct PartEditorState {
-    inner: Arc<Mutex<PartEditorStateInner>>,
+struct PartEditorState<'a> {
+    inner: Arc<Mutex<PartEditorStateInner<'a>>>,
 }
-impl PartEditorState {
+impl<'a> PartEditorState<'a> {
     pub fn new() -> Self {
         let inner = Arc::new(Mutex::new(PartEditorStateInner::new()));
         Self { inner }
     }
 }
-impl egui_wgpu::CallbackTrait for PartEditorState {
-    fn paint<'a>(
-        &'a self,
+impl<'a> egui_wgpu::CallbackTrait for PartEditorState<'a> {
+    fn paint<'p>(
+        &'p self,
         info: eframe::epaint::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        render_pass: &mut wgpu::RenderPass<'p>,
+        callback_resources: &'p egui_wgpu::CallbackResources,
     ) {
         //todo!()
     }
@@ -83,11 +99,11 @@ trait PartEditorUi {
 }
 impl PartEditorUi for &mut egui::Ui {
     fn part_editor(self, state: &mut PartEditorState) {
-        egui::Frame::canvas(self.style()).show(self, |ui| {
+        let s = state.clone();
+        egui::Frame::canvas(self.style()).show(self, move |ui| {
             let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
-
             ui.painter()
-                .add(egui_wgpu::Callback::new_paint_callback(rect, state.clone()));
+                .add(egui_wgpu::Callback::new_paint_callback(rect, s));
         });
     }
 }

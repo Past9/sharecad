@@ -34,8 +34,8 @@ impl<T: From<u32>> IdSeries<T> {
 }
 
 #[derive(Debug)]
-pub struct Scene {
-    objects: Vec<Box<dyn SceneObject>>,
+pub struct Scene<'a> {
+    objects: Vec<Box<dyn SceneObject + 'a>>,
 
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
@@ -45,7 +45,8 @@ pub struct Scene {
 
     light: Light,
 }
-impl Scene {
+unsafe impl<'a> Send for Scene<'a> {}
+impl<'a> Scene<'a> {
     pub fn new() -> Self {
         Self {
             objects: vec![],
@@ -60,7 +61,7 @@ impl Scene {
         }
     }
 
-    pub fn objects(&self) -> &[Box<dyn SceneObject>] {
+    pub fn objects(&self) -> &[Box<dyn SceneObject + 'a>] {
         &self.objects
     }
 

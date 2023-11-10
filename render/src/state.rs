@@ -14,16 +14,19 @@ use wgpu::Surface;
 const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
 
-pub struct ViewState {
+pub struct ViewState<'a> {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
     camera_controller: CameraController,
-    scene: Scene,
+    scene: Scene<'a>,
     needs_position_update: bool,
 }
-impl ViewState {
+impl<'a> ViewState<'a> {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
-    pub async fn new_from_resources(render_state: &egui_wgpu::RenderState, out_dir: &str) -> Self {
+    pub async fn new_from_resources(
+        render_state: &egui_wgpu::RenderState,
+        out_dir: &str,
+    ) -> ViewState<'a> {
         let render_context = RenderContext::from_resources(
             render_state.adapter.clone(),
             render_state.device.clone(),
@@ -42,7 +45,11 @@ impl ViewState {
         Self::create(render_context, visual_render_target, out_dir).await
     }
 
-    pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> Self {
+    pub async fn new_on_surface(
+        surface: Surface,
+        size: (u32, u32),
+        out_dir: &str,
+    ) -> ViewState<'a> {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);
         Self::create(render_context, visual_render_target, out_dir).await
@@ -52,7 +59,7 @@ impl ViewState {
         render_context: RenderContext,
         visual_render_target: RenderTarget,
         out_dir: &str,
-    ) -> Self {
+    ) -> ViewState<'a> {
         let visual_renderer = VisualRenderer::new(visual_render_target).await;
         let position_renderer = PositionRenderer::new(
             render_context
