@@ -154,7 +154,6 @@ impl EguiTransfer {
     }
 
     pub fn transfer<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        println!("transfer");
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
         render_pass.set_bind_group(0, &self.texture_bind_group, &[]);

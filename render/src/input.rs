@@ -1,3 +1,4 @@
+use egui::PointerButton;
 use space::{point2, vec2, Point2, Vec2};
 
 #[derive(Debug, Clone)]
@@ -9,6 +10,43 @@ pub enum InputEvent {
     MouseUp(MouseButton),
     MouseWheel(Vec2),
     Unhandled,
+}
+#[cfg(feature = "egui")]
+impl From<egui::Event> for InputEvent {
+    fn from(value: egui::Event) -> Self {
+        match value {
+            egui::Event::PointerMoved(pos) => Self::CursorMoved(point2(pos.x as f64, pos.y as f64)),
+            egui::Event::Key { key, pressed, .. } => {
+                if let Some(key) = Key::from_egui_key(key) {
+                    match pressed {
+                        true => Self::KeyDown(key),
+                        false => Self::KeyUp(key),
+                    }
+                } else {
+                    Self::Unhandled
+                }
+            }
+            egui::Event::PointerButton {
+                button, pressed, ..
+            } => {
+                let evt_button = match button {
+                    PointerButton::Primary => MouseButton::Primary,
+                    PointerButton::Secondary => MouseButton::Secondary,
+                    PointerButton::Middle => MouseButton::Aux,
+                    _ => return Self::Unhandled,
+                };
+
+                match pressed {
+                    true => Self::MouseDown(evt_button),
+                    false => Self::MouseUp(evt_button),
+                }
+            }
+            egui::Event::MouseWheel { delta, .. } => {
+                Self::MouseWheel(vec2(delta.x as f64, delta.y as f64))
+            }
+            _ => Self::Unhandled,
+        }
+    }
 }
 #[cfg(feature = "winit")]
 impl From<winit::event::WindowEvent> for InputEvent {
@@ -46,7 +84,7 @@ impl From<winit::event::WindowEvent> for InputEvent {
                 is_synthetic,
             } => {
                 if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
-                    if let Some(key) = Key::from_keycode(code) {
+                    if let Some(key) = Key::from_winit_keycode(code) {
                         match event.state.is_pressed() {
                             true => Self::KeyDown(key),
                             false => Self::KeyUp(key),
@@ -286,8 +324,87 @@ impl Key {
         *self == Self::AltLeft || *self == Self::AltRight
     }
 
+    #[cfg(feature = "egui")]
+    fn from_egui_key(key: egui::Key) -> Option<Self> {
+        match key {
+            egui::Key::ArrowDown => Some(Self::ArrowDown),
+            egui::Key::ArrowLeft => Some(Self::ArrowLeft),
+            egui::Key::ArrowRight => Some(Self::ArrowRight),
+            egui::Key::ArrowUp => Some(Self::ArrowUp),
+            egui::Key::Escape => Some(Self::Escape),
+            egui::Key::Tab => Some(Self::Tab),
+            egui::Key::Backspace => Some(Self::Backspace),
+            egui::Key::Enter => Some(Self::Enter),
+            egui::Key::Space => Some(Self::Space),
+            egui::Key::Insert => Some(Self::Insert),
+            egui::Key::Delete => Some(Self::Delete),
+            egui::Key::Home => Some(Self::Home),
+            egui::Key::End => Some(Self::End),
+            egui::Key::PageUp => Some(Self::PageUp),
+            egui::Key::PageDown => Some(Self::PageDown),
+            egui::Key::Minus => Some(Self::Minus),
+            egui::Key::PlusEquals => None,
+            egui::Key::Num0 => Some(Self::Digit0),
+            egui::Key::Num1 => Some(Self::Digit1),
+            egui::Key::Num2 => Some(Self::Digit2),
+            egui::Key::Num3 => Some(Self::Digit3),
+            egui::Key::Num4 => Some(Self::Digit4),
+            egui::Key::Num5 => Some(Self::Digit5),
+            egui::Key::Num6 => Some(Self::Digit6),
+            egui::Key::Num7 => Some(Self::Digit7),
+            egui::Key::Num8 => Some(Self::Digit8),
+            egui::Key::Num9 => Some(Self::Digit9),
+            egui::Key::A => Some(Self::KeyA),
+            egui::Key::B => Some(Self::KeyB),
+            egui::Key::C => Some(Self::KeyC),
+            egui::Key::D => Some(Self::KeyD),
+            egui::Key::E => Some(Self::KeyE),
+            egui::Key::F => Some(Self::KeyF),
+            egui::Key::G => Some(Self::KeyG),
+            egui::Key::H => Some(Self::KeyH),
+            egui::Key::I => Some(Self::KeyI),
+            egui::Key::J => Some(Self::KeyJ),
+            egui::Key::K => Some(Self::KeyK),
+            egui::Key::L => Some(Self::KeyL),
+            egui::Key::M => Some(Self::KeyM),
+            egui::Key::N => Some(Self::KeyN),
+            egui::Key::O => Some(Self::KeyO),
+            egui::Key::P => Some(Self::KeyP),
+            egui::Key::Q => Some(Self::KeyQ),
+            egui::Key::R => Some(Self::KeyR),
+            egui::Key::S => Some(Self::KeyS),
+            egui::Key::T => Some(Self::KeyT),
+            egui::Key::U => Some(Self::KeyU),
+            egui::Key::V => Some(Self::KeyV),
+            egui::Key::W => Some(Self::KeyW),
+            egui::Key::X => Some(Self::KeyX),
+            egui::Key::Y => Some(Self::KeyY),
+            egui::Key::Z => Some(Self::KeyZ),
+            egui::Key::F1 => Some(Self::F1),
+            egui::Key::F2 => Some(Self::F2),
+            egui::Key::F3 => Some(Self::F3),
+            egui::Key::F4 => Some(Self::F4),
+            egui::Key::F5 => Some(Self::F5),
+            egui::Key::F6 => Some(Self::F6),
+            egui::Key::F7 => Some(Self::F7),
+            egui::Key::F8 => Some(Self::F8),
+            egui::Key::F9 => Some(Self::F9),
+            egui::Key::F10 => Some(Self::F10),
+            egui::Key::F11 => Some(Self::F11),
+            egui::Key::F12 => Some(Self::F12),
+            egui::Key::F13 => Some(Self::F13),
+            egui::Key::F14 => Some(Self::F14),
+            egui::Key::F15 => Some(Self::F15),
+            egui::Key::F16 => Some(Self::F16),
+            egui::Key::F17 => Some(Self::F17),
+            egui::Key::F18 => Some(Self::F18),
+            egui::Key::F19 => Some(Self::F19),
+            egui::Key::F20 => Some(Self::F20),
+        }
+    }
+
     #[cfg(feature = "winit")]
-    fn from_keycode(keycode: winit::keyboard::KeyCode) -> Option<Self> {
+    fn from_winit_keycode(keycode: winit::keyboard::KeyCode) -> Option<Self> {
         match keycode {
             winit::keyboard::KeyCode::Backquote => Some(Self::Backquote),
             winit::keyboard::KeyCode::Backslash => Some(Self::Backslash),

@@ -1,13 +1,16 @@
 use eframe::{
     egui,
     egui_wgpu::{self, RenderState, WgpuConfiguration},
+    epaint::Rect,
     wgpu::{self, Features},
     Renderer,
 };
 use render::{
+    input::InputEvent,
     render::{EguiTransfer, RenderContext},
     state::ViewState,
 };
+use space::point2;
 use std::{
     cell::OnceCell,
     iter::Once,
@@ -37,15 +40,31 @@ fn main() -> Result<(), eframe::Error> {
     let mut editor_state: Option<EditorState> = None;
 
     eframe::run_simple_native("Part Editor", options, move |ctx, frame| {
-        let editor_state =
+        let editor_state_left =
             editor_state.get_or_insert_with(|| EditorState::new(frame, PartModel::new()));
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Part Editor");
-            ui.allocate_ui([800.0, 800.0].into(), |ui| {
-                ui.part_editor(editor_state);
-                //
+        egui::SidePanel::left("history-panel")
+            .min_width(300.0)
+            .show(ctx, |ui| {
+                ui.heading("History");
+                ui.separator();
             });
+
+        egui::SidePanel::right("config-panel")
+            .min_width(300.0)
+            .show(ctx, |ui| {
+                ui.heading("Configuration");
+                ui.separator();
+            });
+
+        egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
+            if ui.button("Sketch").clicked() {
+                println!("Sketch");
+            }
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.part_editor(editor_state_left);
         });
     })
 }
@@ -58,6 +77,7 @@ impl PartModel {
 }
 
 struct EditorStateInner {
+    resized: bool,
     view_state: ViewState,
     //transfer: EguiTransfer,
     model: PartModel,
@@ -86,11 +106,16 @@ impl EditorStateInner {
          */
 
         Self {
+            resized: false,
             view_state,
             //transfer,
             model,
         }
     }
+}
+
+struct RenderResources {
+    transfer: EguiTransfer,
 }
 
 #[derive(Clone)]
@@ -105,6 +130,26 @@ impl EditorState {
     }
 }
 impl egui_wgpu::CallbackTrait for EditorState {
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _egui_encoder: &mut wgpu::CommandEncoder,
+        callback_resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        let mut state = self.inner.lock().unwrap();
+
+        if state.resized {
+            let res: &mut RenderResources = callback_resources.get_mut().unwrap();
+            res.transfer
+                .rebind_texture(state.view_state.visual_target().texture_view().unwrap());
+        }
+
+        state.resized = false;
+
+        vec![]
+    }
+
     fn paint<'p>(
         &'p self,
         info: eframe::epaint::PaintCallbackInfo,
@@ -112,18 +157,16 @@ impl egui_wgpu::CallbackTrait for EditorState {
         callback_resources: &'p egui_wgpu::CallbackResources,
     ) {
         let mut state = self.inner.lock().unwrap();
-        let transfer: &mut EguiTransfer = callback_resources.get_mut().unwrap();
+        let res: &RenderResources = callback_resources.get().unwrap();
 
-        if state.view_state.resize((
+        state.resized = state.view_state.resize((
             info.viewport_in_pixels().width_px as u32,
             info.viewport_in_pixels().height_px as u32,
-        )) {
-            transfer.rebind_texture(state.view_state.visual_target().texture_view().unwrap())
-        }
+        ));
 
         state.view_state.render().unwrap();
 
-        transfer.transfer(render_pass);
+        res.transfer.transfer(render_pass);
     }
 }
 
@@ -135,6 +178,32 @@ impl PartEditorUi for &mut egui::Ui {
         let state = state.clone();
         egui::Frame::canvas(self.style()).show(self, move |ui| {
             let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+
+            // Mousemove events
+            if let Some(hover_pos) = response.hover_pos() {
+                let pos = point2(
+                    (hover_pos.x - rect.left()) as f64,
+                    (hover_pos.y - rect.top()) as f64,
+                );
+
+                if pos.x >= 0.0
+                    && pos.y >= 0.0
+                    && pos.x <= rect.width() as f64
+                    && pos.y <= rect.height() as f64
+                {
+                    println!("mousemove {}", pos);
+                }
+            }
+
+            ui.input(|input| {
+                if input.events.len() > 0 {
+                    let mut inner = state.inner.lock().unwrap();
+                    for event in input.events.iter() {
+                        inner.view_state.input(&InputEvent::from(event.to_owned()));
+                    }
+                }
+            });
+
             ui.painter()
                 .add(egui_wgpu::Callback::new_paint_callback(rect, state));
         });
@@ -143,9 +212,8 @@ impl PartEditorUi for &mut egui::Ui {
 
 fn init_transfer(render_state: &RenderState, texture_view: &wgpu::TextureView) {
     let transfer = EguiTransfer::new(render_state, texture_view);
-    render_state
-        .renderer
-        .write()
-        .callback_resources
-        .insert(transfer);
+
+    let res = RenderResources { transfer };
+
+    render_state.renderer.write().callback_resources.insert(res);
 }
