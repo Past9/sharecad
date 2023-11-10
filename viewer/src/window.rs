@@ -1,4 +1,4 @@
-use render::{input::InputEvent, state::State};
+use render::{input::InputEvent, state::ViewState};
 use winit::{
     dpi::{PhysicalSize, Size},
     event::{ElementState, Event, KeyEvent, WindowEvent},
@@ -21,7 +21,7 @@ pub async fn run() {
 
     println!("OUT_DIR {:#?}", env!("OUT_DIR"));
 
-    let mut state = State::new_on_window(&window, env!("OUT_DIR")).await;
+    let mut state = ViewState::new_on_window(&window, env!("OUT_DIR")).await;
 
     event_loop
         .run(move |event, elwt| match event {

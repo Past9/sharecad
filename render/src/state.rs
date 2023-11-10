@@ -14,29 +14,31 @@ use wgpu::Surface;
 const NUM_INSTANCES_PER_ROW: u32 = 3;
 const SPACE_BETWEEN: f64 = 3.0;
 
-pub struct State {
+pub struct ViewState {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
     camera_controller: CameraController,
     scene: Scene,
     needs_position_update: bool,
 }
-impl State {
+impl ViewState {
+    #[cfg(all(not(feature = "winit"), feature = "egui"))]
+    pub async fn new_from_resources(render_state: &egui_wgpu::RenderState, out_dir: &str) -> Self {
+        let render_context = RenderContext::from_resources(
+            render_state.adapter.clone(),
+            render_state.device.clone(),
+            render_state.queue.clone(),
+        )
+        .await;
+        let visual_render_target =
+            render_context.render_into_memory((1, 1), render_state.target_format);
+        Self::create(render_context, visual_render_target, out_dir).await
+    }
+
     #[cfg(feature = "winit")]
     pub async fn new_on_window(window: &winit::window::Window, out_dir: &str) -> Self {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_window(window);
-        Self::create(render_context, visual_render_target, out_dir).await
-    }
-
-    #[cfg(all(
-        feature = "canvas",
-        target_arch = "wasm32",
-        //not(target_os = "emscripten"),
-    ))]
-    pub async fn new_on_canvas(canvas: web_sys::HtmlCanvasElement, out_dir: &str) -> Self {
-        let render_context = RenderContext::new().await;
-        let visual_render_target = render_context.render_on_canvas(canvas);
         Self::create(render_context, visual_render_target, out_dir).await
     }
 

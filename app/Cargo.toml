@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-render = { path = "../render", features = ["canvas"] }
+render = { path = "../render" }
 dioxus = "0.4.0"
 dioxus-web = "0.4.0"
 dioxus-logger = "0.4.1"

@@ -2,12 +2,18 @@ mod position;
 mod texture;
 mod visual;
 
+#[cfg(feature = "egui")]
+mod egui;
+
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 use wgpu::Surface;
 
 pub use position::*;
 pub use visual::*;
+
+#[cfg(feature = "egui")]
+pub use egui::*;
 
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -19,14 +25,36 @@ pub fn pad_u32(num: u32, pad: u32) -> u32 {
 
 pub struct RenderContext {
     inner: Arc<ContextInner>,
+
+    #[cfg(feature = "winit")]
+    instance: wgpu::Instance,
 }
 impl RenderContext {
+    #[cfg(not(feature = "winit"))]
+    pub async fn from_resources(
+        adapter: Arc<wgpu::Adapter>,
+        device: Arc<wgpu::Device>,
+        queue: Arc<wgpu::Queue>,
+    ) -> Self {
+        use std::task::Context;
+
+        Self {
+            inner: Arc::new(ContextInner {
+                adapter,
+                device,
+                queue,
+            }),
+        }
+    }
+
     pub async fn new() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: wgpu::Backends::GL, //wgpu::Backends::all(),
             dx12_shader_compiler: Default::default(),
             ..Default::default()
         });
+
+        log::debug!("instance {:#?}", instance);
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -51,11 +79,13 @@ impl RenderContext {
 
         Self {
             inner: Arc::new(ContextInner {
-                instance,
-                adapter,
-                device,
-                queue,
+                adapter: Arc::new(adapter),
+                device: Arc::new(device),
+                queue: Arc::new(queue),
             }),
+
+            #[cfg(feature = "winit")]
+            instance,
         }
     }
 
@@ -72,25 +102,9 @@ impl RenderContext {
 
     #[cfg(feature = "winit")]
     pub fn render_on_window(&self, window: &winit::window::Window) -> RenderTarget {
-        let surface = unsafe { self.inner.instance.create_surface(&window) }.unwrap();
+        let surface = unsafe { self.instance.create_surface(&window) }.unwrap();
         let dimensions = window.inner_size();
         self.render_on_surface(surface, (dimensions.width, dimensions.height))
-    }
-
-    #[cfg(all(
-        feature = "canvas",
-        target_arch = "wasm32",
-        //not(target_os = "emscripten"),
-    ))]
-    pub fn render_on_canvas(&self, canvas: web_sys::HtmlCanvasElement) -> RenderTarget {
-        let size = (canvas.width(), canvas.height());
-        let surface = self
-            .inner
-            .instance
-            .create_surface_from_canvas(canvas)
-            .unwrap();
-
-        self.render_on_surface(surface, size)
     }
 
     pub fn render_on_surface(&self, surface: Surface, size: (u32, u32)) -> RenderTarget {
@@ -123,10 +137,10 @@ impl RenderContext {
 }
 
 struct ContextInner {
-    instance: wgpu::Instance,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    //instance: wgpu::Instance,
+    adapter: Arc<wgpu::Adapter>,
+    device: Arc<wgpu::Device>,
+    queue: Arc<wgpu::Queue>,
 }
 
 enum TargetInner {
