@@ -30,14 +30,10 @@ fn fs_main(
 ) -> @location(0) vec4<f32> {
     var color = textureSample(t_diffuse, s_diffuse, in.tex_coord).rgba;
 
-    var corrected = vec4<f32>(
+    return vec4<f32>(
         pow(color.r, 1.0 / 2.2),
         pow(color.g, 1.0 / 2.2),
         pow(color.b, 1.0 / 2.2),
         color.a
     );
-
-    return corrected;
-
-    //return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
