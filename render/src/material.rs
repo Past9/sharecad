@@ -103,14 +103,7 @@ impl DiffuseSpec {
     pub fn image(&self) -> image::DynamicImage {
         match self {
             DiffuseSpec::Texture(image) => image.clone(),
-            DiffuseSpec::Rgba(rgba) => {
-                let mut image = DynamicImage::new_rgb8(2, 2);
-                image.put_pixel(0, 0, image::Rgba::from(rgba.as_u8s()));
-                image.put_pixel(0, 1, image::Rgba::from(rgba.as_u8s()));
-                image.put_pixel(1, 0, image::Rgba::from(rgba.as_u8s()));
-                image.put_pixel(1, 1, image::Rgba::from(rgba.as_u8s()));
-                image
-            }
+            DiffuseSpec::Rgba(rgba) => rgba.create_image(),
         }
     }
 }
@@ -129,20 +122,17 @@ impl NormalSpec {
         match self {
             NormalSpec::Map(image) => image.clone(),
             NormalSpec::Vec3(vec3) => {
-                let mut image = DynamicImage::new_rgb8(2, 2);
-                let color = rgb(vec3.x as f32, vec3.y as f32, vec3.z as f32).with_a(1.0);
-                image.put_pixel(0, 0, image::Rgba::from(color.as_u8s()));
-                image.put_pixel(0, 1, image::Rgba::from(color.as_u8s()));
-                image.put_pixel(1, 0, image::Rgba::from(color.as_u8s()));
-                image.put_pixel(1, 1, image::Rgba::from(color.as_u8s()));
-                image
+                println!("rgb normal {:?}", Rgb::from_vec3(*vec3));
+                Rgb::from_vec3(*vec3).create_image()
             }
         }
     }
 }
 impl Default for NormalSpec {
     fn default() -> Self {
-        Self::Vec3(vec3(0.5, 0.5, 1.0))
+        // (0, 0, 1) points out of the surface. Will be converted
+        // to normal colorspace before being passed to shader
+        Self::Vec3(vec3(0.0, 0.0, 1.0))
     }
 }
 
@@ -155,7 +145,22 @@ pub struct Rgba {
 }
 impl Rgba {
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
+        Self {
+            r: r.clamp(0.0, 1.0),
+            g: g.clamp(0.0, 1.0),
+            b: b.clamp(0.0, 1.0),
+            a: a.clamp(0.0, 1.0),
+        }
+    }
+
+    // Create a small texture image filled with this color.
+    pub fn create_image(&self) -> image::DynamicImage {
+        let mut image = DynamicImage::new_rgb8(2, 2);
+        image.put_pixel(0, 0, image::Rgba::from(self.as_u8s()));
+        image.put_pixel(0, 1, image::Rgba::from(self.as_u8s()));
+        image.put_pixel(1, 0, image::Rgba::from(self.as_u8s()));
+        image.put_pixel(1, 1, image::Rgba::from(self.as_u8s()));
+        image
     }
 
     pub fn as_u8s(&self) -> [u8; 4] {
@@ -183,7 +188,15 @@ pub struct Rgb {
 }
 impl Rgb {
     pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self { r, g, b }
+        Self {
+            r: r.clamp(0.0, 1.0),
+            g: g.clamp(0.0, 1.0),
+            b: b.clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn create_image(&self) -> image::DynamicImage {
+        self.with_a(1.0).create_image()
     }
 
     pub fn with_a(&self, a: f32) -> Rgba {
@@ -200,6 +213,12 @@ impl Rgb {
 
     fn f32_to_u8(val: f32) -> u8 {
         (val * 255.0).round() as u8
+    }
+
+    fn from_vec3(vec: Vec3) -> Self {
+        // Convert the vec to normal colorspace
+        let rgb_vec = (vec + vec3(1.0, 1.0, 1.0)) / 2.0;
+        Self::new(rgb_vec.x as f32, rgb_vec.y as f32, rgb_vec.z as f32)
     }
 }
 pub fn rgb(r: f32, g: f32, b: f32) -> Rgb {

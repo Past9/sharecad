@@ -217,8 +217,7 @@ impl Scene {
 
             self.insert_material(
                 MaterialSpec::default()
-                    .diffuse_from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
-                    .normal_from_file(&normal_pathbuf.into_os_string().into_string().unwrap()),
+                    .diffuse_from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap()), //.normal_from_file(&normal_pathbuf.into_os_string().into_string().unwrap()),
             );
         }
 
