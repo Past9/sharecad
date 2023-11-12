@@ -9,9 +9,9 @@ use space::{Point3, Vec2, Vec3};
 
 use crate::{
     light::Light,
-    material::{Material, MaterialId},
+    material::{rgba, Material, MaterialId, MaterialSpec},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
-    texture::{ImageTextureKind, Texture, TextureId},
+    texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
 
 #[derive(Debug)]
@@ -91,7 +91,92 @@ impl Scene {
 
     fn load_texture(&self, id: TextureId, file_path: &str, kind: ImageTextureKind) -> Texture {
         let data = Self::load_binary(file_path);
-        Texture::from_bytes(id, &data, file_path, kind)
+        Texture::from_bytes(id, &data, kind)
+    }
+
+    fn insert_diffuse_texture(&mut self, image: image::DynamicImage) -> TextureId {
+        let id = self
+            .textures
+            .iter()
+            .filter_map(|(id, texture)| match &texture.image {
+                TextureImage::Diffuse(texture) => {
+                    if *texture == image {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                }
+                TextureImage::NormalMap(_) => None,
+            })
+            .next();
+
+        match id {
+            Some(id) => *id,
+            None => {
+                let id = self.texture_ids.next();
+                self.textures.insert(
+                    id,
+                    Texture::from_image(id, image, ImageTextureKind::Diffuse),
+                );
+                id
+            }
+        }
+    }
+
+    fn insert_normal_map(&mut self, image: image::DynamicImage) -> TextureId {
+        let id = self
+            .textures
+            .iter()
+            .filter_map(|(id, texture)| match &texture.image {
+                crate::texture::TextureImage::NormalMap(texture) => {
+                    if *texture == image {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                }
+                crate::texture::TextureImage::Diffuse(_) => None,
+            })
+            .next();
+
+        match id {
+            Some(id) => *id,
+            None => {
+                let id = self.texture_ids.next();
+                self.textures.insert(
+                    id,
+                    Texture::from_image(id, image, ImageTextureKind::NormalMap),
+                );
+                id
+            }
+        }
+    }
+
+    fn insert_material(&mut self, spec: MaterialSpec) -> MaterialId {
+        let diffuse_id = self.insert_diffuse_texture(spec.diffuse.image());
+        let normal_id = self.insert_normal_map(spec.normal.image());
+
+        let id = self
+            .materials
+            .iter()
+            .filter_map(|(id, material)| {
+                if diffuse_id == material.diffuse && normal_id == material.normal {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next();
+
+        match id {
+            Some(id) => *id,
+            None => {
+                let id = self.material_ids.next();
+                self.materials
+                    .insert(id, Material::new(id, diffuse_id, normal_id));
+                id
+            }
+        }
     }
 
     pub fn load_model_file<T: SceneObjectInstance>(
@@ -99,7 +184,7 @@ impl Scene {
         file_path: &str,
         mut instances: Vec<Vec<T>>,
     ) {
-        let parent_path = Path::new(file_path).parent().unwrap();
+        let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
         let obj_text = Self::load_string(file_path);
         let obj_cursor = Cursor::new(obj_text);
@@ -113,7 +198,7 @@ impl Scene {
                 ..Default::default()
             },
             |p| {
-                let mut material_pathbuf = PathBuf::from(parent_path);
+                let mut material_pathbuf = parent_path.clone();
                 material_pathbuf.push(p);
 
                 let mat_text =
@@ -124,37 +209,17 @@ impl Scene {
         .unwrap();
 
         for m in obj_materials.unwrap().into_iter() {
-            let diffuse_tex_id = self.texture_ids.next();
-            let normal_tex_id = self.texture_ids.next();
-            let material_id = self.material_ids.next();
-
-            let mut diffuse_pathbuf = PathBuf::from(parent_path);
+            let mut diffuse_pathbuf = parent_path.clone();
             diffuse_pathbuf.push(m.diffuse_texture);
 
-            self.textures.insert(
-                diffuse_tex_id,
-                self.load_texture(
-                    diffuse_tex_id,
-                    &diffuse_pathbuf.into_os_string().into_string().unwrap(),
-                    ImageTextureKind::Diffuse,
-                ),
-            );
-
-            let mut normal_pathbuf = PathBuf::from(parent_path);
+            let mut normal_pathbuf = parent_path.clone();
             normal_pathbuf.push(m.normal_texture);
 
-            self.textures.insert(
-                normal_tex_id,
-                self.load_texture(
-                    normal_tex_id,
-                    &normal_pathbuf.into_os_string().into_string().unwrap(),
-                    ImageTextureKind::NormalMap,
-                ),
+            self.insert_material(
+                MaterialSpec::default()
+                    //.diffuse_from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
+                    .diffuse_rgba(rgba(0.5, 0.5, 0.5, 1.0)), //.normal_from_file(&normal_pathbuf.into_os_string().into_string().unwrap()),
             );
-
-            let material = Material::new(material_id, &m.name, diffuse_tex_id, normal_tex_id);
-
-            self.materials.insert(material.id, material);
         }
 
         for m in models.into_iter() {

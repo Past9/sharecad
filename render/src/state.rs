@@ -11,7 +11,7 @@ use crate::{
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 3;
+const NUM_INSTANCES_PER_ROW: u32 = 1;
 const SPACE_BETWEEN: f64 = 3.0;
 
 pub struct ViewState {
@@ -101,6 +101,8 @@ impl ViewState {
                                     * (z as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
                             );
 
+                            println!("position {:?}", position);
+
                             TransformedInstance {
                                 id,
                                 scale,
@@ -122,7 +124,7 @@ impl ViewState {
                 vec![instances],
             );
 
-            scene.set_light(Light::new(point3(2.0, 2.0, 2.0), [1.0, 1.0, 1.0]));
+            scene.set_light(Light::new(point3(0.0, 0.0, 0.0), [1.0, 1.0, 1.0]));
 
             scene
         };
@@ -153,6 +155,7 @@ impl ViewState {
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {
+        println!("light {:?}", self.scene.light());
         let result = self.camera_controller.process_events(event);
 
         for request in result.requests {

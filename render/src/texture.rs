@@ -8,6 +8,28 @@ impl From<u32> for TextureId {
     }
 }
 
+#[derive(Debug)]
+pub struct Texture {
+    pub id: TextureId,
+    pub image: TextureImage,
+}
+impl Texture {
+    pub fn from_image(id: TextureId, image: image::DynamicImage, kind: ImageTextureKind) -> Self {
+        Self {
+            id,
+            image: match kind {
+                ImageTextureKind::Diffuse => TextureImage::Diffuse(image),
+                ImageTextureKind::NormalMap => TextureImage::NormalMap(image),
+            },
+        }
+    }
+
+    pub fn from_bytes(id: TextureId, bytes: &[u8], kind: ImageTextureKind) -> Self {
+        let image = image::load_from_memory(bytes).unwrap();
+        Self::from_image(id, image, kind)
+    }
+}
+
 pub enum TextureImage {
     Diffuse(image::DynamicImage),
     NormalMap(image::DynamicImage),
@@ -30,33 +52,4 @@ impl std::fmt::Debug for TextureImage {
 pub enum ImageTextureKind {
     Diffuse,
     NormalMap,
-}
-
-#[derive(Debug)]
-pub struct Texture {
-    pub id: TextureId,
-    pub image: TextureImage,
-    pub label: String,
-}
-impl Texture {
-    pub fn from_image(
-        id: TextureId,
-        image: image::DynamicImage,
-        label: &str,
-        kind: ImageTextureKind,
-    ) -> Self {
-        Self {
-            id,
-            image: match kind {
-                ImageTextureKind::Diffuse => TextureImage::Diffuse(image),
-                ImageTextureKind::NormalMap => TextureImage::NormalMap(image),
-            },
-            label: label.into(),
-        }
-    }
-
-    pub fn from_bytes(id: TextureId, bytes: &[u8], label: &str, kind: ImageTextureKind) -> Self {
-        let image = image::load_from_memory(bytes).unwrap();
-        Self::from_image(id, image, label, kind)
-    }
 }
