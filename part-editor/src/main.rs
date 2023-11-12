@@ -89,8 +89,8 @@ impl EditorStateInner {
 
         let view_state = ViewState::new_from_resources(
             render_state,
-            env!("OUT_DIR"),
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
+            env!("OUT_DIR"),
         );
 
         init_transfer(

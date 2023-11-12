@@ -25,8 +25,8 @@ impl ViewState {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
     pub fn new_from_resources(
         render_state: &egui_wgpu::RenderState,
-        out_dir: &str,
         visual_texture_usage: Option<wgpu::TextureUsages>,
+        resource_dir: &str,
     ) -> ViewState {
         let render_context = RenderContext::from_resources(
             render_state.adapter.clone(),
@@ -38,7 +38,7 @@ impl ViewState {
             render_state.target_format,
             visual_texture_usage,
         );
-        Self::create(render_context, visual_render_target, out_dir)
+        Self::create(render_context, visual_render_target, resource_dir)
     }
 
     #[cfg(feature = "winit")]
@@ -57,7 +57,7 @@ impl ViewState {
     fn create(
         render_context: RenderContext,
         visual_render_target: RenderTarget,
-        out_dir: &str,
+        resource_dir: &str,
     ) -> ViewState {
         let visual_renderer = VisualRenderer::new(visual_render_target);
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
@@ -112,7 +112,7 @@ impl ViewState {
                 })
                 .collect::<Vec<_>>();
 
-            let path = Path::new(out_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
+            let path = Path::new(resource_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
 
             let path_str = path.to_str().unwrap();
 
