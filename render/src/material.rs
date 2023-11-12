@@ -132,6 +132,9 @@ impl NormalSpec {
                 let mut image = DynamicImage::new_rgb8(2, 2);
                 let color = rgb(vec3.x as f32, vec3.y as f32, vec3.z as f32).with_a(1.0);
                 image.put_pixel(0, 0, image::Rgba::from(color.as_u8s()));
+                image.put_pixel(0, 1, image::Rgba::from(color.as_u8s()));
+                image.put_pixel(1, 0, image::Rgba::from(color.as_u8s()));
+                image.put_pixel(1, 1, image::Rgba::from(color.as_u8s()));
                 image
             }
         }
