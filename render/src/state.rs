@@ -11,7 +11,7 @@ use crate::{
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 3;
+const NUM_INSTANCES_PER_ROW: u32 = 1;
 const SPACE_BETWEEN: f64 = 3.0;
 
 pub struct ViewState {
@@ -112,11 +112,16 @@ impl ViewState {
                 })
                 .collect::<Vec<_>>();
 
-            let path = Path::new(resource_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
+            //let path = Path::new(resource_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
+            //let path = Path::new("C:\\Users\\ross\\Downloads\\eyeball\\obj\\eyeball.obj");
+            let path =
+                Path::new("C:\\Users\\ross\\Projects\\sharecad\\resources\\gizmo\\gizmo2.obj");
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_model_file::<TransformedInstance>(
+            println!("instances = {:?}", instances);
+
+            scene.load_wavefront_obj_file::<TransformedInstance>(
                 //"rounded-cube/rounded-cube.obj",
                 path_str,
                 vec![instances],

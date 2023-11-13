@@ -27,35 +27,78 @@ impl Material {
     }
 }
 
+#[derive(Debug)]
 pub struct MaterialSpec {
     pub diffuse: DiffuseSpec,
+    pub transmit: TransmitSpec,
     pub normal: NormalSpec,
 }
 impl MaterialSpec {
     pub fn diffuse(self, diffuse: DiffuseSpec) -> Self {
-        let Self { normal, .. } = self;
-        Self { diffuse, normal }
+        let Self {
+            normal, transmit, ..
+        } = self;
+        Self {
+            diffuse,
+            transmit,
+            normal,
+        }
+    }
+
+    pub fn transmit(self, transmit: TransmitSpec) -> Self {
+        let Self {
+            diffuse, normal, ..
+        } = self;
+        Self {
+            diffuse,
+            transmit,
+            normal,
+        }
     }
 
     pub fn normal(self, normal: NormalSpec) -> Self {
-        let Self { diffuse, .. } = self;
-        Self { diffuse, normal }
+        let Self {
+            diffuse, transmit, ..
+        } = self;
+        Self {
+            diffuse,
+            transmit,
+            normal,
+        }
     }
 
-    pub fn diffuse_rgba(self, rgba: Rgba) -> Self {
-        let Self { normal, .. } = self;
+    pub fn diffuse_rgb(self, rgb: Rgb) -> Self {
+        let Self {
+            normal, transmit, ..
+        } = self;
 
         Self {
-            diffuse: DiffuseSpec::Rgba(rgba),
+            diffuse: DiffuseSpec::Rgb(rgb),
+            transmit,
+            normal,
+        }
+    }
+
+    pub fn transmit_rgb(self, rgb: Rgb) -> Self {
+        let Self {
+            diffuse, normal, ..
+        } = self;
+
+        Self {
+            diffuse,
+            transmit: TransmitSpec::Rgb(rgb),
             normal,
         }
     }
 
     pub fn normal_vec(self, vec: Vec3) -> Self {
-        let Self { diffuse, .. } = self;
+        let Self {
+            diffuse, transmit, ..
+        } = self;
 
         Self {
             normal: NormalSpec::Vec3(vec),
+            transmit,
             diffuse,
         }
     }
@@ -71,6 +114,19 @@ impl MaterialSpec {
 
     pub fn diffuse_from_file(self, path: &str) -> Self {
         self.diffuse_from_bytes(&std::fs::read(path).unwrap())
+    }
+
+    pub fn transmit_from_image(self, image: image::DynamicImage) -> Self {
+        self.transmit(TransmitSpec::Texture(image))
+    }
+
+    pub fn transmit_from_bytes(self, bytes: &[u8]) -> Self {
+        let image = image::load_from_memory(bytes).unwrap();
+        self.transmit_from_image(image)
+    }
+
+    pub fn transmit_from_file(self, path: &str) -> Self {
+        self.transmit_from_bytes(&std::fs::read(path).unwrap())
     }
 
     pub fn normal_from_image(self, image: image::DynamicImage) -> Self {
@@ -90,29 +146,77 @@ impl Default for MaterialSpec {
     fn default() -> Self {
         Self {
             diffuse: Default::default(),
+            transmit: Default::default(),
             normal: Default::default(),
         }
     }
 }
 
+#[derive(Debug)]
 pub enum DiffuseSpec {
     Texture(image::DynamicImage),
-    Rgba(Rgba),
+    Rgb(Rgb),
 }
 impl DiffuseSpec {
     pub fn image(&self) -> image::DynamicImage {
         match self {
             DiffuseSpec::Texture(image) => image.clone(),
-            DiffuseSpec::Rgba(rgba) => rgba.create_image(),
+            DiffuseSpec::Rgb(rgb) => rgb.create_image(),
         }
+    }
+
+    pub fn from_image(image: image::DynamicImage) -> Self {
+        Self::Texture(image)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let image = image::load_from_memory(bytes).unwrap();
+        Self::from_image(image)
+    }
+
+    pub fn from_file(path: &str) -> Self {
+        Self::from_bytes(&std::fs::read(path).unwrap())
     }
 }
 impl Default for DiffuseSpec {
     fn default() -> Self {
-        Self::Rgba(rgba(0.5, 0.5, 0.5, 1.0))
+        Self::Rgb(rgb(0.5, 0.5, 0.5))
     }
 }
 
+#[derive(Debug)]
+pub enum TransmitSpec {
+    Texture(image::DynamicImage),
+    Rgb(Rgb),
+}
+impl TransmitSpec {
+    pub fn image(&self) -> image::DynamicImage {
+        match self {
+            TransmitSpec::Texture(image) => image.clone(),
+            TransmitSpec::Rgb(rgb) => rgb.create_image(),
+        }
+    }
+
+    pub fn from_image(image: image::DynamicImage) -> Self {
+        Self::Texture(image)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let image = image::load_from_memory(bytes).unwrap();
+        Self::from_image(image)
+    }
+
+    pub fn from_file(path: &str) -> Self {
+        Self::from_bytes(&std::fs::read(path).unwrap())
+    }
+}
+impl Default for TransmitSpec {
+    fn default() -> Self {
+        Self::Rgb(rgb(0.0, 0.0, 0.0))
+    }
+}
+
+#[derive(Debug)]
 pub enum NormalSpec {
     Map(image::DynamicImage),
     Vec3(Vec3),
@@ -121,11 +225,21 @@ impl NormalSpec {
     pub fn image(&self) -> image::DynamicImage {
         match self {
             NormalSpec::Map(image) => image.clone(),
-            NormalSpec::Vec3(vec3) => {
-                println!("rgb normal {:?}", Rgb::from_vec3(*vec3));
-                Rgb::from_vec3(*vec3).create_image()
-            }
+            NormalSpec::Vec3(vec3) => Rgb::from_vec3(*vec3).create_image(),
         }
+    }
+
+    pub fn from_image(image: image::DynamicImage) -> Self {
+        Self::Map(image)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let image = image::load_from_memory(bytes).unwrap();
+        Self::from_image(image)
+    }
+
+    pub fn from_file(path: &str) -> Self {
+        Self::from_bytes(&std::fs::read(path).unwrap())
     }
 }
 impl Default for NormalSpec {

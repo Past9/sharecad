@@ -141,6 +141,7 @@ impl RenderContext {
     }
 }
 
+#[derive(Debug)]
 struct ContextInner {
     //instance: wgpu::Instance,
     adapter: Arc<wgpu::Adapter>,
@@ -148,16 +149,19 @@ struct ContextInner {
     queue: Arc<wgpu::Queue>,
 }
 
+#[derive(Debug)]
 enum TargetInner {
     Surface(TargetSurface),
     Texture(TargetTexture),
 }
 
+#[derive(Debug)]
 struct TargetSurface {
     surface: wgpu::Surface,
     config: wgpu::SurfaceConfiguration,
 }
 
+#[derive(Debug)]
 struct TargetTexture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
@@ -222,6 +226,7 @@ impl TargetTexture {
     }
 }
 
+#[derive(Debug)]
 pub struct RenderTarget {
     context: Arc<ContextInner>,
     target: TargetInner,
@@ -250,20 +255,17 @@ impl RenderTarget {
     }
 
     pub fn resize(&mut self, size: (u32, u32)) {
-        println!("RenderTarget::resize({}, {})", size.0, size.1);
         if size.0 == 0 || size.1 == 0 {
             return;
         }
 
         if let TargetInner::Surface(ref mut target) = self.target {
-            println!("surface target resize");
             target.config.width = size.0;
             target.config.height = size.1;
             target
                 .surface
                 .configure(&self.context.device, &target.config);
         } else if let TargetInner::Texture(target) = &self.target {
-            println!("texture target resize");
             self.target = TargetInner::Texture(TargetTexture::new(
                 self.device(),
                 size,

@@ -1,4 +1,5 @@
 use std::{
+    cell::OnceCell,
     collections::HashMap,
     io::{BufReader, Cursor},
     marker::PhantomData,
@@ -9,7 +10,7 @@ use space::{Point3, Vec2, Vec3};
 
 use crate::{
     light::Light,
-    material::{rgba, Material, MaterialId, MaterialSpec},
+    material::{rgb, rgba, DiffuseSpec, Material, MaterialId, MaterialSpec, NormalSpec},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -42,6 +43,7 @@ pub struct Scene {
 
     material_ids: IdSeries<MaterialId>,
     materials: HashMap<MaterialId, Material>,
+    err_material_id: OnceCell<MaterialId>,
 
     light: Light,
 }
@@ -56,6 +58,7 @@ impl Scene {
 
             material_ids: IdSeries::new(),
             materials: HashMap::new(),
+            err_material_id: OnceCell::new(),
 
             light: Light::new(Point3::ZERO, [0.0; 3]),
         }
@@ -83,15 +86,6 @@ impl Scene {
 
     fn load_string(file_path: &str) -> String {
         std::fs::read_to_string(file_path).unwrap()
-    }
-
-    fn load_binary(file_path: &str) -> Vec<u8> {
-        std::fs::read(file_path).unwrap()
-    }
-
-    fn load_texture(&self, id: TextureId, file_path: &str, kind: ImageTextureKind) -> Texture {
-        let data = Self::load_binary(file_path);
-        Texture::from_bytes(id, &data, kind)
     }
 
     fn insert_diffuse_texture(&mut self, image: image::DynamicImage) -> TextureId {
@@ -179,10 +173,10 @@ impl Scene {
         }
     }
 
-    pub fn load_model_file<T: SceneObjectInstance>(
+    pub fn load_wavefront_obj_file<T: SceneObjectInstance>(
         &mut self,
         file_path: &str,
-        mut instances: Vec<Vec<T>>,
+        instances: Vec<Vec<T>>,
     ) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
@@ -208,17 +202,35 @@ impl Scene {
         )
         .unwrap();
 
-        for m in obj_materials.unwrap().into_iter() {
-            let mut diffuse_pathbuf = parent_path.clone();
-            diffuse_pathbuf.push(m.diffuse_texture);
+        let missing_material_id =
+            self.insert_material(MaterialSpec::default().diffuse_rgb(rgb(1.0, 0.0, 1.0)));
 
-            let mut normal_pathbuf = parent_path.clone();
-            normal_pathbuf.push(m.normal_texture);
+        let mut material_id_map: HashMap<usize, MaterialId> = HashMap::new();
+        for (index, m) in obj_materials.unwrap().into_iter().enumerate() {
+            let diffuse = {
+                if m.diffuse_texture != "" {
+                    let mut diffuse_pathbuf = parent_path.clone();
+                    diffuse_pathbuf.push(m.diffuse_texture);
+                    DiffuseSpec::from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
+                } else {
+                    DiffuseSpec::Rgb(rgb(m.diffuse[0], m.diffuse[1], m.diffuse[2]))
+                }
+            };
 
-            self.insert_material(
-                MaterialSpec::default()
-                    .diffuse_from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap()), //.normal_from_file(&normal_pathbuf.into_os_string().into_string().unwrap()),
-            );
+            let normal = {
+                if m.normal_texture != "" {
+                    let mut normal_pathbuf = parent_path.clone();
+                    normal_pathbuf.push(m.normal_texture);
+                    NormalSpec::from_file(&normal_pathbuf.into_os_string().into_string().unwrap())
+                } else {
+                    NormalSpec::default()
+                }
+            };
+
+            let material_spec = MaterialSpec::default().diffuse(diffuse).normal(normal);
+            let id = self.insert_material(material_spec);
+
+            material_id_map.insert(index, id);
         }
 
         for m in models.into_iter() {
@@ -229,7 +241,7 @@ impl Scene {
                         m.mesh.positions[i * 3 + 1],
                         m.mesh.positions[i * 3 + 2],
                     ],
-                    tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
+                    tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                     normal: [
                         -m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
@@ -311,13 +323,19 @@ impl Scene {
 
             let mesh = Mesh::new(file_path.into(), vertices, m.mesh.indices);
 
-            let object = MeshObject::new(
-                mesh,
-                instances.remove(0),
-                MaterialId(self.materials.len() as u32 + m.mesh.material_id.unwrap() as u32),
-            );
+            let material_id = match m.mesh.material_id {
+                Some(index) => match material_id_map.get(&index) {
+                    Some(id) => *id,
+                    None => missing_material_id,
+                },
+                None => missing_material_id,
+            };
+
+            let object = MeshObject::new(mesh, instances[0].clone(), material_id);
 
             self.objects.push(Box::new(object));
         }
+
+        println!("scene.materials = {:#?}", self.materials);
     }
 }

@@ -10,6 +10,7 @@ use crate::{
 use std::{cell::OnceCell, collections::HashMap};
 use wgpu::util::DeviceExt;
 
+#[derive(Debug)]
 pub struct VisualRenderer {
     target: RenderTarget,
 

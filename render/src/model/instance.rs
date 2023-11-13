@@ -11,7 +11,7 @@ impl From<u32> for InstanceId {
     }
 }
 
-pub trait SceneObjectInstance: std::fmt::Debug + 'static {
+pub trait SceneObjectInstance: std::fmt::Debug + Clone + 'static {
     type RawBuffer: VertexBuffer;
 
     fn id(&self) -> InstanceId;
