@@ -179,7 +179,7 @@ fn fs_main(
 
     // End light
 
-    let ambient = vec3(0.8) * albedo * ambient_occlusion;
+    let ambient = vec3(0.4) * albedo * ambient_occlusion;
 
     let color = ambient + Lo + emissive;
 

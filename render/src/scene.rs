@@ -158,7 +158,13 @@ impl Scene {
             .materials
             .iter()
             .filter_map(|(id, material)| {
-                if diffuse_id == material.diffuse && normal_id == material.normal {
+                if diffuse_id == material.diffuse
+                    && normal_id == material.normal
+                    && emissive_id == material.emissive
+                    && roughness_id == material.roughness
+                    && metallic_id == material.metallic
+                    && ambient_id == material.ambient
+                {
                     Some(id)
                 } else {
                     None
@@ -305,8 +311,8 @@ impl Scene {
 
             let id = self.insert_material(
                 MaterialSpec::default()
-                    //.diffuse(diffuse)
-                    //.normal(normal)
+                    .diffuse(diffuse)
+                    .normal(normal)
                     .emissive(emissive)
                     .roughness(roughness)
                     .metallic(metallic)

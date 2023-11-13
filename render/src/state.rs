@@ -127,7 +127,7 @@ impl ViewState {
                 vec![instances],
             );
 
-            scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [1.0, 1.0, 1.0]));
+            scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [3.0, 3.0, 3.0]));
 
             scene
         };
