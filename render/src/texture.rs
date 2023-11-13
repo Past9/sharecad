@@ -18,8 +18,8 @@ impl Texture {
         Self {
             id,
             image: match kind {
-                ImageTextureKind::Diffuse => TextureImage::Diffuse(image),
-                ImageTextureKind::NormalMap => TextureImage::NormalMap(image),
+                ImageTextureKind::Diffuse => TextureImage::Rgb(image),
+                ImageTextureKind::NormalMap => TextureImage::Vector(image),
             },
         }
     }
@@ -31,17 +31,17 @@ impl Texture {
 }
 
 pub enum TextureImage {
-    Diffuse(image::DynamicImage),
-    NormalMap(image::DynamicImage),
+    Rgb(image::DynamicImage),
+    Vector(image::DynamicImage),
 }
 impl std::fmt::Debug for TextureImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Diffuse(image) => {
+            Self::Rgb(image) => {
                 let dims = image.dimensions();
                 f.write_fmt(format_args!("Diffuse(<{}x{} image>)", dims.0, dims.1))
             }
-            Self::NormalMap(image) => {
+            Self::Vector(image) => {
                 let dims = image.dimensions();
                 f.write_fmt(format_args!("NormalMap(<{}x{} image>)", dims.0, dims.1))
             }

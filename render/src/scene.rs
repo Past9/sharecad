@@ -10,7 +10,7 @@ use space::{Point3, Vec2, Vec3};
 
 use crate::{
     light::Light,
-    material::{rgb, rgba, DiffuseSpec, Material, MaterialId, MaterialSpec, NormalSpec},
+    material::{rgb, rgba, Material, MaterialId, MaterialSpec, RgbSpec, Vec3Spec},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -88,19 +88,19 @@ impl Scene {
         std::fs::read_to_string(file_path).unwrap()
     }
 
-    fn insert_diffuse_texture(&mut self, image: image::DynamicImage) -> TextureId {
+    fn insert_rgb_texture(&mut self, image: image::DynamicImage) -> TextureId {
         let id = self
             .textures
             .iter()
             .filter_map(|(id, texture)| match &texture.image {
-                TextureImage::Diffuse(texture) => {
+                TextureImage::Rgb(texture) => {
                     if *texture == image {
                         Some(id)
                     } else {
                         None
                     }
                 }
-                TextureImage::NormalMap(_) => None,
+                TextureImage::Vector(_) => None,
             })
             .next();
 
@@ -117,19 +117,19 @@ impl Scene {
         }
     }
 
-    fn insert_normal_map(&mut self, image: image::DynamicImage) -> TextureId {
+    fn insert_vector_map(&mut self, image: image::DynamicImage) -> TextureId {
         let id = self
             .textures
             .iter()
             .filter_map(|(id, texture)| match &texture.image {
-                crate::texture::TextureImage::NormalMap(texture) => {
+                crate::texture::TextureImage::Vector(texture) => {
                     if *texture == image {
                         Some(id)
                     } else {
                         None
                     }
                 }
-                crate::texture::TextureImage::Diffuse(_) => None,
+                crate::texture::TextureImage::Rgb(_) => None,
             })
             .next();
 
@@ -147,8 +147,12 @@ impl Scene {
     }
 
     fn insert_material(&mut self, spec: MaterialSpec) -> MaterialId {
-        let diffuse_id = self.insert_diffuse_texture(spec.diffuse.image());
-        let normal_id = self.insert_normal_map(spec.normal.image());
+        let diffuse_id = self.insert_rgb_texture(spec.diffuse.image());
+        let normal_id = self.insert_vector_map(spec.normal.image());
+        let emissive_id = self.insert_rgb_texture(spec.emissive.image());
+        let roughness_id = self.insert_rgb_texture(spec.roughness.image());
+        let metallic_id = self.insert_rgb_texture(spec.metallic.image());
+        let ambient_id = self.insert_rgb_texture(spec.ambient.image());
 
         let id = self
             .materials
@@ -166,8 +170,18 @@ impl Scene {
             Some(id) => *id,
             None => {
                 let id = self.material_ids.next();
-                self.materials
-                    .insert(id, Material::new(id, diffuse_id, normal_id));
+                self.materials.insert(
+                    id,
+                    Material::new(
+                        id,
+                        diffuse_id,
+                        normal_id,
+                        emissive_id,
+                        roughness_id,
+                        metallic_id,
+                        ambient_id,
+                    ),
+                );
                 id
             }
         }
@@ -211,9 +225,9 @@ impl Scene {
                 if m.diffuse_texture != "" {
                     let mut diffuse_pathbuf = parent_path.clone();
                     diffuse_pathbuf.push(m.diffuse_texture);
-                    DiffuseSpec::from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
+                    RgbSpec::from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
                 } else {
-                    DiffuseSpec::Rgb(rgb(m.diffuse[0], m.diffuse[1], m.diffuse[2]))
+                    RgbSpec::Rgb(rgb(m.diffuse[0], m.diffuse[1], m.diffuse[2]))
                 }
             };
 
@@ -221,14 +235,83 @@ impl Scene {
                 if m.normal_texture != "" {
                     let mut normal_pathbuf = parent_path.clone();
                     normal_pathbuf.push(m.normal_texture);
-                    NormalSpec::from_file(&normal_pathbuf.into_os_string().into_string().unwrap())
+                    Vec3Spec::from_file(&normal_pathbuf.into_os_string().into_string().unwrap())
                 } else {
-                    NormalSpec::default()
+                    Vec3Spec::default_normal()
                 }
             };
 
-            let material_spec = MaterialSpec::default().diffuse(diffuse).normal(normal);
-            let id = self.insert_material(material_spec);
+            let emissive = {
+                if let Some(emissive) = m.unknown_param.get("map_Ke") {
+                    if emissive != "" {
+                        let mut emissive_pathbuf = parent_path.clone();
+                        emissive_pathbuf.push(emissive);
+                        RgbSpec::from_file(
+                            &emissive_pathbuf.into_os_string().into_string().unwrap(),
+                        )
+                    } else {
+                        RgbSpec::default_emissive()
+                    }
+                } else {
+                    RgbSpec::default_emissive()
+                }
+            };
+
+            let roughness = {
+                if let Some(roughness) = m.unknown_param.get("map_Pr") {
+                    if roughness != "" {
+                        let mut roughness_pathbuf = parent_path.clone();
+                        roughness_pathbuf.push(roughness);
+                        RgbSpec::from_file(
+                            &roughness_pathbuf.into_os_string().into_string().unwrap(),
+                        )
+                    } else {
+                        RgbSpec::default_roughness()
+                    }
+                } else {
+                    RgbSpec::default_roughness()
+                }
+            };
+
+            let metallic = {
+                if let Some(metallic) = m.unknown_param.get("map_Pm") {
+                    if metallic != "" {
+                        let mut metallic_pathbuf = parent_path.clone();
+                        metallic_pathbuf.push(metallic);
+                        RgbSpec::from_file(
+                            &metallic_pathbuf.into_os_string().into_string().unwrap(),
+                        )
+                    } else {
+                        RgbSpec::default_metallic()
+                    }
+                } else {
+                    RgbSpec::default_metallic()
+                }
+            };
+
+            let ambient = {
+                if let Some(ambient) = m.unknown_param.get("map_Po") {
+                    if ambient != "" {
+                        let mut ambient_pathbuf = parent_path.clone();
+                        ambient_pathbuf.push(ambient);
+                        RgbSpec::from_file(&ambient_pathbuf.into_os_string().into_string().unwrap())
+                    } else {
+                        RgbSpec::default_ambient()
+                    }
+                } else {
+                    RgbSpec::default_ambient()
+                }
+            };
+
+            let id = self.insert_material(
+                MaterialSpec::default()
+                    //.diffuse(diffuse)
+                    //.normal(normal)
+                    .emissive(emissive)
+                    .roughness(roughness)
+                    .metallic(metallic)
+                    .ambient(ambient),
+            );
 
             material_id_map.insert(index, id);
         }

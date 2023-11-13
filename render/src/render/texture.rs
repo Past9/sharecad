@@ -51,8 +51,8 @@ impl TextureResources {
 
     pub fn image(image: &TextureImage, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let (image, format) = match image {
-            TextureImage::Diffuse(image) => (image, wgpu::TextureFormat::Rgba8UnormSrgb),
-            TextureImage::NormalMap(image) => (image, wgpu::TextureFormat::Rgba8Unorm),
+            TextureImage::Rgb(image) => (image, wgpu::TextureFormat::Rgba8UnormSrgb),
+            TextureImage::Vector(image) => (image, wgpu::TextureFormat::Rgba8Unorm),
         };
 
         let dims = image.dimensions();
