@@ -93,7 +93,6 @@ impl RenderContext {
         format: wgpu::TextureFormat,
         usage: Option<wgpu::TextureUsages>,
     ) -> RenderTarget {
-        println!("format {:?}", format);
         RenderTarget {
             context: self.inner.clone(),
             target: TargetInner::Texture(TargetTexture::new(

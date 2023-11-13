@@ -424,7 +424,5 @@ impl Scene {
 
             self.objects.push(Box::new(object));
         }
-
-        println!("scene.materials = {:#?}", self.materials);
     }
 }

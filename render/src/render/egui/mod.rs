@@ -105,8 +105,6 @@ impl EguiTransfer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("./shader.wgsl").into()),
             });
 
-            println!("transfer target format {:?}", render_state.target_format);
-
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: RENDER_LABEL,
                 layout: Some(&layout),

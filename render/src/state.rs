@@ -112,20 +112,12 @@ impl ViewState {
                 })
                 .collect::<Vec<_>>();
 
-            //let path = Path::new(resource_dir).join(Path::new("res/rounded-cube/rounded-cube.obj"));
-            //let path = Path::new("C:\\Users\\ross\\Downloads\\eyeball\\obj\\eyeball.obj");
             let path =
                 Path::new("C:\\Users\\ross\\Projects\\sharecad\\resources\\gizmo\\gizmo2.obj");
 
             let path_str = path.to_str().unwrap();
 
-            println!("instances = {:?}", instances);
-
-            scene.load_wavefront_obj_file::<TransformedInstance>(
-                //"rounded-cube/rounded-cube.obj",
-                path_str,
-                vec![instances],
-            );
+            scene.load_wavefront_obj_file::<TransformedInstance>(path_str, vec![instances]);
 
             scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [3.0, 3.0, 3.0]));
 
