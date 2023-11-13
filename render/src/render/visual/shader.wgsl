@@ -136,8 +136,8 @@ fn fs_main(
     let albedo: vec3<f32> = textureSample(t_albedo, s_albedo, in.tex_coords).rgb;
     let surface_normal: vec3<f32> = textureSample(t_normal, s_normal, in.tex_coords).xyz * 2.0 - 1.0;
     let emissive: vec3<f32> = textureSample(t_emissive, s_emissive, in.tex_coords).rgb;
-    let roughness: f32 = textureSample(t_roughness, s_roughness, in.tex_coords).r;
-    let metallic: f32 = textureSample(t_metallic, s_metallic, in.tex_coords).r;
+    let roughness: vec3<f32> = textureSample(t_roughness, s_roughness, in.tex_coords).rgb;
+    let metallic: vec3<f32> = textureSample(t_metallic, s_metallic, in.tex_coords).rgb;
     let ambient_occlusion: vec3<f32> = textureSample(t_ambient, s_ambient, in.tex_coords).rgb;
 
 
@@ -179,9 +179,12 @@ fn fs_main(
 
     // End light
 
-    let ambient = vec3(0.4) * albedo * ambient_occlusion;
+    let ambient = vec3(0.0) * albedo * ambient_occlusion;
 
-    let color = ambient + Lo + emissive;
+    var color = ambient + Lo + emissive;
+
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
 
 
     return vec4<f32>(color, 1.0);
@@ -192,7 +195,7 @@ fn fresnelSchlick(cosTheta: f32, f0: vec3<f32>) -> vec3<f32> {
     return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
+fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
     let a = roughness * roughness;
     let a2 = a * a;
     let NdotH = max(dot(N, H), 0.0);
@@ -205,7 +208,7 @@ fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
     return num / denom;
 }
 
-fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32 {
+fn geometrySchlickGGX(NdotV: f32, roughness: vec3<f32>) -> vec3<f32> {
     let r = roughness + 1.0;
     let k = (r * r) / 8.0;
 
@@ -215,7 +218,7 @@ fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32 {
     return num / denom;
 }
 
-fn geometrySmith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: f32) -> f32 {
+fn geometrySmith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
     let NdotV = max(dot(N, V), 0.0);
     let NdotL = max(dot(N, L), 0.0);
     let ggx2 = geometrySchlickGGX(NdotV, roughness);

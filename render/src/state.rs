@@ -119,7 +119,7 @@ impl ViewState {
 
             scene.load_wavefront_obj_file::<TransformedInstance>(path_str, vec![instances]);
 
-            scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [3.0, 3.0, 3.0]));
+            scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [2.0, 2.0, 2.0]));
 
             scene
         };
