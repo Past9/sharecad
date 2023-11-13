@@ -11,8 +11,8 @@ use crate::{
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 1;
-const SPACE_BETWEEN: f64 = 3.0;
+const NUM_INSTANCES_PER_ROW: u32 = 3;
+const SPACE_BETWEEN: f64 = 5.0;
 
 pub struct ViewState {
     visual_renderer: VisualRenderer,
@@ -72,7 +72,7 @@ impl ViewState {
             500.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(0.0),
+            deg(45.0),
         );
 
         let camera_controller = CameraController::new(camera);
