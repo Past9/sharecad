@@ -1,3 +1,7 @@
+struct Globals {
+    num_lights: f32
+}
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
@@ -37,14 +41,6 @@ struct Camera {
 
 @group(1) @binding(0)
 var<uniform> camera: Camera;
-
-struct Light {
-    position: vec3<f32>,
-    color: vec3<f32>,
-};
-
-@group(2) @binding(0)
-var<uniform> light: Light;
 
 const PI = 3.14159265359;
 
@@ -122,6 +118,21 @@ var t_ambient: texture_2d<f32>;
 @group(0) @binding(11)
 var s_ambient: sampler;
 
+@group(2) @binding(0) 
+var<storage, read> directional_lights: array<DirectionalLight>;
+
+@group(2) @binding(1) 
+var<storage, read> ambient_lights: array<AmbientLight>;
+
+struct DirectionalLight {
+    @location(0) direction: vec3<f32>,
+    @location(1) color: vec3<f32>,
+};
+
+struct AmbientLight {
+    @location(0) color: vec3<f32>,
+};
+
 @fragment
 fn fs_main(
     in: VertexOutput
@@ -152,12 +163,52 @@ fn fs_main(
     var Lo = vec3(0.0);
 
     // Begin light
-    let L = normalize(light.position - WorldPos);
+    for (var i: u32 = u32(0); i < arrayLength(&directional_lights); i++) {
+        Lo += pbr(
+            albedo,
+            Normal,
+            emissive,
+            roughness,
+            metallic,
+            ambient_occlusion,
+            -directional_lights[i].direction,
+            camPos - WorldPos,
+            1.0,
+            directional_lights[i].color
+        );
+    }
+
+
+    // End light
+
+    let ambient = vec3(0.0) * albedo * ambient_occlusion;
+
+    var color = ambient + Lo + emissive;
+
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
+
+
+    return vec4<f32>(color, 1.0);
+}
+
+fn pbr(
+    albedo: vec3<f32>,
+    normal: vec3<f32>,
+    emissive: vec3<f32>,
+    roughness: vec3<f32>,
+    metallic: vec3<f32>,
+    ao: vec3<f32>,
+    surf_to_light: vec3<f32>, surf_to_camera: vec3<f32>, attentuation: f32, light_color: vec3<f32>
+) -> vec3<f32> {
+    let N = normalize(normal);
+    let V = normalize(surf_to_camera);
+    let L = normalize(surf_to_light);
     let H = normalize(V + L);
 
-    let distance = length(light.position - WorldPos);
-    let attentuation = 1.0; // 1.0 / (distance * distance) if using falloff lights
-    let radiance = light.color * attentuation;
+    //let distance = length(light.position - WorldPos);
+    //let attentuation = 1.0; // 1.0 / (distance * distance) if using falloff/point lights
+    let radiance = light_color * attentuation;
 
     let f0 = mix(vec3(0.04), albedo, metallic);
     let F = fresnelSchlick(max(dot(H, V), 0.0), f0);
@@ -175,21 +226,8 @@ fn fs_main(
     kD *= 1.0 - metallic;
 
     let NdotL = max(dot(N, L), 0.0);
-    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-
-    // End light
-
-    let ambient = vec3(0.0) * albedo * ambient_occlusion;
-
-    var color = ambient + Lo + emissive;
-
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
-
-
-    return vec4<f32>(color, 1.0);
+    return (kD * albedo / PI + specular) * radiance * NdotL;
 }
-
 
 fn fresnelSchlick(cosTheta: f32, f0: vec3<f32>) -> vec3<f32> {
     return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);

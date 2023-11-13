@@ -9,8 +9,9 @@ use std::{
 use space::{Point3, Vec2, Vec3};
 
 use crate::{
-    light::Light,
-    material::{rgb, rgba, Material, MaterialId, MaterialSpec, RgbSpec, Vec3Spec},
+    color::rgb,
+    light::{AmbientLight, DirectionalLight},
+    material::{Material, MaterialId, MaterialSpec, RgbSpec, Vec3Spec},
     model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -45,7 +46,8 @@ pub struct Scene {
     materials: HashMap<MaterialId, Material>,
     err_material_id: OnceCell<MaterialId>,
 
-    light: Light,
+    directional_lights: Vec<DirectionalLight>,
+    ambient_lights: Vec<AmbientLight>,
 }
 unsafe impl Send for Scene {}
 impl Scene {
@@ -60,7 +62,8 @@ impl Scene {
             materials: HashMap::new(),
             err_material_id: OnceCell::new(),
 
-            light: Light::new(Point3::ZERO, [0.0; 3]),
+            directional_lights: vec![],
+            ambient_lights: vec![],
         }
     }
 
@@ -76,6 +79,11 @@ impl Scene {
         &self.textures
     }
 
+    pub fn directional_lights(&self) -> &[DirectionalLight] {
+        &self.directional_lights
+    }
+
+    /*
     pub fn light(&self) -> &Light {
         &self.light
     }
@@ -83,6 +91,7 @@ impl Scene {
     pub fn set_light(&mut self, light: Light) {
         self.light = light;
     }
+     */
 
     fn load_string(file_path: &str) -> String {
         std::fs::read_to_string(file_path).unwrap()
@@ -191,6 +200,14 @@ impl Scene {
                 id
             }
         }
+    }
+
+    pub fn directional_light(&mut self, light: DirectionalLight) {
+        self.directional_lights.push(light);
+    }
+
+    pub fn ambient_light(&mut self, light: AmbientLight) {
+        self.ambient_lights.push(light);
     }
 
     pub fn load_wavefront_obj_file<T: SceneObjectInstance>(
@@ -384,17 +401,17 @@ impl Scene {
 
                 // We'll use the same tangent/bitangent for each vertex in the triangle
                 vertices[c[0] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).to_f32s();
+                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).as_f32s();
                 vertices[c[1] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).to_f32s();
+                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).as_f32s();
                 vertices[c[2] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).to_f32s();
+                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).as_f32s();
                 vertices[c[0] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).to_f32s();
+                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).as_f32s();
                 vertices[c[1] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).to_f32s();
+                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).as_f32s();
                 vertices[c[2] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).to_f32s();
+                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).as_f32s();
 
                 // Used to average the tangents/bitangents
                 triangles_included[c[0] as usize] += 1;
@@ -406,8 +423,8 @@ impl Scene {
             for (i, n) in triangles_included.into_iter().enumerate() {
                 let denom = 1.0 / n as f64;
                 let v = &mut vertices[i];
-                v.tangent = (Vec3::from(v.tangent) * denom).to_f32s();
-                v.bitangent = (Vec3::from(v.bitangent) * denom).to_f32s();
+                v.tangent = (Vec3::from(v.tangent) * denom).as_f32s();
+                v.bitangent = (Vec3::from(v.bitangent) * denom).as_f32s();
             }
 
             let mesh = Mesh::new(file_path.into(), vertices, m.mesh.indices);

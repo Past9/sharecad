@@ -1,13 +1,13 @@
 use super::{texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraUniform},
-    light::LightUniform,
+    light::DirectionalLightRaw,
     material::{Material, MaterialId},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
     texture::{Texture, TextureId},
 };
-use std::{cell::OnceCell, collections::HashMap};
+use std::{cell::OnceCell, collections::HashMap, num::NonZeroU32};
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
@@ -23,8 +23,9 @@ pub struct VisualRenderer {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
-    light_buffer: wgpu::Buffer,
-    light_bind_group: wgpu::BindGroup,
+    light_bind_group_layout: wgpu::BindGroupLayout,
+    light_bind_group: OnceCell<wgpu::BindGroup>,
+    directional_light_buffer: wgpu::Buffer,
 
     mesh_render_pipeline: wgpu::RenderPipeline,
 }
@@ -181,28 +182,43 @@ impl VisualRenderer {
             (camera_bind_group_layout, camera_bind_group, camera_buffer)
         };
 
-        let (light_buffer, light_bind_group_layout, light_bind_group) = {
+        let (light_bind_group_layout, directional_light_buffer) = {
+            /*
             let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Light VB"),
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<LightUniform>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
+             */
+
+            const NUM_DIRECTIONAL_LIGHTS: u32 = 32;
+
+            const LIGHT_UNIFORM_SIZE: u32 =
+                std::mem::size_of::<DirectionalLightRaw>() as u32 * NUM_DIRECTIONAL_LIGHTS;
 
             let light_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: wgpu::BufferSize::new(LIGHT_UNIFORM_SIZE as u64),
                         },
                         count: None,
                     }],
                     label: None,
                 });
 
+            let directional_light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: LIGHT_UNIFORM_SIZE as u64,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+
+            /*
             let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &light_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
@@ -211,8 +227,9 @@ impl VisualRenderer {
                 }],
                 label: None,
             });
+             */
 
-            (light_buffer, light_bind_group_layout, light_bind_group)
+            (light_bind_group_layout, directional_light_buffer)
         };
 
         let mesh_render_pipeline = {
@@ -292,8 +309,9 @@ impl VisualRenderer {
             camera_bind_group,
             camera_buffer,
 
-            light_bind_group,
-            light_buffer,
+            light_bind_group_layout,
+            light_bind_group: OnceCell::new(),
+            directional_light_buffer,
 
             mesh_render_pipeline,
         }
@@ -321,6 +339,7 @@ impl VisualRenderer {
     pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
         self.build_image_texture_resources(scene);
         self.build_material_bind_groups(scene);
+        //self.build_light_bind_group(scene);
 
         let device = self.target.device();
         let queue = self.target.queue();
@@ -333,11 +352,21 @@ impl VisualRenderer {
             bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
         );
 
+        /*
         queue.write_buffer(
             &self.light_buffer,
             0,
             bytemuck::cast_slice(&[scene.light().to_raw()]),
         );
+         */
+
+        for (i, light) in scene.directional_lights().iter().enumerate() {
+            queue.write_buffer(
+                &self.directional_light_buffer,
+                (i * std::mem::size_of::<DirectionalLightRaw>()) as wgpu::BufferAddress,
+                bytemuck::bytes_of(&light.to_raw()),
+            )
+        }
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Visual render encoder"),
@@ -373,7 +402,8 @@ impl VisualRenderer {
             render_pass.set_pipeline(&self.mesh_render_pipeline);
 
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            render_pass.set_bind_group(2, &self.light_bind_group, &[]);
+            //render_pass.set_bind_group(2, &self.light_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.directional_light_bind_group(scene), &[]);
 
             for object in scene.objects().iter() {
                 let mesh = object.mesh();
@@ -494,5 +524,20 @@ impl VisualRenderer {
                     label: None,
                 })
             });
+    }
+
+    fn directional_light_bind_group(&self, scene: &Scene) -> &wgpu::BindGroup {
+        self.light_bind_group.get_or_init(|| {
+            let device = self.target.device();
+
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &self.light_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.directional_light_buffer.as_entire_binding(),
+                }],
+            })
+        })
     }
 }

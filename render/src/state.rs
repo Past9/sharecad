@@ -2,8 +2,9 @@ use std::path::Path;
 
 use crate::{
     camera::{Camera, CameraController, CameraControllerRequest},
+    color::rgb,
     input::InputEvent,
-    light::Light,
+    light::{AmbientLight, DirectionalLight},
     model::{InstanceId, TransformedInstance},
     render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
@@ -119,7 +120,19 @@ impl ViewState {
 
             scene.load_wavefront_obj_file::<TransformedInstance>(path_str, vec![instances]);
 
-            scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [2.0, 2.0, 2.0]));
+            scene.ambient_light(AmbientLight::new(rgb(0.1, 0.15, 0.2)));
+
+            scene.directional_light(DirectionalLight::new(
+                vec3(-2.0, -2.0, 2.0),
+                rgb(2.0, 2.0, 2.0),
+            ));
+
+            scene.directional_light(DirectionalLight::new(
+                vec3(2.0, -2.0, 2.0),
+                rgb(0.0, 0.0, 0.0),
+            ));
+
+            //scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [2.0, 2.0, 2.0]));
 
             scene
         };
@@ -165,10 +178,12 @@ impl ViewState {
     }
 
     pub fn update(&mut self) {
+        /*
         let mut light = self.scene.light().clone();
         light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
 
         self.scene.set_light(light);
+         */
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

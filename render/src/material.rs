@@ -1,7 +1,10 @@
 use image::{DynamicImage, GenericImage};
 use space::{vec3, Vec3};
 
-use crate::texture::TextureId;
+use crate::{
+    color::{rgb, Rgb},
+    texture::TextureId,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaterialId(pub u32);
@@ -289,7 +292,7 @@ impl Vec3Spec {
     pub fn image(&self) -> image::DynamicImage {
         match self {
             Vec3Spec::Map(image) => image.clone(),
-            Vec3Spec::Vec3(vec3) => Rgb::from_vec3(*vec3).create_image(),
+            Vec3Spec::Vec3(vec3) => Rgb::from_normal_vec(*vec3).create_image(),
         }
     }
 
@@ -309,93 +312,4 @@ impl Vec3Spec {
     pub fn default_normal() -> Self {
         Self::Vec3(vec3(0.0, 0.0, 1.0))
     }
-}
-
-#[derive(Debug)]
-pub struct Rgba {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-}
-impl Rgba {
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self {
-            r: r.clamp(0.0, 1.0),
-            g: g.clamp(0.0, 1.0),
-            b: b.clamp(0.0, 1.0),
-            a: a.clamp(0.0, 1.0),
-        }
-    }
-
-    // Create a small texture image filled with this color.
-    pub fn create_image(&self) -> image::DynamicImage {
-        let mut image = DynamicImage::new_rgb8(2, 2);
-        image.put_pixel(0, 0, image::Rgba::from(self.as_u8s()));
-        image.put_pixel(0, 1, image::Rgba::from(self.as_u8s()));
-        image.put_pixel(1, 0, image::Rgba::from(self.as_u8s()));
-        image.put_pixel(1, 1, image::Rgba::from(self.as_u8s()));
-        image
-    }
-
-    pub fn as_u8s(&self) -> [u8; 4] {
-        [
-            Self::f32_to_u8(self.r),
-            Self::f32_to_u8(self.g),
-            Self::f32_to_u8(self.b),
-            Self::f32_to_u8(self.a),
-        ]
-    }
-
-    fn f32_to_u8(val: f32) -> u8 {
-        (val * 255.0).round() as u8
-    }
-}
-pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Rgba {
-    Rgba::new(r, g, b, a)
-}
-
-#[derive(Debug)]
-pub struct Rgb {
-    r: f32,
-    g: f32,
-    b: f32,
-}
-impl Rgb {
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self {
-            r: r.clamp(0.0, 1.0),
-            g: g.clamp(0.0, 1.0),
-            b: b.clamp(0.0, 1.0),
-        }
-    }
-
-    pub fn create_image(&self) -> image::DynamicImage {
-        self.with_a(1.0).create_image()
-    }
-
-    pub fn with_a(&self, a: f32) -> Rgba {
-        rgba(self.r, self.g, self.b, a)
-    }
-
-    pub fn as_u8s(&self) -> [u8; 3] {
-        [
-            Self::f32_to_u8(self.r),
-            Self::f32_to_u8(self.g),
-            Self::f32_to_u8(self.b),
-        ]
-    }
-
-    fn f32_to_u8(val: f32) -> u8 {
-        (val * 255.0).round() as u8
-    }
-
-    fn from_vec3(vec: Vec3) -> Self {
-        // Convert the vec to normal colorspace
-        let rgb_vec = (vec + vec3(1.0, 1.0, 1.0)) / 2.0;
-        Self::new(rgb_vec.x as f32, rgb_vec.y as f32, rgb_vec.z as f32)
-    }
-}
-pub fn rgb(r: f32, g: f32, b: f32) -> Rgb {
-    Rgb::new(r, g, b)
 }

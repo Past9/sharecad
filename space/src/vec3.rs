@@ -78,7 +78,7 @@ impl Vec3 {
         [self.x, self.y, self.z]
     }
 
-    pub fn to_f32s(&self) -> [f32; 3] {
+    pub fn as_f32s(&self) -> [f32; 3] {
         [self.x as f32, self.y as f32, self.z as f32]
     }
 }
