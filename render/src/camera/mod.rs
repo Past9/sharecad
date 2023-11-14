@@ -152,10 +152,16 @@ impl Camera {
         }
     }
 
-    pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
-        let eye = self.eye();
-        let view = Mat44::look_at_rh(eye.location, self.target, self.up);
-        let proj = match self.is_ortho() {
+    pub fn view_rotation_matrix(&self) -> Mat44 {
+        Mat44::look_at_rh_rotation(self.eye().location, self.target, self.up)
+    }
+
+    pub fn build_view_matrix(&self) -> Mat44 {
+        Mat44::look_at_rh(self.eye().location, self.target, self.up)
+    }
+
+    pub fn build_projection_matrix(&self, aspect: f64) -> Mat44 {
+        match self.is_ortho() {
             true => Self::orthographic_matrix(
                 aspect,
                 -self.target_radius,
@@ -171,9 +177,11 @@ impl Camera {
                 self.near(),
                 self.far(),
             ),
-        };
+        }
+    }
 
-        proj * view
+    pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
+        self.build_projection_matrix(aspect) * self.build_view_matrix()
     }
 
     fn orthographic_matrix(

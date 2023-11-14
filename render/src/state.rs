@@ -21,6 +21,7 @@ pub struct ViewState {
     camera_controller: CameraController,
     scene: Scene,
     needs_position_update: bool,
+    directional_lights: Vec<DirectionalLight>,
 }
 impl ViewState {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
@@ -69,11 +70,11 @@ impl ViewState {
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
-            6.0,
+            10.0,
             500.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(camera);
@@ -120,22 +121,16 @@ impl ViewState {
 
             scene.load_wavefront_obj_file::<TransformedInstance>(path_str, vec![instances]);
 
-            scene.ambient_light(AmbientLight::new(rgb(0.1, 0.15, 0.2)));
-
-            scene.directional_light(DirectionalLight::new(
-                vec3(-2.0, -2.0, 2.0),
-                rgb(2.0, 2.0, 2.0),
-            ));
-
-            scene.directional_light(DirectionalLight::new(
-                vec3(2.0, -2.0, 2.0),
-                rgb(1.0, 0.0, 0.0),
-            ));
-
-            //scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [2.0, 2.0, 2.0]));
+            scene.ambient_light(AmbientLight::new(rgb(0.0, 0.0, 0.0)));
 
             scene
         };
+
+        let directional_lights = vec![
+            DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
+            DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
+            DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
+        ];
 
         Self {
             visual_renderer,
@@ -143,6 +138,7 @@ impl ViewState {
             camera_controller,
             scene,
             needs_position_update: true,
+            directional_lights,
         }
     }
 
@@ -178,12 +174,25 @@ impl ViewState {
     }
 
     pub fn update(&mut self) {
-        /*
-        let mut light = self.scene.light().clone();
-        light.position = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(1.0)) * light.position;
+        // Change the direction of the directional lights so they stay the
+        // same relative to the camera.
+        {
+            let view_matrix = self
+                .camera_controller
+                .camera()
+                .view_rotation_matrix()
+                .transpose();
 
-        self.scene.set_light(light);
-         */
+            self.scene.set_directional_lights(
+                self.directional_lights
+                    .iter()
+                    .map(|l| DirectionalLight {
+                        direction: l.direction.into_point().transform(view_matrix).into_vec(),
+                        color: l.color.clone(),
+                    })
+                    .collect(),
+            );
+        }
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

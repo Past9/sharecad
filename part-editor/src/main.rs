@@ -183,7 +183,7 @@ impl PartEditorUi for &mut egui::Ui {
                 if input.events.len() > 0 {
                     let mut inner = state.inner.lock().unwrap();
                     for event in input.events.iter() {
-                        //inner.view_state.update();
+                        inner.view_state.update();
                         inner.view_state.input(&InputEvent::from_egui_event(
                             event,
                             &rect,

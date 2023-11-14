@@ -206,6 +206,10 @@ impl Scene {
         }
     }
 
+    pub fn set_directional_lights(&mut self, lights: Vec<DirectionalLight>) {
+        self.directional_lights = lights;
+    }
+
     pub fn directional_light(&mut self, light: DirectionalLight) {
         self.directional_lights.push(light);
     }
