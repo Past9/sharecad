@@ -114,6 +114,10 @@ var s_metallic: sampler;
 var t_ambient: texture_2d<f32>;
 @group(0) @binding(11)
 var s_ambient: sampler;
+@group(0) @binding(12)
+var t_transmit: texture_2d<f32>;
+@group(0) @binding(13)
+var s_transmit: sampler;
 
 @group(2) @binding(0) 
 var<storage, read> directional_lights: array<DirectionalLight>;
@@ -147,6 +151,7 @@ fn fs_main(
     let roughness: vec3<f32> = textureSample(t_roughness, s_roughness, in.tex_coords).rgb;
     let metallic: vec3<f32> = textureSample(t_metallic, s_metallic, in.tex_coords).rgb;
     let ambient_occlusion: vec3<f32> = textureSample(t_ambient, s_ambient, in.tex_coords).rgb;
+    let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
 
 
     let TexCoords = in.tex_coords;
@@ -186,7 +191,7 @@ fn fs_main(
     color = pow(color, vec3(1.0 / 2.2));
 
 
-    return vec4<f32>(color, 1.0);
+    return vec4<f32>(color, transmit.r);
 }
 
 fn pbr(

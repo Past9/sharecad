@@ -23,6 +23,7 @@ pub struct Material {
     pub roughness: TextureId,
     pub metallic: TextureId,
     pub ambient: TextureId,
+    pub transmit: TextureId,
 }
 impl Material {
     pub fn new(
@@ -33,6 +34,7 @@ impl Material {
         roughness: TextureId,
         metallic: TextureId,
         ambient: TextureId,
+        transmit: TextureId,
     ) -> Self {
         Self {
             id,
@@ -42,6 +44,7 @@ impl Material {
             roughness,
             metallic,
             ambient,
+            transmit,
         }
     }
 }
@@ -279,7 +282,7 @@ impl RgbSpec {
     }
 
     pub fn default_transmit() -> Self {
-        Self::Rgb(rgb(0.0, 0.0, 0.0))
+        Self::Rgb(rgb(0.5, 0.5, 0.5))
     }
 }
 

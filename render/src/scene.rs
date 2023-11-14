@@ -166,6 +166,7 @@ impl Scene {
         let roughness_id = self.insert_rgb_texture(spec.roughness.image());
         let metallic_id = self.insert_rgb_texture(spec.metallic.image());
         let ambient_id = self.insert_rgb_texture(spec.ambient.image());
+        let transmit_id = self.insert_rgb_texture(spec.transmit.image());
 
         let id = self
             .materials
@@ -177,6 +178,7 @@ impl Scene {
                     && roughness_id == material.roughness
                     && metallic_id == material.metallic
                     && ambient_id == material.ambient
+                    && transmit_id == material.transmit
                 {
                     Some(id)
                 } else {
@@ -199,6 +201,7 @@ impl Scene {
                         roughness_id,
                         metallic_id,
                         ambient_id,
+                        transmit_id,
                     ),
                 );
                 id

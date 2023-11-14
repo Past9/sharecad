@@ -165,6 +165,24 @@ impl VisualRenderer {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    // Transmission texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 12,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    // Transmission sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 13,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
                 ],
             });
 
@@ -511,6 +529,7 @@ impl VisualRenderer {
                 let roughness = self.image_textures.get(&material.roughness).unwrap();
                 let metallic = self.image_textures.get(&material.metallic).unwrap();
                 let ambient = self.image_textures.get(&material.ambient).unwrap();
+                let transmit = self.image_textures.get(&material.transmit).unwrap();
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     layout: &self.texture_bind_group_layout,
@@ -562,6 +581,14 @@ impl VisualRenderer {
                         wgpu::BindGroupEntry {
                             binding: 11,
                             resource: wgpu::BindingResource::Sampler(&ambient.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 12,
+                            resource: wgpu::BindingResource::TextureView(&transmit.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 13,
+                            resource: wgpu::BindingResource::Sampler(&transmit.sampler),
                         },
                     ],
                     label: None,
