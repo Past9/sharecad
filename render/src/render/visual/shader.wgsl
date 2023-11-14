@@ -1,6 +1,14 @@
 struct Globals {
-    num_lights: f32
+    @align(16) num_directional_lights: u32,
+    @align(16) num_ambient_lights: u32,
+    @align(16) camera: Camera
 }
+
+struct Camera {
+    view_pos: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    zfar: f32,
+};
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -29,18 +37,10 @@ struct VertexOutput {
     @location(2) world_normal: vec3<f32>,
     @location(3) world_tangent: vec3<f32>,
     @location(4) world_bitangent: vec3<f32>,
-    //@location(2) tangent_light_position: vec3<f32>,
-    //@location(3) tangent_view_position: vec3<f32>,
-};
-
-struct Camera {
-    view_pos: vec4<f32>,
-    view_proj: mat4x4<f32>,
-    zfar: f32,
 };
 
 @group(1) @binding(0)
-var<uniform> camera: Camera;
+var<uniform> globals: Globals;
 
 const PI = 3.14159265359;
 
@@ -76,11 +76,8 @@ fn vs_main(
 
     let world_position = model_matrix * vec4<f32>(model.position, 1.0);
 
-    out.clip_position = camera.view_proj * world_position;
+    out.clip_position = globals.camera.view_proj * world_position;
     out.tex_coords = model.tex_coords;
-    //out.tangent_position = tangent_matrix * world_position.xyz;
-    //out.tangent_view_position = tangent_matrix * camera.view_pos.xyz;
-    //out.tangent_light_position = tangent_matrix * light.position;
     out.world_position = model.position.xyz;
     out.world_normal = normalize(normal_matrix * world_normal);
     out.world_tangent = world_tangent;
@@ -88,7 +85,7 @@ fn vs_main(
 
     // Apply logarithmic depth buffer 
     let c = 1.0;
-    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * camera.zfar + 1.0) * out.clip_position.w;
+    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -155,22 +152,21 @@ fn fs_main(
     let TexCoords = in.tex_coords;
     let WorldPos = in.world_position;
     let Normal = tangent_to_world_matrix * surface_normal;
-    let camPos = camera.view_pos.xyz;
+    let camPos = globals.camera.view_pos.xyz;
 
     let N = normalize(Normal);
     let V = normalize(camPos - WorldPos);
 
     var Lo = vec3(0.0);
 
-    // Begin light
-    for (var i: u32 = u32(0); i < arrayLength(&directional_lights); i++) {
+    // Directional lights
+    for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
         Lo += pbr(
             albedo,
             Normal,
             emissive,
             roughness,
             metallic,
-            ambient_occlusion,
             -directional_lights[i].direction,
             camPos - WorldPos,
             1.0,
@@ -178,12 +174,13 @@ fn fs_main(
         );
     }
 
+    // Ambient lights
+    for (var i: u32 = u32(0); i < globals.num_ambient_lights; i++) {
+        Lo += ambient_lights[i].color * albedo * ambient_occlusion;
+    }
 
-    // End light
-
-    let ambient = vec3(0.0) * albedo * ambient_occlusion;
-
-    var color = ambient + Lo + emissive;
+    // Texture emission
+    var color = Lo + emissive;
 
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
@@ -198,8 +195,10 @@ fn pbr(
     emissive: vec3<f32>,
     roughness: vec3<f32>,
     metallic: vec3<f32>,
-    ao: vec3<f32>,
-    surf_to_light: vec3<f32>, surf_to_camera: vec3<f32>, attentuation: f32, light_color: vec3<f32>
+    surf_to_light: vec3<f32>,
+    surf_to_camera: vec3<f32>,
+    attentuation: f32,
+    light_color: vec3<f32>
 ) -> vec3<f32> {
     let N = normalize(normal);
     let V = normalize(surf_to_camera);

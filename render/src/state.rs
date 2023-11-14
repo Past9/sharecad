@@ -129,7 +129,7 @@ impl ViewState {
 
             scene.directional_light(DirectionalLight::new(
                 vec3(2.0, -2.0, 2.0),
-                rgb(0.0, 0.0, 0.0),
+                rgb(1.0, 0.0, 0.0),
             ));
 
             //scene.set_light(Light::new(point3(2000.0, 2000.0, -2000.0), [2.0, 2.0, 2.0]));

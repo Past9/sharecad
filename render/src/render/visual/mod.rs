@@ -1,14 +1,33 @@
 use super::{texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
-    camera::{Camera, CameraUniform},
-    light::DirectionalLightRaw,
+    camera::{Camera, CameraRaw},
+    light::{AmbientLightRaw, DirectionalLightRaw},
     material::{Material, MaterialId},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
     texture::{Texture, TextureId},
 };
-use std::{cell::OnceCell, collections::HashMap, num::NonZeroU32};
+use bytemuck::{Pod, Zeroable};
+use std::{cell::OnceCell, cmp::min, collections::HashMap, num::NonZeroU32};
 use wgpu::util::DeviceExt;
+
+const MAX_DIRECTIONAL_LIGHTS: u32 = 32;
+const DIRECTIONAL_LIGHT_UNIFORM_SIZE: u32 =
+    std::mem::size_of::<DirectionalLightRaw>() as u32 * MAX_DIRECTIONAL_LIGHTS;
+
+const MAX_AMBIENT_LIGHTS: u32 = 32;
+const AMBIENT_LIGHT_UNIFORM_SIZE: u32 =
+    std::mem::size_of::<AmbientLightRaw>() as u32 * MAX_AMBIENT_LIGHTS;
+
+#[repr(C)]
+#[derive(Clone, Copy, Zeroable, Pod)]
+struct GlobalsRaw {
+    num_directional_lights: u32,
+    _padding: [u32; 3],
+    num_ambient_lights: u32,
+    _padding2: [u32; 3],
+    camera: CameraRaw,
+}
 
 #[derive(Debug)]
 pub struct VisualRenderer {
@@ -20,12 +39,13 @@ pub struct VisualRenderer {
 
     material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
 
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
+    globals_buffer: wgpu::Buffer,
+    globals_bind_group: wgpu::BindGroup,
 
     light_bind_group_layout: wgpu::BindGroupLayout,
     light_bind_group: OnceCell<wgpu::BindGroup>,
     directional_light_buffer: wgpu::Buffer,
+    ambient_light_buffer: wgpu::Buffer,
 
     mesh_render_pipeline: wgpu::RenderPipeline,
 }
@@ -148,16 +168,20 @@ impl VisualRenderer {
                 ],
             });
 
-        let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {
-            let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Camera Buffer"),
-                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraUniform>()]),
+        let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
+            println!("size_of GlobalsRaw = {}", std::mem::size_of::<GlobalsRaw>());
+            println!("size_of CameraRaw = {}", std::mem::size_of::<CameraRaw>());
+            let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<GlobalsRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
-            let camera_bind_group_layout =
+            println!("GlobalsRaw Buffer Binding = {:#?}", globals_buffer);
+
+            let globals_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("camera_bind_group_layout"),
+                    label: None,
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -170,66 +194,73 @@ impl VisualRenderer {
                     }],
                 });
 
-            let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("camera_bind_group"),
-                layout: &camera_bind_group_layout,
+            let globals_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &globals_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
+                    resource: globals_buffer.as_entire_binding(),
                 }],
             });
 
-            (camera_bind_group_layout, camera_bind_group, camera_buffer)
+            (
+                globals_bind_group_layout,
+                globals_bind_group,
+                globals_buffer,
+            )
         };
 
-        let (light_bind_group_layout, directional_light_buffer) = {
-            /*
-            let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Light VB"),
-                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<LightUniform>()]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
-             */
-
-            const NUM_DIRECTIONAL_LIGHTS: u32 = 32;
-
-            const LIGHT_UNIFORM_SIZE: u32 =
-                std::mem::size_of::<DirectionalLightRaw>() as u32 * NUM_DIRECTIONAL_LIGHTS;
-
+        let (light_bind_group_layout, directional_light_buffer, ambient_light_buffer) = {
             let light_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(LIGHT_UNIFORM_SIZE as u64),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: wgpu::BufferSize::new(
+                                    DIRECTIONAL_LIGHT_UNIFORM_SIZE as u64,
+                                ),
+                            },
+                            count: None,
                         },
-                        count: None,
-                    }],
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: wgpu::BufferSize::new(
+                                    AMBIENT_LIGHT_UNIFORM_SIZE as u64,
+                                ),
+                            },
+                            count: None,
+                        },
+                    ],
                     label: None,
                 });
 
             let directional_light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
-                size: LIGHT_UNIFORM_SIZE as u64,
+                size: DIRECTIONAL_LIGHT_UNIFORM_SIZE as u64,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
 
-            /*
-            let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &light_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: light_buffer.as_entire_binding(),
-                }],
+            let ambient_light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
+                size: AMBIENT_LIGHT_UNIFORM_SIZE as u64,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
             });
-             */
 
-            (light_bind_group_layout, directional_light_buffer)
+            (
+                light_bind_group_layout,
+                directional_light_buffer,
+                ambient_light_buffer,
+            )
         };
 
         let mesh_render_pipeline = {
@@ -237,7 +268,7 @@ impl VisualRenderer {
                 label: Some("Mesh Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
-                    &camera_bind_group_layout,
+                    &globals_bind_group_layout,
                     &light_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -306,14 +337,28 @@ impl VisualRenderer {
 
             material_bind_groups: HashMap::new(),
 
-            camera_bind_group,
-            camera_buffer,
+            globals_bind_group,
+            globals_buffer,
 
             light_bind_group_layout,
             light_bind_group: OnceCell::new(),
             directional_light_buffer,
+            ambient_light_buffer,
 
             mesh_render_pipeline,
+        }
+    }
+
+    fn globals_raw(&self, scene: &Scene, camera: &Camera) -> GlobalsRaw {
+        GlobalsRaw {
+            num_directional_lights: min(
+                scene.directional_lights().len() as u32,
+                MAX_DIRECTIONAL_LIGHTS,
+            ),
+            _padding: [0; 3],
+            num_ambient_lights: min(scene.ambient_lights().len() as u32, MAX_AMBIENT_LIGHTS),
+            _padding2: [0; 3],
+            camera: camera.to_raw(self.aspect()),
         }
     }
 
@@ -339,7 +384,6 @@ impl VisualRenderer {
     pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
         self.build_image_texture_resources(scene);
         self.build_material_bind_groups(scene);
-        //self.build_light_bind_group(scene);
 
         let device = self.target.device();
         let queue = self.target.queue();
@@ -347,23 +391,23 @@ impl VisualRenderer {
         let view = frame.view();
 
         queue.write_buffer(
-            &self.camera_buffer,
+            &self.globals_buffer,
             0,
-            bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
+            bytemuck::cast_slice(&[self.globals_raw(scene, camera)]),
         );
-
-        /*
-        queue.write_buffer(
-            &self.light_buffer,
-            0,
-            bytemuck::cast_slice(&[scene.light().to_raw()]),
-        );
-         */
 
         for (i, light) in scene.directional_lights().iter().enumerate() {
             queue.write_buffer(
                 &self.directional_light_buffer,
                 (i * std::mem::size_of::<DirectionalLightRaw>()) as wgpu::BufferAddress,
+                bytemuck::bytes_of(&light.to_raw()),
+            )
+        }
+
+        for (i, light) in scene.ambient_lights().iter().enumerate() {
+            queue.write_buffer(
+                &self.ambient_light_buffer,
+                (i * std::mem::size_of::<AmbientLightRaw>()) as wgpu::BufferAddress,
                 bytemuck::bytes_of(&light.to_raw()),
             )
         }
@@ -401,9 +445,8 @@ impl VisualRenderer {
 
             render_pass.set_pipeline(&self.mesh_render_pipeline);
 
-            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            //render_pass.set_bind_group(2, &self.light_bind_group, &[]);
-            render_pass.set_bind_group(2, &self.directional_light_bind_group(scene), &[]);
+            render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
             for object in scene.objects().iter() {
                 let mesh = object.mesh();
@@ -526,17 +569,23 @@ impl VisualRenderer {
             });
     }
 
-    fn directional_light_bind_group(&self, scene: &Scene) -> &wgpu::BindGroup {
+    fn light_bind_group(&self) -> &wgpu::BindGroup {
         self.light_bind_group.get_or_init(|| {
             let device = self.target.device();
 
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
                 layout: &self.light_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self.directional_light_buffer.as_entire_binding(),
-                }],
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: self.directional_light_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: self.ambient_light_buffer.as_entire_binding(),
+                    },
+                ],
             })
         })
     }

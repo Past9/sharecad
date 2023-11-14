@@ -83,6 +83,10 @@ impl Scene {
         &self.directional_lights
     }
 
+    pub fn ambient_lights(&self) -> &[AmbientLight] {
+        &self.ambient_lights
+    }
+
     /*
     pub fn light(&self) -> &Light {
         &self.light

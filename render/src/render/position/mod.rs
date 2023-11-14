@@ -1,6 +1,6 @@
 use super::{pad_u32, texture::TextureResources, RenderTarget, VertexBuffer};
 use crate::{
-    camera::{Camera, CameraUniform},
+    camera::{Camera, CameraRaw},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
 };
@@ -27,7 +27,7 @@ impl PositionRenderer {
         let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {
             let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Camera Buffer"),
-                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraUniform>()]),
+                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 

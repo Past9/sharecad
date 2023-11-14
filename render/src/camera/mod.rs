@@ -137,14 +137,14 @@ impl Camera {
         self.half_fov.is_zero()
     }
 
-    pub fn to_raw(&self, aspect: f64) -> CameraUniform {
+    pub fn to_raw(&self, aspect: f64) -> CameraRaw {
         let eye_pos = self.eye().location;
 
         let view_position = [eye_pos.x as f32, eye_pos.y as f32, eye_pos.z as f32, 1.0];
         let view_proj = self.build_view_projection_matrix(aspect).transpose().into();
         let zfar = (self.far() - self.near()) as f32;
 
-        CameraUniform {
+        CameraRaw {
             view_position,
             view_proj,
             zfar,
@@ -271,7 +271,7 @@ impl Camera {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
-pub struct CameraUniform {
+pub struct CameraRaw {
     view_position: [f32; 4],
     view_proj: [[f32; 4]; 4],
     zfar: f32,
