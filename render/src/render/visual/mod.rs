@@ -460,18 +460,22 @@ impl VisualRenderer {
                                         dst_factor: wgpu::BlendFactor::Zero,
                                         operation: wgpu::BlendOperation::Add,
                                     },
-                                    /*
+                                }),
+                                write_mask: wgpu::ColorWrites::all(),
+                            }),
+                            Some(wgpu::ColorTargetState {
+                                format: opaque_target.format(),
+                                blend: Some(wgpu::BlendState {
                                     color: wgpu::BlendComponent {
-                                        src_factor: wgpu::BlendFactor::One,
-                                        dst_factor: wgpu::BlendFactor::One,
+                                        src_factor: wgpu::BlendFactor::Zero,
+                                        dst_factor: wgpu::BlendFactor::OneMinusSrc,
                                         operation: wgpu::BlendOperation::Add,
                                     },
                                     alpha: wgpu::BlendComponent {
-                                        src_factor: wgpu::BlendFactor::One,
-                                        dst_factor: wgpu::BlendFactor::One,
+                                        src_factor: wgpu::BlendFactor::Zero,
+                                        dst_factor: wgpu::BlendFactor::Zero,
                                         operation: wgpu::BlendOperation::Add,
                                     },
-                                     */
                                 }),
                                 write_mask: wgpu::ColorWrites::all(),
                             }),
@@ -890,6 +894,15 @@ impl VisualRenderer {
                                     b: 0.0,
                                     a: 0.0,
                                 }),
+                                store: true,
+                            },
+                        }),
+                        // Modulate the background (opaque) target
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &opaque_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
                                 store: true,
                             },
                         }),

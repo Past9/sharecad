@@ -190,6 +190,7 @@ fn fs_opaque_surface(
 struct TranslucentOutput {
     @location(0) accum: vec4<f32>,
     @location(1) transmit: vec3<f32>,
+    @location(2) background: vec4<f32>,
 }
 
 @fragment
@@ -236,12 +237,16 @@ fn fs_translucent_surface(
         reflected += ambient_lights[i].color * albedo * ambient_occlusion;
     }
 
-    // Texture emission
+    // Color of surface if it were opaque
     var surface_color = vec4(reflected + emissive, 1.0);
 
     // TODO: Apply gamma correction after below calculations?
     //surface_color = surface_color / (surface_color + vec3(1.0));
     //surface_color = pow(surface_color, vec3(1.0 / 2.2));
+
+    var out: TranslucentOutput;
+    out.background = vec4(surface_color.a * (vec3(1.0) - transmit), 1.0);
+
 
     // Calculate transparency
     surface_color.a *= 1.0 - clamp((transmit.r + transmit.g + transmit.b) / 3.0, 0.0, 1.0);
@@ -250,7 +255,6 @@ fn fs_translucent_surface(
 
     let w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
 
-    var out: TranslucentOutput;
 
     out.accum = surface_color * w;
     out.transmit = vec3(surface_color.a);
@@ -393,7 +397,7 @@ fn fs_composite(
         accum_part = color_accum.rgb / color_accum.a;
     }
 
-    let color = accum_part * (1.0 - color_transmit) + color_background * color_transmit;
+    let color = accum_part * (1.0 - color_transmit) + color_background ;
 
     return vec4(color, 1.0);
 }

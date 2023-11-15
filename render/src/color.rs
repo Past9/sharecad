@@ -1,3 +1,4 @@
+use auto_ops::impl_op_ex_commutative;
 use image::{DynamicImage, GenericImage};
 use space::{vec3, Vec3};
 
@@ -110,3 +111,5 @@ impl Rgb {
 pub fn rgb(r: f32, g: f32, b: f32) -> Rgb {
     Rgb::new(r, g, b)
 }
+
+impl_op_ex_commutative!(*|c: Rgb, s: f32| -> Rgb { rgb(c.r * s, c.g * s, c.b * s) });
