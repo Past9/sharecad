@@ -382,22 +382,18 @@ fn fs_composite(
     var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
 
 
-
     if max_component4(abs(color_accum)) > 100000.0 {
         color_accum = vec4(color_accum.a);
     }
 
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
 
-    //return vec4(color_opaque * (color_transmit) + avg_color * (1.0 - color_transmit), 1.0);
+    var accum_part = vec3(0.0);
+    if color_accum.a != 0.0 {
+        accum_part = color_accum.rgb / color_accum.a;
+    }
 
-    //let color = (color_accum.rgb / color_accum.a) * (1.0 - color_transmit) + color_opaque * color_transmit;
-    let color = color_opaque * color_transmit;
+    let color = accum_part * (1.0 - color_transmit) + color_opaque * color_transmit;
 
     return vec4(color, 1.0);
-
-    //return vec4(color_opaque, 1.0) + vec4(avg_color, 1.0 - color_transmit);
-
-    // let color = color_opaque * color_transmit + (vec3<f32>(1.0) - color_transmit) * color_accum.rgb / max(color_accum.a, 0.00001);
-    // return vec4(color, 1.0);
 }
