@@ -96,17 +96,20 @@ impl VisualRenderer {
 
         let opaque_target = context.render_into_memory(
             output_target.size(),
-            output_target.format(),
+            //output_target.format(),
+            wgpu::TextureFormat::Rgb10a2Unorm,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
         let accum_target = context.render_into_memory(
             output_target.size(),
-            output_target.format(),
+            //output_target.format(),
+            wgpu::TextureFormat::Rgba16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
         let transmit_target = context.render_into_memory(
             output_target.size(),
-            output_target.format(),
+            //output_target.format(),
+            wgpu::TextureFormat::R16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
 
@@ -376,6 +379,7 @@ impl VisualRenderer {
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
                         cull_mode: Some(wgpu::Face::Back),
+                        //cull_mode: None,
                         unclipped_depth: false,
                         polygon_mode: wgpu::PolygonMode::Fill,
                         conservative: false,
@@ -452,10 +456,22 @@ impl VisualRenderer {
                                         operation: wgpu::BlendOperation::Add,
                                     },
                                     alpha: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::Zero,
+                                        dst_factor: wgpu::BlendFactor::Zero,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                    /*
+                                    color: wgpu::BlendComponent {
                                         src_factor: wgpu::BlendFactor::One,
                                         dst_factor: wgpu::BlendFactor::One,
                                         operation: wgpu::BlendOperation::Add,
                                     },
+                                    alpha: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::One,
+                                        dst_factor: wgpu::BlendFactor::One,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                     */
                                 }),
                                 write_mask: wgpu::ColorWrites::all(),
                             }),
@@ -858,7 +874,7 @@ impl VisualRenderer {
                                     r: 0.0,
                                     g: 0.0,
                                     b: 0.0,
-                                    a: 1.0,
+                                    a: 0.0,
                                 }),
                                 store: true,
                             },
@@ -869,10 +885,10 @@ impl VisualRenderer {
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
+                                    r: 1.0,
                                     g: 0.0,
                                     b: 0.0,
-                                    a: 1.0,
+                                    a: 0.0,
                                 }),
                                 store: true,
                             },
