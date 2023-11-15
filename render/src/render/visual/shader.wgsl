@@ -246,7 +246,7 @@ fn fs_translucent_surface(
     // Calculate transparency
     surface_color.a *= 1.0 - clamp((transmit.r + transmit.g + transmit.b) / 3.0, 0.0, 1.0);
     let a = min(1.0, surface_color.a) * 8.0 + 0.01;
-    let b = -in.clip_position.z * 0.95 + 1.0;
+    let b = in.clip_position.z * 2.0;
 
     let w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
 
@@ -377,13 +377,13 @@ fn max_component4(v: vec4<f32>) -> f32 {
 fn fs_composite(
     in: ScreenVertexOut
 ) -> @location(0) vec4<f32> {
-    var color_opaque = textureSample(t_opaque_target, s_opaque_target, in.tex_coord).rgb;
+    var color_background = textureSample(t_opaque_target, s_opaque_target, in.tex_coord).rgb;
     var color_transmit = textureSample(t_transmit_target, s_transmit_target, in.tex_coord).r;
     var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
 
 
     if max_component4(abs(color_accum)) > 100000.0 {
-        color_accum = vec4(color_accum.a);
+        //color_accum = vec4(color_accum.a);
     }
 
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
@@ -393,7 +393,7 @@ fn fs_composite(
         accum_part = color_accum.rgb / color_accum.a;
     }
 
-    let color = accum_part * (1.0 - color_transmit) + color_opaque * color_transmit;
+    let color = accum_part * (1.0 - color_transmit) + color_background * color_transmit;
 
     return vec4(color, 1.0);
 }
