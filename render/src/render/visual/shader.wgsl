@@ -136,6 +136,7 @@ struct AmbientLight {
 
 @fragment
 fn fs_opaque_surface(
+    @builtin(front_facing) front_facing: bool,
     in: VertexOutput
 ) -> @location(0) vec4<f32> {
     // Converts from tangent space to world space
@@ -157,11 +158,16 @@ fn fs_opaque_surface(
 
     var reflected = vec3(0.0);
 
+    var normal = tangent_to_world_matrix * surface_normal;
+    if !front_facing {
+        normal = -normal;
+    }
+
     // Directional lights
     for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
         reflected += pbr(
             albedo,
-            tangent_to_world_matrix * surface_normal,
+            normal,
             emissive,
             roughness,
             metallic,
@@ -183,7 +189,6 @@ fn fs_opaque_surface(
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
-
     return vec4<f32>(color, 1.0);
 }
 
@@ -195,6 +200,7 @@ struct TranslucentOutput {
 
 @fragment
 fn fs_translucent_surface(
+    @builtin(front_facing) front_facing: bool,
     in: VertexOutput,
 //) -> @location(0) vec4<f32> {
 ) -> TranslucentOutput {
@@ -217,11 +223,16 @@ fn fs_translucent_surface(
 
     var reflected = vec3(0.0);
 
+    var normal = tangent_to_world_matrix * surface_normal;
+    if !front_facing {
+        normal = -normal;
+    }
+
     // Directional lights
     for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
         reflected += pbr(
             albedo,
-            tangent_to_world_matrix * surface_normal,
+            normal,
             emissive,
             roughness,
             metallic,
@@ -386,10 +397,6 @@ fn fs_composite(
     var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
 
 
-    if max_component4(abs(color_accum)) > 100000.0 {
-        //color_accum = vec4(color_accum.a);
-    }
-
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
 
     var accum_part = vec3(0.0);
@@ -397,7 +404,7 @@ fn fs_composite(
         accum_part = color_accum.rgb / color_accum.a;
     }
 
-    let color = accum_part * (1.0 - color_transmit) + color_background ;
+    var color = accum_part * (1.0 - color_transmit) + color_background ;
 
     return vec4(color, 1.0);
 }
