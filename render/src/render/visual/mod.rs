@@ -6,6 +6,7 @@ use crate::{
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
     texture::{Texture, TextureId},
+    vertex::Vertex2,
 };
 use bytemuck::{Pod, Zeroable};
 use std::{borrow::Cow, cell::OnceCell, cmp::min, collections::HashMap, num::NonZeroU32};
@@ -18,6 +19,33 @@ const DIRECTIONAL_LIGHT_UNIFORM_SIZE: u32 =
 const MAX_AMBIENT_LIGHTS: u32 = 32;
 const AMBIENT_LIGHT_UNIFORM_SIZE: u32 =
     std::mem::size_of::<AmbientLightRaw>() as u32 * MAX_AMBIENT_LIGHTS;
+
+const QUAD_VERTS: [Vertex2; 6] = [
+    Vertex2 {
+        position: [-1.0, 1.0],
+        tex_coords: [0.0, 0.0],
+    },
+    Vertex2 {
+        position: [-1.0, -1.0],
+        tex_coords: [0.0, 1.0],
+    },
+    Vertex2 {
+        position: [1.0, 1.0],
+        tex_coords: [1.0, 0.0],
+    },
+    Vertex2 {
+        position: [1.0, 1.0],
+        tex_coords: [1.0, 0.0],
+    },
+    Vertex2 {
+        position: [-1.0, -1.0],
+        tex_coords: [0.0, 1.0],
+    },
+    Vertex2 {
+        position: [1.0, -1.0],
+        tex_coords: [1.0, 1.0],
+    },
+];
 
 #[repr(C)]
 #[derive(Clone, Copy, Zeroable, Pod)]
@@ -33,8 +61,16 @@ struct GlobalsRaw {
 pub struct VisualRenderer {
     output_target: RenderTarget,
 
+    opaque_target: RenderTarget,
     accum_target: RenderTarget,
     transmit_target: RenderTarget,
+
+    compositing_bind_group_layout: wgpu::BindGroupLayout,
+    compositing_bind_group: OnceCell<wgpu::BindGroup>,
+    quad_buffer: wgpu::Buffer,
+    opaque_sampler: wgpu::Sampler,
+    accum_sampler: wgpu::Sampler,
+    transmit_sampler: wgpu::Sampler,
 
     texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: OnceCell<TextureResources>,
@@ -52,16 +88,27 @@ pub struct VisualRenderer {
 
     opaque_surface_pipeline: wgpu::RenderPipeline,
     translucent_surface_pipeline: wgpu::RenderPipeline,
-    //compositing_pipeline: wgpu::RenderPipeline,
+    compositing_pipeline: wgpu::RenderPipeline,
 }
 impl VisualRenderer {
     pub fn new(context: &RenderContext, output_target: RenderTarget) -> Self {
         let device = output_target.device();
 
-        let accum_target =
-            context.render_into_memory(output_target.size(), output_target.format(), None);
-        let transmit_target =
-            context.render_into_memory(output_target.size(), output_target.format(), None);
+        let opaque_target = context.render_into_memory(
+            output_target.size(),
+            output_target.format(),
+            Some(wgpu::TextureUsages::TEXTURE_BINDING),
+        );
+        let accum_target = context.render_into_memory(
+            output_target.size(),
+            output_target.format(),
+            Some(wgpu::TextureUsages::TEXTURE_BINDING),
+        );
+        let transmit_target = context.render_into_memory(
+            output_target.size(),
+            output_target.format(),
+            Some(wgpu::TextureUsages::TEXTURE_BINDING),
+        );
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -287,6 +334,15 @@ impl VisualRenderer {
             )
         };
 
+        let pipeline_targets = vec![Some(wgpu::ColorTargetState {
+            format: output_target.format(),
+            blend: Some(wgpu::BlendState {
+                color: wgpu::BlendComponent::REPLACE,
+                alpha: wgpu::BlendComponent::REPLACE,
+            }),
+            write_mask: wgpu::ColorWrites::ALL,
+        })];
+
         let opaque_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -315,14 +371,7 @@ impl VisualRenderer {
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
                         entry_point: "fs_opaque_surface",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: output_target.format(),
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
+                        targets: &pipeline_targets,
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -441,11 +490,125 @@ impl VisualRenderer {
             translucent_surface_pipeline
         };
 
-        /*
+        let (
+            compositing_bind_group_layout,
+            opaque_sampler,
+            accum_sampler,
+            transmit_sampler,
+            quad_buffer,
+        ) = {
+            let compositing_bind_group_layout =
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[
+                        // Opaque texture
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                        // Opaque sampler
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        // Accum texture
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                        // Accum sampler
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        // Transmit texture
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 4,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                        // Transmit sampler
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 5,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                });
+
+            let opaque_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+            let accum_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+            let transmit_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+            let quad_buffer = {
+                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(&QUAD_VERTS),
+                    usage: wgpu::BufferUsages::VERTEX,
+                })
+            };
+
+            (
+                compositing_bind_group_layout,
+                opaque_sampler,
+                accum_sampler,
+                transmit_sampler,
+                quad_buffer,
+            )
+        };
+
         let compositing_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Compositing Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&compositing_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -460,12 +623,12 @@ impl VisualRenderer {
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
-                        entry_point: "vs_compositing",
-                        buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                        entry_point: "vs_composite",
+                        buffers: &[Vertex2::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: "fs_compositing",
+                        entry_point: "fs_composite",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: output_target.format(),
                             blend: Some(wgpu::BlendState {
@@ -495,12 +658,20 @@ impl VisualRenderer {
 
             compositing_pipeline
         };
-         */
 
         Self {
             output_target,
+
+            opaque_target,
             accum_target,
             transmit_target,
+
+            compositing_bind_group_layout,
+            compositing_bind_group: OnceCell::new(),
+            quad_buffer,
+            opaque_sampler,
+            accum_sampler,
+            transmit_sampler,
 
             depth_texture: OnceCell::new(),
 
@@ -519,7 +690,7 @@ impl VisualRenderer {
 
             opaque_surface_pipeline,
             translucent_surface_pipeline,
-            //compositing_pipeline,
+            compositing_pipeline,
         }
     }
 
@@ -547,6 +718,10 @@ impl VisualRenderer {
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
             self.output_target.resize(new_size);
+            self.opaque_target.resize(new_size);
+            self.accum_target.resize(new_size);
+            self.transmit_target.resize(new_size);
+            self.compositing_bind_group = OnceCell::new();
             self.depth_texture = OnceCell::new()
         }
     }
@@ -593,48 +768,23 @@ impl VisualRenderer {
 
         let transmit_frame = self.transmit_target.frame();
         let transmit_view = transmit_frame.view();
-        {}
+
+        let opaque_frame = self.opaque_target.frame();
+        let opaque_view = opaque_frame.view();
 
         let output_frame = self.output_target.frame();
         let output_view = output_frame.view();
+
+        // Render and composite scene
         {
-            let mut compositing_render_pass =
-                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Render Pass"),
+            // Render geometry
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Geometry Render Pass"),
                     color_attachments: &[
-                        /*
-                        // Accum
+                        // Opaque
                         Some(wgpu::RenderPassColorAttachment {
-                            view: todo!(),
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
-                                    g: 0.0,
-                                    b: 0.0,
-                                    a: 1.0,
-                                }),
-                                store: true,
-                            },
-                        }),
-                        // Transmit
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: todo!(),
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
-                                    g: 0.0,
-                                    b: 0.0,
-                                    a: 1.0,
-                                }),
-                                store: true,
-                            },
-                        }),
-                         */
-                        // Output
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &output_view,
+                            view: &opaque_view,
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -646,6 +796,47 @@ impl VisualRenderer {
                                 store: true,
                             },
                         }),
+                        /*
+                        // Compositing
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &output_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                store: true,
+                            },
+                        }),
+                        */
+                        /*
+                            // Accum
+                            Some(wgpu::RenderPassColorAttachment {
+                                view: todo!(),
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                                        r: 0.0,
+                                        g: 0.0,
+                                        b: 0.0,
+                                        a: 1.0,
+                                    }),
+                                    store: true,
+                                },
+                            }),
+                            // Transmit
+                            Some(wgpu::RenderPassColorAttachment {
+                                view: todo!(),
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                                        r: 0.0,
+                                        g: 0.0,
+                                        b: 0.0,
+                                        a: 1.0,
+                                    }),
+                                    store: true,
+                                },
+                            }),
+                             */
                     ],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &self.depth_texture().view,
@@ -655,39 +846,97 @@ impl VisualRenderer {
                         }),
                         stencil_ops: None,
                     }),
-                    ..Default::default()
                 });
 
-            compositing_render_pass.set_pipeline(&self.opaque_surface_pipeline);
+                // Render opaque surfaces
+                {
+                    render_pass.set_pipeline(&self.opaque_surface_pipeline);
 
-            compositing_render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
-            compositing_render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
+                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-            for object in scene.objects().iter() {
-                let mesh = object.mesh();
+                    for object in scene.objects().iter() {
+                        let mesh = object.mesh();
 
-                compositing_render_pass
-                    .set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                compositing_render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                compositing_render_pass.set_index_buffer(
-                    mesh.index_buffer(device).slice(..),
-                    wgpu::IndexFormat::Uint32,
-                );
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
 
-                compositing_render_pass.set_bind_group(
+                        render_pass.set_bind_group(
+                            0,
+                            self.material_bind_groups
+                                .get(&object.material_id())
+                                .unwrap(),
+                            &[],
+                        );
+
+                        render_pass.draw_indexed(
+                            0..mesh.num_elements(),
+                            0,
+                            0..object.num_instances(),
+                        );
+                    }
+                }
+            }
+
+            // Composite
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Compositing Render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &output_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                });
+
+                render_pass.set_pipeline(&self.compositing_pipeline);
+                render_pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
+                render_pass.set_bind_group(
                     0,
-                    self.material_bind_groups
-                        .get(&object.material_id())
-                        .unwrap(),
+                    &self.compositing_bind_group(opaque_view, accum_view, transmit_view),
                     &[],
                 );
-
-                compositing_render_pass.draw_indexed(
-                    0..mesh.num_elements(),
-                    0,
-                    0..object.num_instances(),
-                );
+                render_pass.draw(0..QUAD_VERTS.len() as u32, 0..1);
             }
+
+            /*
+            // Render opaque surfaces
+            {
+                render_pass.set_pipeline(&self.opaque_surface_pipeline);
+
+                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
+
+                for object in scene.objects().iter() {
+                    let mesh = object.mesh();
+
+                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_index_buffer(
+                        mesh.index_buffer(device).slice(..),
+                        wgpu::IndexFormat::Uint32,
+                    );
+
+                    render_pass.set_bind_group(
+                        0,
+                        self.material_bind_groups
+                            .get(&object.material_id())
+                            .unwrap(),
+                        &[],
+                    );
+
+                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                }
+            }
+             */
         }
 
         queue.submit(std::iter::once(encoder.finish()));
@@ -801,6 +1050,48 @@ impl VisualRenderer {
                     label: None,
                 })
             });
+    }
+
+    fn compositing_bind_group(
+        &self,
+        opaque_view: &wgpu::TextureView,
+        accum_view: &wgpu::TextureView,
+        transmit_view: &wgpu::TextureView,
+    ) -> &wgpu::BindGroup {
+        self.compositing_bind_group.get_or_init(|| {
+            let device = self.output_target.device();
+
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &self.compositing_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(opaque_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&self.opaque_sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::TextureView(accum_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: wgpu::BindingResource::Sampler(&self.accum_sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 4,
+                        resource: wgpu::BindingResource::TextureView(transmit_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 5,
+                        resource: wgpu::BindingResource::Sampler(&self.transmit_sampler),
+                    },
+                ],
+            })
+        })
     }
 
     fn light_bind_group(&self) -> &wgpu::BindGroup {

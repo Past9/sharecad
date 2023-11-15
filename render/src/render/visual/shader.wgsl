@@ -265,3 +265,45 @@ fn geometry_smith(n: vec3<f32>, v: vec3<f32>, l: vec3<f32>, roughness: vec3<f32>
     let ggx1 = geometry_schlick_ggx(n_dot_l, roughness);
     return ggx1 * ggx2;
 }
+
+
+struct ScreenVertexIn {
+    @location(0) position: vec2<f32>,
+    @location(1) tex_coord: vec2<f32>,
+};
+
+struct ScreenVertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) tex_coord: vec2<f32>,
+};
+
+@vertex
+fn vs_composite(
+    in: ScreenVertexIn,
+) -> ScreenVertexOut {
+    var out: ScreenVertexOut;
+    out.position = vec4<f32>(in.position, 0.0, 1.0);
+    out.tex_coord = in.tex_coord;
+    return out;
+}
+
+@group(0) @binding(0)
+var t_opaque_target: texture_2d<f32>;
+@group(0) @binding(1)
+var s_opaque_target: sampler;
+@group(0) @binding(2)
+var t_accum_target: texture_2d<f32>;
+@group(0) @binding(3)
+var s_accum_target: sampler;
+@group(0) @binding(4)
+var t_transmit_target: texture_2d<f32>;
+@group(0) @binding(5)
+var s_transmit_target: sampler;
+
+@fragment
+fn fs_composite(
+    in: ScreenVertexOut
+) -> @location(0) vec4<f32> {
+    var color = textureSample(t_opaque_target, s_opaque_target, in.tex_coord).rgba;
+    return color;
+}
