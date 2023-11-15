@@ -318,7 +318,8 @@ impl RgbSpec {
     }
 
     pub fn default_transmit() -> Self {
-        Self::Rgb(rgb(0.5, 0.5, 0.5))
+        //Self::Rgb(rgb(0.8, 0.8, 0.8))
+        Self::Rgb(rgb(0.0, 0.0, 0.0))
     }
 }
 

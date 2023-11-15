@@ -334,15 +334,6 @@ impl VisualRenderer {
             )
         };
 
-        let pipeline_targets = vec![Some(wgpu::ColorTargetState {
-            format: output_target.format(),
-            blend: Some(wgpu::BlendState {
-                color: wgpu::BlendComponent::REPLACE,
-                alpha: wgpu::BlendComponent::REPLACE,
-            }),
-            write_mask: wgpu::ColorWrites::ALL,
-        })];
-
         let opaque_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -371,7 +362,14 @@ impl VisualRenderer {
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
                         entry_point: "fs_opaque_surface",
-                        targets: &pipeline_targets,
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: opaque_target.format(),
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent::REPLACE,
+                                alpha: wgpu::BlendComponent::REPLACE,
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -777,10 +775,10 @@ impl VisualRenderer {
 
         // Render and composite scene
         {
-            // Render geometry
+            // Render opaque geometry
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Geometry Render Pass"),
+                    label: Some("Opaque Render Pass"),
                     color_attachments: &[
                         // Opaque
                         Some(wgpu::RenderPassColorAttachment {
@@ -796,47 +794,6 @@ impl VisualRenderer {
                                 store: true,
                             },
                         }),
-                        /*
-                        // Compositing
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &output_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                                store: true,
-                            },
-                        }),
-                        */
-                        /*
-                            // Accum
-                            Some(wgpu::RenderPassColorAttachment {
-                                view: todo!(),
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                                        r: 0.0,
-                                        g: 0.0,
-                                        b: 0.0,
-                                        a: 1.0,
-                                    }),
-                                    store: true,
-                                },
-                            }),
-                            // Transmit
-                            Some(wgpu::RenderPassColorAttachment {
-                                view: todo!(),
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                                        r: 0.0,
-                                        g: 0.0,
-                                        b: 0.0,
-                                        a: 1.0,
-                                    }),
-                                    store: true,
-                                },
-                            }),
-                             */
                     ],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &self.depth_texture().view,
@@ -856,6 +813,94 @@ impl VisualRenderer {
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
                     for object in scene.objects().iter() {
+                        let material = scene.materials().get(&object.material_id()).unwrap();
+                        if material.is_translucent {
+                            continue;
+                        }
+
+                        let mesh = object.mesh();
+
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+
+                        render_pass.set_bind_group(
+                            0,
+                            self.material_bind_groups
+                                .get(&object.material_id())
+                                .unwrap(),
+                            &[],
+                        );
+
+                        render_pass.draw_indexed(
+                            0..mesh.num_elements(),
+                            0,
+                            0..object.num_instances(),
+                        );
+                    }
+                }
+            }
+
+            // Render translucent geometry
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Translucent Render Pass"),
+                    color_attachments: &[
+                        // Accum
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &accum_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                }),
+                                store: true,
+                            },
+                        }),
+                        // Transmit
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &transmit_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                }),
+                                store: true,
+                            },
+                        }),
+                    ],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_texture().view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
+                    }),
+                });
+
+                // Render translucent surfaces
+                {
+                    render_pass.set_pipeline(&self.translucent_surface_pipeline);
+
+                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
+
+                    for object in scene.objects().iter() {
+                        let material = scene.materials().get(&object.material_id()).unwrap();
+                        if !material.is_translucent {
+                            continue;
+                        }
+
                         let mesh = object.mesh();
 
                         render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));

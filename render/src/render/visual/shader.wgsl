@@ -305,5 +305,7 @@ fn fs_composite(
     in: ScreenVertexOut
 ) -> @location(0) vec4<f32> {
     var color = textureSample(t_opaque_target, s_opaque_target, in.tex_coord).rgba;
-    return color;
+    var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
+    var color_transmit = textureSample(t_transmit_target, s_transmit_target, in.tex_coord).rgba;
+    return color + color_accum + color_transmit;
 }
