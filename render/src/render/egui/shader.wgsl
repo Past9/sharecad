@@ -1,9 +1,9 @@
-struct VertexInput {
+struct ScreenVertexIn {
     @location(0) position: vec2<f32>,
     @location(1) tex_coord: vec2<f32>,
 };
 
-struct FragInput {
+struct ScreenVertexOut {
     @builtin(position) position: vec4<f32>,
     @location(0) tex_coord: vec2<f32>,
 };
@@ -11,9 +11,9 @@ struct FragInput {
 
 @vertex
 fn vs_main(
-    in: VertexInput,
-) -> FragInput {
-    var out: FragInput;
+    in: ScreenVertexIn,
+) -> ScreenVertexOut {
+    var out: ScreenVertexOut;
     out.position = vec4<f32>(in.position, 0.0, 1.0);
     out.tex_coord = in.tex_coord;
     return out;
@@ -26,7 +26,7 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(
-    in: FragInput
+    in: ScreenVertexOut
 ) -> @location(0) vec4<f32> {
     var color = textureSample(t_diffuse, s_diffuse, in.tex_coord).rgba;
 

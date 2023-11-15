@@ -3,10 +3,10 @@ use space::{vec3, Vec3};
 
 #[derive(Debug, Clone)]
 pub struct Rgba {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
 }
 impl Rgba {
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
@@ -51,11 +51,22 @@ pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Rgba {
 
 #[derive(Debug, Clone)]
 pub struct Rgb {
-    r: f32,
-    g: f32,
-    b: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
 }
 impl Rgb {
+    pub fn all_approx_one_or_zero(&self) -> bool {
+        const ZERO_THRESHOLD: f32 = 0.5 / 255.0;
+        const ONE_THRESHOLD: f32 = 254.5 / 255.0;
+        !(self.r > ZERO_THRESHOLD
+            || self.r < ONE_THRESHOLD
+            || self.g > ZERO_THRESHOLD
+            || self.g < ONE_THRESHOLD
+            || self.b > ZERO_THRESHOLD
+            || self.b < ONE_THRESHOLD)
+    }
+
     pub fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b }
     }

@@ -61,7 +61,7 @@ impl ViewState {
         visual_render_target: RenderTarget,
         resource_dir: &str,
     ) -> ViewState {
-        let visual_renderer = VisualRenderer::new(visual_render_target);
+        let visual_renderer = VisualRenderer::new(&render_context, visual_render_target);
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
             visual_renderer.size(),
             wgpu::TextureFormat::Rgba32Float,
@@ -74,7 +74,7 @@ impl ViewState {
             500.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(0.0),
+            deg(45.0),
         );
 
         let camera_controller = CameraController::new(camera);

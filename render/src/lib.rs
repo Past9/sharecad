@@ -8,3 +8,4 @@ pub mod render;
 pub mod scene;
 pub mod state;
 pub mod texture;
+pub mod vertex;

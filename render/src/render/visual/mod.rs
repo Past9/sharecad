@@ -1,14 +1,14 @@
-use super::{texture::TextureResources, RenderTarget, VertexBuffer};
+use super::{texture::TextureResources, RenderContext, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
-    light::{AmbientLightRaw, DirectionalLightRaw},
+    light::{self, AmbientLightRaw, DirectionalLightRaw},
     material::{Material, MaterialId},
     model::{InstanceRaw, MeshVertex},
     scene::Scene,
     texture::{Texture, TextureId},
 };
 use bytemuck::{Pod, Zeroable};
-use std::{cell::OnceCell, cmp::min, collections::HashMap, num::NonZeroU32};
+use std::{borrow::Cow, cell::OnceCell, cmp::min, collections::HashMap, num::NonZeroU32};
 use wgpu::util::DeviceExt;
 
 const MAX_DIRECTIONAL_LIGHTS: u32 = 32;
@@ -31,7 +31,10 @@ struct GlobalsRaw {
 
 #[derive(Debug)]
 pub struct VisualRenderer {
-    target: RenderTarget,
+    output_target: RenderTarget,
+
+    accum_target: RenderTarget,
+    transmit_target: RenderTarget,
 
     texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: OnceCell<TextureResources>,
@@ -47,11 +50,18 @@ pub struct VisualRenderer {
     directional_light_buffer: wgpu::Buffer,
     ambient_light_buffer: wgpu::Buffer,
 
-    mesh_render_pipeline: wgpu::RenderPipeline,
+    opaque_surface_pipeline: wgpu::RenderPipeline,
+    translucent_surface_pipeline: wgpu::RenderPipeline,
+    //compositing_pipeline: wgpu::RenderPipeline,
 }
 impl VisualRenderer {
-    pub fn new(target: RenderTarget) -> Self {
-        let device = target.device();
+    pub fn new(context: &RenderContext, output_target: RenderTarget) -> Self {
+        let device = output_target.device();
+
+        let accum_target =
+            context.render_into_memory(output_target.size(), output_target.format(), None);
+        let transmit_target =
+            context.render_into_memory(output_target.size(), output_target.format(), None);
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -187,15 +197,11 @@ impl VisualRenderer {
             });
 
         let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
-            println!("size_of GlobalsRaw = {}", std::mem::size_of::<GlobalsRaw>());
-            println!("size_of CameraRaw = {}", std::mem::size_of::<CameraRaw>());
             let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<GlobalsRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
-
-            println!("GlobalsRaw Buffer Binding = {:#?}", globals_buffer);
 
             let globals_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -281,9 +287,9 @@ impl VisualRenderer {
             )
         };
 
-        let mesh_render_pipeline = {
+        let opaque_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Mesh Render Pipeline Layout"),
+                label: None,
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
                     &globals_bind_group_layout,
@@ -293,24 +299,24 @@ impl VisualRenderer {
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Visual shader"),
+                label: Some("Opaque surface shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-            let mesh_render_pipeline =
+            let opaque_surface_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Render pipeline"),
+                    label: Some("Opaque surface pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
-                        entry_point: "vs_main",
+                        entry_point: "vs_surface",
                         buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: "fs_main",
+                        entry_point: "fs_opaque_surface",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: target.format(),
+                            format: output_target.format(),
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -342,11 +348,159 @@ impl VisualRenderer {
                     multiview: None,
                 });
 
-            mesh_render_pipeline
+            opaque_surface_pipeline
         };
 
+        let translucent_surface_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &globals_bind_group_layout,
+                    &light_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Truanslucent surface shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let translucent_surface_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Translucent surface pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_surface",
+                        buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_translucent_surface",
+                        targets: &[
+                            Some(wgpu::ColorTargetState {
+                                format: accum_target.format(),
+                                blend: Some(wgpu::BlendState {
+                                    color: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::One,
+                                        dst_factor: wgpu::BlendFactor::One,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                    alpha: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::One,
+                                        dst_factor: wgpu::BlendFactor::One,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                }),
+                                write_mask: wgpu::ColorWrites::all(),
+                            }),
+                            Some(wgpu::ColorTargetState {
+                                format: transmit_target.format(),
+                                blend: Some(wgpu::BlendState {
+                                    color: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::Zero,
+                                        dst_factor: wgpu::BlendFactor::OneMinusSrc,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                    alpha: wgpu::BlendComponent {
+                                        src_factor: wgpu::BlendFactor::One,
+                                        dst_factor: wgpu::BlendFactor::One,
+                                        operation: wgpu::BlendOperation::Add,
+                                    },
+                                }),
+                                write_mask: wgpu::ColorWrites::all(),
+                            }),
+                        ],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: Some(wgpu::Face::Back),
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: TextureResources::DEPTH_FORMAT,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Always,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            translucent_surface_pipeline
+        };
+
+        /*
+        let compositing_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Compositing Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Compositing shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let compositing_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Compositing pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_compositing",
+                        buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_compositing",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: output_target.format(),
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent::REPLACE,
+                                alpha: wgpu::BlendComponent::REPLACE,
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: Some(wgpu::Face::Back),
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            compositing_pipeline
+        };
+         */
+
         Self {
-            target,
+            output_target,
+            accum_target,
+            transmit_target,
 
             depth_texture: OnceCell::new(),
 
@@ -363,7 +517,9 @@ impl VisualRenderer {
             directional_light_buffer,
             ambient_light_buffer,
 
-            mesh_render_pipeline,
+            opaque_surface_pipeline,
+            translucent_surface_pipeline,
+            //compositing_pipeline,
         }
     }
 
@@ -381,32 +537,30 @@ impl VisualRenderer {
     }
 
     pub fn target(&self) -> &RenderTarget {
-        &self.target
+        &self.output_target
     }
 
     pub fn size(&self) -> (u32, u32) {
-        self.target.size()
+        self.output_target.size()
     }
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
-            self.target.resize(new_size);
+            self.output_target.resize(new_size);
             self.depth_texture = OnceCell::new()
         }
     }
 
     pub fn aspect(&self) -> f64 {
-        self.target.aspect()
+        self.output_target.aspect()
     }
 
     pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<(), wgpu::SurfaceError> {
         self.build_image_texture_resources(scene);
         self.build_material_bind_groups(scene);
 
-        let device = self.target.device();
-        let queue = self.target.queue();
-        let frame = self.target.frame();
-        let view = frame.view();
+        let device = self.output_target.device();
+        let queue = self.output_target.queue();
 
         queue.write_buffer(
             &self.globals_buffer,
@@ -434,49 +588,93 @@ impl VisualRenderer {
             label: Some("Visual render encoder"),
         });
 
+        let accum_frame = self.accum_target.frame();
+        let accum_view = accum_frame.view();
+
+        let transmit_frame = self.transmit_target.frame();
+        let transmit_view = transmit_frame.view();
+        {}
+
+        let output_frame = self.output_target.frame();
+        let output_view = output_frame.view();
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.3,
-                            g: 0.4,
-                            b: 0.5,
-                            a: 1.0,
+            let mut compositing_render_pass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[
+                        /*
+                        // Accum
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: todo!(),
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                }),
+                                store: true,
+                            },
                         }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture().view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
+                        // Transmit
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: todo!(),
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                }),
+                                store: true,
+                            },
+                        }),
+                         */
+                        // Output
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &output_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.3,
+                                    g: 0.4,
+                                    b: 0.5,
+                                    a: 1.0,
+                                }),
+                                store: true,
+                            },
+                        }),
+                    ],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_texture().view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
                     }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
+                    ..Default::default()
+                });
 
-            render_pass.set_pipeline(&self.mesh_render_pipeline);
+            compositing_render_pass.set_pipeline(&self.opaque_surface_pipeline);
 
-            render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
-            render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
+            compositing_render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+            compositing_render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
             for object in scene.objects().iter() {
                 let mesh = object.mesh();
 
-                render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                render_pass.set_index_buffer(
+                compositing_render_pass
+                    .set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                compositing_render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                compositing_render_pass.set_index_buffer(
                     mesh.index_buffer(device).slice(..),
                     wgpu::IndexFormat::Uint32,
                 );
 
-                render_pass.set_bind_group(
+                compositing_render_pass.set_bind_group(
                     0,
                     self.material_bind_groups
                         .get(&object.material_id())
@@ -484,19 +682,24 @@ impl VisualRenderer {
                     &[],
                 );
 
-                render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                compositing_render_pass.draw_indexed(
+                    0..mesh.num_elements(),
+                    0,
+                    0..object.num_instances(),
+                );
             }
         }
 
         queue.submit(std::iter::once(encoder.finish()));
-        frame.finish();
+        output_frame.finish();
 
         Ok(())
     }
 
     fn depth_texture(&self) -> &TextureResources {
-        self.depth_texture
-            .get_or_init(|| TextureResources::depth(self.target.device(), self.target.size()))
+        self.depth_texture.get_or_init(|| {
+            TextureResources::depth(self.output_target.device(), self.output_target.size())
+        })
     }
 
     fn build_image_texture_resources(&mut self, scene: &Scene) {
@@ -507,7 +710,11 @@ impl VisualRenderer {
 
     fn create_image_texture_resources(&mut self, texture: &Texture) {
         self.image_textures.entry(texture.id).or_insert_with(|| {
-            TextureResources::image(&texture.image, self.target.device(), self.target.queue())
+            TextureResources::image(
+                &texture.image,
+                self.output_target.device(),
+                self.output_target.queue(),
+            )
         });
     }
 
@@ -521,7 +728,7 @@ impl VisualRenderer {
         self.material_bind_groups
             .entry(material.id)
             .or_insert_with(|| {
-                let device = self.target.device();
+                let device = self.output_target.device();
 
                 let diffuse = self.image_textures.get(&material.diffuse).unwrap();
                 let normal = self.image_textures.get(&material.normal).unwrap();
@@ -598,7 +805,7 @@ impl VisualRenderer {
 
     fn light_bind_group(&self) -> &wgpu::BindGroup {
         self.light_bind_group.get_or_init(|| {
-            let device = self.target.device();
+            let device = self.output_target.device();
 
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,

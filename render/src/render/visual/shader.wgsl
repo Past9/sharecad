@@ -45,7 +45,7 @@ var<uniform> globals: Globals;
 const PI = 3.14159265359;
 
 @vertex
-fn vs_main(
+fn vs_surface(
     model: VertexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
@@ -135,7 +135,7 @@ struct AmbientLight {
 };
 
 @fragment
-fn fs_main(
+fn fs_opaque_surface(
     in: VertexOutput
 ) -> @location(0) vec4<f32> {
     // Converts from tangent space to world space
@@ -154,26 +154,19 @@ fn fs_main(
     let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
 
 
-    let TexCoords = in.tex_coords;
-    let WorldPos = in.world_position;
-    let Normal = tangent_to_world_matrix * surface_normal;
-    let camPos = globals.camera.view_pos.xyz;
 
-    let N = normalize(Normal);
-    let V = normalize(camPos - WorldPos);
-
-    var Lo = vec3(0.0);
+    var reflected = vec3(0.0);
 
     // Directional lights
     for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
-        Lo += pbr(
+        reflected += pbr(
             albedo,
-            Normal,
+            tangent_to_world_matrix * surface_normal,
             emissive,
             roughness,
             metallic,
             -directional_lights[i].direction,
-            camPos - WorldPos,
+            globals.camera.view_pos.xyz - in.world_position,
             1.0,
             directional_lights[i].color
         );
@@ -181,17 +174,24 @@ fn fs_main(
 
     // Ambient lights
     for (var i: u32 = u32(0); i < globals.num_ambient_lights; i++) {
-        Lo += ambient_lights[i].color * albedo * ambient_occlusion;
+        reflected += ambient_lights[i].color * albedo * ambient_occlusion;
     }
 
     // Texture emission
-    var color = Lo + emissive;
+    var color = reflected + emissive;
 
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
 
     return vec4<f32>(color, transmit.r);
+}
+
+@fragment
+fn fs_translucent_surface(
+    in: VertexOutput
+) -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
 
 fn pbr(
@@ -205,65 +205,63 @@ fn pbr(
     attentuation: f32,
     light_color: vec3<f32>
 ) -> vec3<f32> {
-    let N = normalize(normal);
-    let V = normalize(surf_to_camera);
-    let L = normalize(surf_to_light);
-    let H = normalize(V + L);
+    let n = normalize(normal);
+    let v = normalize(surf_to_camera);
+    let l = normalize(surf_to_light);
+    let h = normalize(v + l);
 
-    //let distance = length(light.position - WorldPos);
-    //let attentuation = 1.0; // 1.0 / (distance * distance) if using falloff/point lights
     let radiance = light_color * attentuation;
 
     let f0 = mix(vec3(0.04), albedo, metallic);
-    let F = fresnelSchlick(max(dot(H, V), 0.0), f0);
+    let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
 
-    let NDF = distributionGGX(N, H, roughness);
-    let G = geometrySmith(N, V, L, roughness);
+    let ndf = distribution_ggx(n, h, roughness);
+    let g = geometry_smith(n, v, l, roughness);
 
-    let numerator = NDF * G * F;
-    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    let numerator = ndf * g * f;
+    let denominator = 4.0 * max(dot(n, v), 0.0) * max(dot(n, l), 0.0) + 0.0001;
     let specular = numerator / denominator;
 
-    let kS = F;
-    var kD = vec3(1.0) - kS;
+    let ks = f;
+    var kd = vec3(1.0) - ks;
 
-    kD *= 1.0 - metallic;
+    kd *= 1.0 - metallic;
 
-    let NdotL = max(dot(N, L), 0.0);
-    return (kD * albedo / PI + specular) * radiance * NdotL;
+    let n_dot_l = max(dot(n, l), 0.0);
+    return (kd * albedo / PI + specular) * radiance * n_dot_l;
 }
 
-fn fresnelSchlick(cosTheta: f32, f0: vec3<f32>) -> vec3<f32> {
-    return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+fn fresnel_schlick(cos_theta: f32, f0: vec3<f32>) -> vec3<f32> {
+    return f0 + (1.0 - f0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
-fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
+fn distribution_ggx(n: vec3<f32>, h: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
     let a = roughness * roughness;
     let a2 = a * a;
-    let NdotH = max(dot(N, H), 0.0);
-    let NdotH2 = NdotH * NdotH;
+    let n_dot_h = max(dot(n, h), 0.0);
+    let n_dot_h_2 = n_dot_h * n_dot_h;
 
     let num = a2;
-    var denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    var denom = (n_dot_h_2 * (a2 - 1.0) + 1.0);
     denom = PI * denom * denom;
 
     return num / denom;
 }
 
-fn geometrySchlickGGX(NdotV: f32, roughness: vec3<f32>) -> vec3<f32> {
+fn geometry_schlick_ggx(n_dot_v: f32, roughness: vec3<f32>) -> vec3<f32> {
     let r = roughness + 1.0;
     let k = (r * r) / 8.0;
 
-    let num = NdotV;
-    let denom = NdotV * (1.0 - k) + k;
+    let num = n_dot_v;
+    let denom = n_dot_v * (1.0 - k) + k;
 
     return num / denom;
 }
 
-fn geometrySmith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
-    let NdotV = max(dot(N, V), 0.0);
-    let NdotL = max(dot(N, L), 0.0);
-    let ggx2 = geometrySchlickGGX(NdotV, roughness);
-    let ggx1 = geometrySchlickGGX(NdotL, roughness);
+fn geometry_smith(n: vec3<f32>, v: vec3<f32>, l: vec3<f32>, roughness: vec3<f32>) -> vec3<f32> {
+    let n_dot_v = max(dot(n, v), 0.0);
+    let n_dot_l = max(dot(n, l), 0.0);
+    let ggx2 = geometry_schlick_ggx(n_dot_v, roughness);
+    let ggx1 = geometry_schlick_ggx(n_dot_l, roughness);
     return ggx1 * ggx2;
 }

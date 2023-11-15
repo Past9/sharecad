@@ -1,4 +1,6 @@
-use image::{DynamicImage, GenericImage};
+use std::cell::OnceCell;
+
+use image::{DynamicImage, GenericImage, GenericImageView};
 use space::{vec3, Vec3};
 
 use crate::{
@@ -24,6 +26,7 @@ pub struct Material {
     pub metallic: TextureId,
     pub ambient: TextureId,
     pub transmit: TextureId,
+    pub is_translucent: bool,
 }
 impl Material {
     pub fn new(
@@ -35,6 +38,7 @@ impl Material {
         metallic: TextureId,
         ambient: TextureId,
         transmit: TextureId,
+        is_translucent: bool,
     ) -> Self {
         Self {
             id,
@@ -45,6 +49,7 @@ impl Material {
             metallic,
             ambient,
             transmit,
+            is_translucent,
         }
     }
 }
@@ -58,8 +63,16 @@ pub struct MaterialSpec {
     pub roughness: RgbSpec,
     pub metallic: RgbSpec,
     pub ambient: RgbSpec,
+
+    is_translucent: OnceCell<bool>,
 }
 impl MaterialSpec {
+    pub fn is_translucent(&self) -> bool {
+        *self
+            .is_translucent
+            .get_or_init(|| !self.transmit.all_approx_one_or_zero())
+    }
+
     pub fn diffuse(mut self, diffuse: RgbSpec) -> Self {
         self.diffuse = diffuse;
         self
@@ -231,6 +244,8 @@ impl Default for MaterialSpec {
             roughness: RgbSpec::default_roughness(),
             metallic: RgbSpec::default_metallic(),
             ambient: RgbSpec::default_ambient(),
+
+            is_translucent: OnceCell::new(),
         }
     }
 }
@@ -241,6 +256,27 @@ pub enum RgbSpec {
     Rgb(Rgb),
 }
 impl RgbSpec {
+    pub fn all_approx_one_or_zero(&self) -> bool {
+        match self {
+            RgbSpec::Texture(image) => {
+                for x in 0..image.width() {
+                    for y in 0..image.height() {
+                        let pixel = image.get_pixel(x, y);
+                        if (pixel[0] != 0 && pixel[0] != 255)
+                            || (pixel[1] != 0 && pixel[1] != 255)
+                            || (pixel[2] != 0 && pixel[2] != 255)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                true
+            }
+            RgbSpec::Rgb(rgb) => rgb.all_approx_one_or_zero(),
+        }
+    }
+
     pub fn image(&self) -> image::DynamicImage {
         match self {
             RgbSpec::Texture(image) => image.clone(),
