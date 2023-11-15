@@ -381,9 +381,6 @@ fn fs_composite(
     var color_transmit = textureSample(t_transmit_target, s_transmit_target, in.tex_coord).r;
     var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
 
-    if color_transmit == 1.0 {
-        discard;
-    }
 
 
     if max_component4(abs(color_accum)) > 100000.0 {
@@ -394,7 +391,8 @@ fn fs_composite(
 
     //return vec4(color_opaque * (color_transmit) + avg_color * (1.0 - color_transmit), 1.0);
 
-    let color = (color_accum.rgb / color_accum.a) * (1.0 - color_transmit) + color_opaque * color_transmit;
+    //let color = (color_accum.rgb / color_accum.a) * (1.0 - color_transmit) + color_opaque * color_transmit;
+    let color = color_opaque * color_transmit;
 
     return vec4(color, 1.0);
 
