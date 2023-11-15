@@ -1,6 +1,7 @@
 use std::{
     cell::OnceCell,
     collections::HashMap,
+    env::join_paths,
     io::{BufReader, Cursor},
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -340,6 +341,22 @@ impl Scene {
                 }
             };
 
+            let transmit = {
+                if let Some(transmit) = m.unknown_param.get("map_Kt") {
+                    if transmit != "" {
+                        let mut transmit_pathbuf = parent_path.clone();
+                        transmit_pathbuf.push(transmit);
+                        RgbSpec::from_file(
+                            &transmit_pathbuf.into_os_string().into_string().unwrap(),
+                        )
+                    } else {
+                        RgbSpec::default_transmit()
+                    }
+                } else {
+                    RgbSpec::default_transmit()
+                }
+            };
+
             let id = self.insert_material(
                 MaterialSpec::default()
                     .diffuse(diffuse)
@@ -347,7 +364,8 @@ impl Scene {
                     .emissive(emissive)
                     .roughness(roughness)
                     .metallic(metallic)
-                    .ambient(ambient),
+                    .ambient(ambient)
+                    .transmit(transmit),
             );
 
             material_id_map.insert(index, id);

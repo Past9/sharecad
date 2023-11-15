@@ -55,6 +55,7 @@ map_Ke scififloor/TCom_Scifi_Floor2_1K_emissive.png
 map_Pr scififloor/TCom_Scifi_Floor2_1K_roughness.png
 map_Pm scififloor/TCom_Scifi_Floor2_1K_metallic.png
 map_Po scififloor/TCom_Scifi_Floor2_1K_ao.png
+map_Kt scififloor/TCom_Scifi_Floor2_1K_transmit.png
 
 newmtl Left
 Ns 0.000000
