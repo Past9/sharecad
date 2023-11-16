@@ -2,8 +2,7 @@ use super::{texture::TextureResources, RenderContext, RenderTarget, VertexBuffer
 use crate::{
     camera::{Camera, CameraRaw},
     light::{self, AmbientLightRaw, DirectionalLightRaw},
-    material::{Material, MaterialId},
-    model::{InstanceRaw, MeshVertex},
+    model::{SurfaceMaterial, SurfaceMaterialId, SurfaceVertex, TransformedSurfaceInstanceRaw},
     scene::Scene,
     texture::{Texture, TextureId},
     vertex::Vertex2,
@@ -76,7 +75,7 @@ pub struct VisualRenderer {
     depth_texture: OnceCell<TextureResources>,
     image_textures: HashMap<TextureId, TextureResources>,
 
-    material_bind_groups: HashMap<MaterialId, wgpu::BindGroup>,
+    material_bind_groups: HashMap<SurfaceMaterialId, wgpu::BindGroup>,
 
     globals_buffer: wgpu::Buffer,
     globals_bind_group: wgpu::BindGroup,
@@ -96,19 +95,16 @@ impl VisualRenderer {
 
         let opaque_target = context.render_into_memory(
             output_target.size(),
-            //output_target.format(),
             wgpu::TextureFormat::Rgb10a2Unorm,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
         let accum_target = context.render_into_memory(
             output_target.size(),
-            //output_target.format(),
             wgpu::TextureFormat::Rgba16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
         let transmit_target = context.render_into_memory(
             output_target.size(),
-            //output_target.format(),
             wgpu::TextureFormat::R16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
@@ -360,7 +356,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -378,8 +374,8 @@ impl VisualRenderer {
                         topology: wgpu::PrimitiveTopology::TriangleList,
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        //cull_mode: None,
+                        //cull_mode: Some(wgpu::Face::Back),
+                        cull_mode: None,
                         unclipped_depth: false,
                         polygon_mode: wgpu::PolygonMode::Fill,
                         conservative: false,
@@ -425,7 +421,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[MeshVertex::desc(), InstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -981,37 +977,6 @@ impl VisualRenderer {
                 );
                 render_pass.draw(0..QUAD_VERTS.len() as u32, 0..1);
             }
-
-            /*
-            // Render opaque surfaces
-            {
-                render_pass.set_pipeline(&self.opaque_surface_pipeline);
-
-                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
-                render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
-
-                for object in scene.objects().iter() {
-                    let mesh = object.mesh();
-
-                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                    render_pass.set_index_buffer(
-                        mesh.index_buffer(device).slice(..),
-                        wgpu::IndexFormat::Uint32,
-                    );
-
-                    render_pass.set_bind_group(
-                        0,
-                        self.material_bind_groups
-                            .get(&object.material_id())
-                            .unwrap(),
-                        &[],
-                    );
-
-                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
-                }
-            }
-             */
         }
 
         queue.submit(std::iter::once(encoder.finish()));
@@ -1048,7 +1013,7 @@ impl VisualRenderer {
         }
     }
 
-    fn create_material_bind_group(&mut self, material: &Material) {
+    fn create_material_bind_group(&mut self, material: &SurfaceMaterial) {
         self.material_bind_groups
             .entry(material.id)
             .or_insert_with(|| {

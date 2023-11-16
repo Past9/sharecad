@@ -1,20 +1,18 @@
-use std::{
-    cell::OnceCell,
-    collections::HashMap,
-    env::join_paths,
-    io::{BufReader, Cursor},
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
-
-use space::{Point3, Vec2, Vec3};
-
 use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
-    material::{Material, MaterialId, MaterialSpec, RgbSpec, Vec3Spec},
-    model::{Mesh, MeshObject, MeshVertex, SceneObject, SceneObjectInstance},
+    model::{
+        MaterialSpec, RgbSpec, SceneSurface, SceneSurfaceInstance, SceneSurfaceObject,
+        SurfaceMaterial, SurfaceMaterialId, SurfaceMesh, SurfaceVertex, Vec3Spec,
+    },
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
+};
+use space::{Vec2, Vec3};
+use std::{
+    collections::HashMap,
+    io::{BufReader, Cursor},
+    marker::PhantomData,
+    path::Path,
 };
 
 #[derive(Debug)]
@@ -38,14 +36,13 @@ impl<T: From<u32>> IdSeries<T> {
 
 #[derive(Debug)]
 pub struct Scene {
-    objects: Vec<Box<dyn SceneObject>>,
+    objects: Vec<Box<dyn SceneSurface>>,
 
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
 
-    material_ids: IdSeries<MaterialId>,
-    materials: HashMap<MaterialId, Material>,
-    err_material_id: OnceCell<MaterialId>,
+    material_ids: IdSeries<SurfaceMaterialId>,
+    materials: HashMap<SurfaceMaterialId, SurfaceMaterial>,
 
     directional_lights: Vec<DirectionalLight>,
     ambient_lights: Vec<AmbientLight>,
@@ -61,18 +58,17 @@ impl Scene {
 
             material_ids: IdSeries::new(),
             materials: HashMap::new(),
-            err_material_id: OnceCell::new(),
 
             directional_lights: vec![],
             ambient_lights: vec![],
         }
     }
 
-    pub fn objects(&self) -> &[Box<dyn SceneObject>] {
+    pub fn objects(&self) -> &[Box<dyn SceneSurface>] {
         &self.objects
     }
 
-    pub fn materials(&self) -> &HashMap<MaterialId, Material> {
+    pub fn materials(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
         &self.materials
     }
 
@@ -87,16 +83,6 @@ impl Scene {
     pub fn ambient_lights(&self) -> &[AmbientLight] {
         &self.ambient_lights
     }
-
-    /*
-    pub fn light(&self) -> &Light {
-        &self.light
-    }
-
-    pub fn set_light(&mut self, light: Light) {
-        self.light = light;
-    }
-     */
 
     fn load_string(file_path: &str) -> String {
         std::fs::read_to_string(file_path).unwrap()
@@ -160,7 +146,7 @@ impl Scene {
         }
     }
 
-    fn insert_material(&mut self, spec: MaterialSpec) -> MaterialId {
+    fn insert_material(&mut self, spec: MaterialSpec) -> SurfaceMaterialId {
         let diffuse_id = self.insert_rgb_texture(spec.diffuse.image());
         let normal_id = self.insert_vector_map(spec.normal.image());
         let emissive_id = self.insert_rgb_texture(spec.emissive.image());
@@ -196,7 +182,7 @@ impl Scene {
                 let id = self.material_ids.next();
                 self.materials.insert(
                     id,
-                    Material::new(
+                    SurfaceMaterial::new(
                         id,
                         diffuse_id,
                         normal_id,
@@ -225,7 +211,7 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
-    pub fn load_wavefront_obj_file<T: SceneObjectInstance>(
+    pub fn load_wavefront_obj_file<T: SceneSurfaceInstance>(
         &mut self,
         file_path: &str,
         instances: Vec<Vec<T>>,
@@ -257,7 +243,7 @@ impl Scene {
         let missing_material_id =
             self.insert_material(MaterialSpec::default().diffuse_rgb(rgb(1.0, 0.0, 1.0)));
 
-        let mut material_id_map: HashMap<usize, MaterialId> = HashMap::new();
+        let mut material_id_map: HashMap<usize, SurfaceMaterialId> = HashMap::new();
         for (index, m) in obj_materials.unwrap().into_iter().enumerate() {
             let diffuse = {
                 if m.diffuse_texture != "" {
@@ -373,7 +359,7 @@ impl Scene {
 
         for m in models.into_iter() {
             let mut vertices = (0..m.mesh.positions.len() / 3)
-                .map(|i| MeshVertex {
+                .map(|i| SurfaceVertex {
                     position: [
                         -m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
@@ -459,7 +445,7 @@ impl Scene {
                 v.bitangent = (Vec3::from(v.bitangent) * denom).as_f32s();
             }
 
-            let mesh = Mesh::new(file_path.into(), vertices, m.mesh.indices);
+            let mesh = SurfaceMesh::new(vertices, m.mesh.indices);
 
             let material_id = match m.mesh.material_id {
                 Some(index) => match material_id_map.get(&index) {
@@ -469,7 +455,7 @@ impl Scene {
                 None => missing_material_id,
             };
 
-            let object = MeshObject::new(mesh, instances[0].clone(), material_id);
+            let object = SceneSurfaceObject::new(mesh, instances[0].clone(), material_id);
 
             self.objects.push(Box::new(object));
         }

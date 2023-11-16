@@ -5,14 +5,14 @@ use crate::{
     color::rgb,
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
-    model::{InstanceId, TransformedInstance},
+    model::{SurfaceInstanceId, TransformedSurfaceInstance},
     render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
+const NUM_INSTANCES_PER_ROW: u32 = 11;
 const SPACE_BETWEEN: f64 = 5.0;
 
 pub struct ViewState {
@@ -74,7 +74,7 @@ impl ViewState {
             500.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(camera);
@@ -86,7 +86,7 @@ impl ViewState {
                 .flat_map(|z| {
                     (0..NUM_INSTANCES_PER_ROW).flat_map(move |y| {
                         (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                            let id = InstanceId(
+                            let id = SurfaceInstanceId(
                                 y * NUM_INSTANCES_PER_ROW.pow(2) + z * NUM_INSTANCES_PER_ROW + x,
                             );
 
@@ -103,7 +103,7 @@ impl ViewState {
                                     * (z as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
                             );
 
-                            TransformedInstance {
+                            TransformedSurfaceInstance {
                                 id,
                                 scale,
                                 rotation,
@@ -119,9 +119,9 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file::<TransformedInstance>(path_str, vec![instances]);
+            scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
 
-            scene.ambient_light(AmbientLight::new(rgb(0.0, 0.0, 0.0)));
+            scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
             scene
         };

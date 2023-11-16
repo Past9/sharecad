@@ -1,14 +1,7 @@
-mod instance;
-mod mesh;
+mod curve;
+mod material;
+mod surface;
 
-use crate::material::MaterialId;
-
-pub use instance::*;
-pub use mesh::*;
-
-pub trait SceneObject: std::fmt::Debug {
-    fn mesh(&self) -> &Mesh;
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer;
-    fn material_id(&self) -> MaterialId;
-    fn num_instances(&self) -> u32;
-}
+pub use curve::*;
+pub use material::*;
+pub use surface::*;

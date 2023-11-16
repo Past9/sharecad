@@ -141,8 +141,8 @@ fn fs_opaque_surface(
 ) -> @location(0) vec4<f32> {
     var color = compute_reflected(front_facing, in, vec3(0.0));
 
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
+    //color = color / (color + vec3(1.0));
+    //color = pow(color, vec3(1.0 / 2.2));
 
     return vec4<f32>(color, 1.0);
 }
@@ -163,7 +163,6 @@ fn fs_translucent_surface(
     var reflected = compute_reflected(front_facing, in, transmit);
 
     var surface_color = vec4(reflected, 1.0);
-
 
     var out: TranslucentOutput;
     out.background = vec4(surface_color.a * (vec3(1.0) - transmit), 1.0);
@@ -353,7 +352,6 @@ fn fs_composite(
     var color_transmit = textureSample(t_transmit_target, s_transmit_target, in.tex_coord).r;
     var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
 
-
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
 
     var accum_part = vec3(0.0);
@@ -361,7 +359,7 @@ fn fs_composite(
         accum_part = color_accum.rgb / color_accum.a;
     }
 
-    var color = accum_part * (1.0 - color_transmit) + color_background ;
+    var color = accum_part * (1.0 - color_transmit) + color_background;
 
     return vec4(color, 1.0);
 }
