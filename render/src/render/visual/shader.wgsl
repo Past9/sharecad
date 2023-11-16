@@ -142,6 +142,10 @@ fn vs_curve(
         instance.direction_matrix_2,
     );
 
+    // Works up to here
+    //out.clip_position = globals.camera.view_proj * (position_matrix * vec4(model.position, 1.0));
+    //return out;
+
     // Depending on the index, the current vertex is either at the start 
     // or end of the line segment. Using this information and the line's 
     // direction vector in world space, we find the world space coordinates
@@ -153,12 +157,13 @@ fn vs_curve(
         end = model.position + model.direction;
     } else {
         start = model.position - model.direction;
-        end = model.direction;
+        end = model.position;
     }
 
+
     // Transform the start and end points into clip space
-    let start_clip_pos = globals.camera.view_proj * position_matrix * vec4(start, 1.0);
-    let end_clip_pos = globals.camera.view_proj * position_matrix * vec4(end, 1.0);
+    let start_clip_pos = globals.camera.view_proj * (position_matrix * vec4(start, 1.0));
+    let end_clip_pos = globals.camera.view_proj * (position_matrix * vec4(end, 1.0));
 
     // Transform the start and end points into screen space
     let start_screen_pos = (start_clip_pos / start_clip_pos.w).xyz;
