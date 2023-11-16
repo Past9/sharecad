@@ -455,10 +455,21 @@ impl VisualRenderer {
                         entry_point: "fs_opaque_curve",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: opaque_target.format(),
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            /*
                             blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
+                                color: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::Zero,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
                             }),
+                             */
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),

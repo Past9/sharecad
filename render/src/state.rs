@@ -125,19 +125,19 @@ impl ViewState {
             scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
 
             let points = vec![
-                point3(0.0, 0.0, -4.0),   //
+                point3(0.0, 0.0, 13.0),   //
                 point3(2.0, 0.0, -4.0),   //
-                point3(2.0, 2.0, -4.0),   //
+                point3(2.0, 2.0, -5.0),   //
                 point3(0.0, 2.0, -4.0),   //
-                point3(-2.0, -2.0, -4.0), //
+                point3(-2.0, -2.0, -3.0), //
                 point3(0.0, -1.0, -4.0),  //
-                point3(2.0, -4.0, -4.0),  //
+                point3(2.0, -4.0, -5.0),  //
                 point3(2.0, -6.0, -4.0),  //
-                point3(-2.0, -6.0, -4.0), //
+                point3(-2.0, -6.0, -3.0), //
                 point3(6.0, -5.0, -4.0),  //
-                point3(6.0, 5.0, -4.0),   //
+                point3(6.0, 5.0, -5.0),   //
                 point3(6.0, 8.0, -4.0),   //
-                point3(6.0, 3.0, -4.0),   //
+                point3(6.0, 3.0, -3.0),   //
             ];
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
@@ -146,7 +146,7 @@ impl ViewState {
                     .into_iter()
                     .map(|p| CurvePoint {
                         position: p,
-                        width: 0.01,
+                        width: 0.003,
                     })
                     .collect::<Vec<_>>(),
                 vec![TransformedCurveInstance {

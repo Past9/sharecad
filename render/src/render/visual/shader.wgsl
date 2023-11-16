@@ -58,11 +58,10 @@ struct CurveInstanceIn {
 
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec4<f32>,
-    @location(1) uv: vec2<f32>,
-    @location(2) length: f32,
-    @location(3) width: f32,
-    @location(4) direction: vec3<f32>
+    @location(0) uv: vec2<f32>,
+    @location(1) length: f32,
+    @location(2) width: f32,
+    @location(3) direction: vec3<f32>
 }
 
 @group(1) @binding(0)
@@ -193,10 +192,16 @@ fn vs_curve(
 
     // Move the vertex along those vectors
     var final_pos = vec3(0.0);
+    let c = 1.0;
+    var z = 0.0;
     if is_start {
         final_pos = start_screen_pos;
+        // Replace the depth with the clip space depth, with a logarithmic Z-buffer applied
+        final_pos.z = log(c * start_clip_pos.z + 1.0) / log(c * globals.camera.zfar + 1.0);
     } else {
         final_pos = end_screen_pos;
+        // Replace the depth with the clip space depth, with a logarithmic Z-buffer applied
+        final_pos.z = log(c * end_clip_pos.z + 1.0) / log(c * globals.camera.zfar + 1.0);
     }
     final_pos += vec3(orth, 0.0) + vec3(travel, 0.0);
     
@@ -207,11 +212,12 @@ fn vs_curve(
     out.direction = direction;
 
     out.uv = vec2(flip_travel, flip_orth);
-    out.length = length(end_screen_pos.xy - start_screen_pos.xy);
+    out.length = length(direction); //length(end_screen_pos.xy - start_screen_pos.xy);
+    out.width = model.width;
 
     // Apply logarithmic depth buffer 
-    let c = 1.0;
-    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+    //let c = 1.0;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -277,10 +283,11 @@ fn fs_opaque_surface(
 fn fs_opaque_curve(
     in: CurveVertexOut
 ) -> @location(0) vec4<f32> {
-    var color = in.color;
+    //var color = in.color;
 
-    // Half the length of the original non-expanded line
+    // Half the length and width of the original non-expanded line
     let half_length = in.length / 2.0;
+    let half_width = in.width / 2.0;
 
     // Get the U passed in from the vertex shader, but we're going to change 
     // it so it represents distance in the U-direction from the endpoints
@@ -288,8 +295,8 @@ fn fs_opaque_curve(
     var u = abs(in.uv.x);
 
     // Get the U-coordinate where the line ends (before the forward/backward extension)
-    // (positive only, we'll be owrking with distance and absolute values so it's fine)
-    let line_end_u = half_length / (half_length + in.width);
+    // (positive only, we'll be working with distance and absolute values so it's fine)
+    let line_end_u = half_length / (half_length + half_width);
 
     // Get how much of U is past that point
     u = u - line_end_u;
@@ -300,13 +307,11 @@ fn fs_opaque_curve(
     // Get V
     let v = abs(in.uv.y);
 
-    color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    if u > 0.0 && sqrt(pow(u, 2.0) + pow(v, 2.0)) > 1.0 {
-        color.a = 0.0;
+    if u > 0.0 && (sqrt(pow(u, 2.0) + pow(v, 2.0))) > 1.0 {
+        discard;
     }
 
-    //return color;
-    return vec4<f32>(vec3(0.0), 1.0);
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 struct TranslucentOutput {
