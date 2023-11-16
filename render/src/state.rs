@@ -126,18 +126,18 @@ impl ViewState {
 
             let points = vec![
                 point3(0.0, 0.0, -4.0),   //
-                point3(0.2, 0.0, -4.0),   //
-                point3(0.2, 0.2, -4.0),   //
-                point3(0.0, 0.2, -4.0),   //
-                point3(-0.2, -0.2, -4.0), //
-                point3(0.0, -0.1, -4.0),  //
-                point3(0.2, -0.4, -4.0),  //
-                point3(0.2, -0.6, -4.0),  //
-                point3(-0.2, -0.6, -4.0), //
-                point3(0.6, -0.5, -4.0),  //
-                point3(0.6, 0.5, -4.0),   //
-                point3(0.6, 0.8, -4.0),   //
-                point3(0.6, 0.3, -4.0),   //
+                point3(2.0, 0.0, -4.0),   //
+                point3(2.0, 2.0, -4.0),   //
+                point3(0.0, 2.0, -4.0),   //
+                point3(-2.0, -2.0, -4.0), //
+                point3(0.0, -1.0, -4.0),  //
+                point3(2.0, -4.0, -4.0),  //
+                point3(2.0, -6.0, -4.0),  //
+                point3(-2.0, -6.0, -4.0), //
+                point3(6.0, -5.0, -4.0),  //
+                point3(6.0, 5.0, -4.0),   //
+                point3(6.0, 8.0, -4.0),   //
+                point3(6.0, 3.0, -4.0),   //
             ];
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
@@ -146,7 +146,7 @@ impl ViewState {
                     .into_iter()
                     .map(|p| CurvePoint {
                         position: p,
-                        width: 5.0,
+                        width: 0.01,
                     })
                     .collect::<Vec<_>>(),
                 vec![TransformedCurveInstance {

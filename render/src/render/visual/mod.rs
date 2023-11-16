@@ -3,8 +3,8 @@ use crate::{
     camera::{Camera, CameraRaw},
     light::{AmbientLightRaw, DirectionalLightRaw},
     model::{
-        CurveMaterial, CurveMaterialId, SurfaceMaterial, SurfaceMaterialId, SurfaceVertex,
-        TransformedSurfaceInstanceRaw,
+        CurveMaterial, CurveMaterialId, CurveVertex, SurfaceMaterial, SurfaceMaterialId,
+        SurfaceVertex, TransformedCurveInstanceRaw, TransformedSurfaceInstanceRaw,
     },
     scene::Scene,
     texture::{Texture, TextureId},
@@ -448,7 +448,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_curve",
-                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
+                        buffers: &[CurveVertex::desc(), TransformedCurveInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -463,7 +463,7 @@ impl VisualRenderer {
                         })],
                     }),
                     primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::LineList,
+                        topology: wgpu::PrimitiveTopology::TriangleList,
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
                         cull_mode: None,

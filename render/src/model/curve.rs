@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
-use space::{Mat44, Point3, Quat, Vec3};
+use space::{Mat33, Mat44, Point3, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
 use crate::render::VertexBuffer;
@@ -124,6 +124,9 @@ impl CurveMesh {
             })
             .collect::<Vec<_>>();
 
+        println!("vertices {:?}", vertices);
+        println!("indices {:?}", indices);
+
         Self {
             vertices,
             indices,
@@ -211,11 +214,12 @@ impl SceneCurveInstance for TransformedCurveInstance {
     }
 
     fn to_raw(&self) -> Self::RawBuffer {
-        let model = Mat44::translation(self.position)
+        let position = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
         TransformedCurveInstanceRaw {
-            model: model.transpose().into(),
+            position: position.transpose().into(),
+            direction: Mat33::from(self.rotation).transpose().into(),
         }
     }
 }
@@ -223,14 +227,19 @@ impl SceneCurveInstance for TransformedCurveInstance {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct TransformedCurveInstanceRaw {
-    pub model: [[f32; 4]; 4],
+    pub position: [[f32; 4]; 4],
+    pub direction: [[f32; 3]; 3],
 }
 impl TransformedCurveInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
+        3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
         6 => Float32x4,
-        7 => Float32x4,
+
+        7 => Float32x3,
+        8 => Float32x3,
+        9 => Float32x3,
     ];
 }
 impl VertexBuffer for TransformedCurveInstanceRaw {

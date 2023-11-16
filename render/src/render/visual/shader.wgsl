@@ -46,10 +46,14 @@ struct CurveVertexIn {
 };
 
 struct CurveInstanceIn {
-    @location(3) model_matrix_0: vec4<f32>,
-    @location(4) model_matrix_1: vec4<f32>,
-    @location(5) model_matrix_2: vec4<f32>,
-    @location(6) model_matrix_3: vec4<f32>,
+    @location(3) position_matrix_0: vec4<f32>,
+    @location(4) position_matrix_1: vec4<f32>,
+    @location(5) position_matrix_2: vec4<f32>,
+    @location(6) position_matrix_3: vec4<f32>,
+
+    @location(7) direction_matrix_0: vec3<f32>,
+    @location(8) direction_matrix_1: vec3<f32>,
+    @location(9) direction_matrix_2: vec3<f32>,
 };
 
 struct CurveVertexOut {
@@ -57,6 +61,7 @@ struct CurveVertexOut {
     @location(0) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) length: f32,
+    @location(3) width: f32
 }
 
 @group(1) @binding(0)
@@ -118,15 +123,23 @@ fn vs_curve(
 ) -> CurveVertexOut {
     var out: CurveVertexOut;
 
-    let model_matrix = mat4x4<f32>(
-        instance.model_matrix_0,
-        instance.model_matrix_1,
-        instance.model_matrix_2,
-        instance.model_matrix_3,
+    let position_matrix = mat4x4<f32>(
+        instance.position_matrix_0,
+        instance.position_matrix_1,
+        instance.position_matrix_2,
+        instance.position_matrix_3,
     );
 
-    let world_position = model_matrix * vec4<f32>(model.position, 1.0);
+    let direction_matrix = mat3x3<f32>(
+        instance.direction_matrix_0,
+        instance.direction_matrix_1,
+        instance.direction_matrix_2,
+    );
+
+    let world_position = position_matrix * vec4<f32>(model.position, 1.0);
     out.clip_position = globals.camera.view_proj * world_position;
+
+    let direction = direction_matrix * model.direction;
 
 
     // Determine whether we need to push the vertex left or right.
@@ -143,7 +156,7 @@ fn vs_curve(
     // Get a vector perpendicular to the line's direction
     // of travel, and flip it if needed. Make its magnitude 
     // the half width of the line.
-    let orth = normalize(vec2<f32>(-model.direction.y, model.direction.x)) * flip_orth * model.width;
+    let orth = normalize(vec2<f32>(-direction.y, direction.x)) * flip_orth * model.width;
 
     // Determine whether we need to expand in the diretion of the line's 
     // travel or the opposite of it. The first two of every four vertices
@@ -155,13 +168,18 @@ fn vs_curve(
 
     // Get a vector along the direction of travel but scaled to 
     // the half width
-    let travel = normalize(model.direction) * flip_travel * model.width;
+    let travel = normalize(direction) * flip_travel * model.width;
 
     // Move the vertex along that vector 
-    var position = model.position.xy + orth + travel.xy;
+    out.clip_position = vec4(out.clip_position.xy + orth + travel.xy, out.clip_position.zw);
 
     out.uv = vec2<f32>(flip_travel, flip_orth);
-    out.length = length(model.direction.xy);
+    out.length = length(direction.xy);
+    out.width = model.width;
+
+    // Apply logarithmic depth buffer 
+    let c = 1.0;
+    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -227,6 +245,35 @@ fn fs_opaque_surface(
 fn fs_opaque_curve(
     in: CurveVertexOut
 ) -> @location(0) vec4<f32> {
+    var color = in.color;
+
+    // Half the length of the original non-expanded line
+    let half_length = in.length / 2.0;
+
+    // Get the U passed in from the vertex shader, but we're going to change 
+    // it so it represents distance in the U-direction from the endpoints
+    // of the unexpanded line, not from the center of the line. 
+    var u = abs(in.uv.x);
+
+    // Get the U-coordinate where the line ends (before the forward/backward extension)
+    // (positive only, we'll be owrking with distance and absolute values so it's fine)
+    let line_end_u = half_length / (half_length + in.width);
+
+    // Get how much of U is past that point
+    u = u - line_end_u;
+
+    // Now scale that so it's between 0.0 and 1.0 again.
+    u = u / (1.0 - line_end_u); 
+
+    // Get V
+    let v = abs(in.uv.y);
+
+    color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    if u > 0.0 && sqrt(pow(u, 2.0) + pow(v, 2.0)) > 1.0 {
+        color.a = 0.0;
+    }
+
+    //return color;
     return vec4<f32>(vec3(0.0), 1.0);
 }
 
