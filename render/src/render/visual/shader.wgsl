@@ -139,52 +139,7 @@ fn fs_opaque_surface(
     @builtin(front_facing) front_facing: bool,
     in: VertexOutput
 ) -> @location(0) vec4<f32> {
-    // Converts from tangent space to world space
-    let tangent_to_world_matrix = mat3x3<f32>(
-        in.world_tangent,
-        in.world_bitangent,
-        in.world_normal,
-    );
-
-    let albedo: vec3<f32> = textureSample(t_albedo, s_albedo, in.tex_coords).rgb;
-    let surface_normal: vec3<f32> = textureSample(t_normal, s_normal, in.tex_coords).xyz * 2.0 - 1.0;
-    let emissive: vec3<f32> = textureSample(t_emissive, s_emissive, in.tex_coords).rgb;
-    let roughness: vec3<f32> = textureSample(t_roughness, s_roughness, in.tex_coords).rgb;
-    let metallic: vec3<f32> = textureSample(t_metallic, s_metallic, in.tex_coords).rgb;
-    let ambient_occlusion: vec3<f32> = textureSample(t_ambient, s_ambient, in.tex_coords).rgb;
-    let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
-
-
-
-    var reflected = vec3(0.0);
-
-    var normal = tangent_to_world_matrix * surface_normal;
-    if !front_facing {
-        normal = -normal;
-    }
-
-    // Directional lights
-    for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
-        reflected += pbr(
-            albedo,
-            normal,
-            emissive,
-            roughness,
-            metallic,
-            -directional_lights[i].direction,
-            globals.camera.view_pos.xyz - in.world_position,
-            1.0,
-            directional_lights[i].color
-        );
-    }
-
-    // Ambient lights
-    for (var i: u32 = u32(0); i < globals.num_ambient_lights; i++) {
-        reflected += ambient_lights[i].color * albedo * ambient_occlusion;
-    }
-
-    // Texture emission
-    var color = reflected + emissive;
+    var color = compute_reflected(front_facing, in, vec3(0.0));
 
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
@@ -202,8 +157,35 @@ struct TranslucentOutput {
 fn fs_translucent_surface(
     @builtin(front_facing) front_facing: bool,
     in: VertexOutput,
-//) -> @location(0) vec4<f32> {
 ) -> TranslucentOutput {
+
+    let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
+    var reflected = compute_reflected(front_facing, in, transmit);
+
+    var surface_color = vec4(reflected, 1.0);
+
+
+    var out: TranslucentOutput;
+    out.background = vec4(surface_color.a * (vec3(1.0) - transmit), 1.0);
+
+    // Calculate transparency
+    surface_color.a *= 1.0 - clamp((transmit.r + transmit.g + transmit.b) / 3.0, 0.0, 1.0);
+    let a = min(1.0, surface_color.a) * 8.0 + 0.01;
+    let b = in.clip_position.z * 2.0;
+
+    let w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
+
+    out.accum = surface_color * w;
+    out.transmit = vec3(surface_color.a);
+
+    return out;
+}
+
+fn compute_reflected(
+    front_facing: bool,
+    in: VertexOutput,
+    transmit: vec3<f32>
+) -> vec3<f32> {
     // Converts from tangent space to world space
     let tangent_to_world_matrix = mat3x3<f32>(
         in.world_tangent,
@@ -217,9 +199,6 @@ fn fs_translucent_surface(
     let roughness: vec3<f32> = textureSample(t_roughness, s_roughness, in.tex_coords).rgb;
     let metallic: vec3<f32> = textureSample(t_metallic, s_metallic, in.tex_coords).rgb;
     let ambient_occlusion: vec3<f32> = textureSample(t_ambient, s_ambient, in.tex_coords).rgb;
-    let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
-
-
 
     var reflected = vec3(0.0);
 
@@ -230,6 +209,7 @@ fn fs_translucent_surface(
 
     // Directional lights
     for (var i: u32 = u32(0); i < globals.num_directional_lights; i++) {
+        let color = directional_lights[i].color * (1.0 - transmit);
         reflected += pbr(
             albedo,
             normal,
@@ -239,7 +219,7 @@ fn fs_translucent_surface(
             -directional_lights[i].direction,
             globals.camera.view_pos.xyz - in.world_position,
             1.0,
-            directional_lights[i].color
+            color
         );
     }
 
@@ -248,31 +228,8 @@ fn fs_translucent_surface(
         reflected += ambient_lights[i].color * albedo * ambient_occlusion;
     }
 
-    // Color of surface if it were opaque
-    var surface_color = vec4(reflected + emissive, 1.0);
-
-    // TODO: Apply gamma correction after below calculations?
-    //surface_color = surface_color / (surface_color + vec3(1.0));
-    //surface_color = pow(surface_color, vec3(1.0 / 2.2));
-
-    var out: TranslucentOutput;
-    out.background = vec4(surface_color.a * (vec3(1.0) - transmit), 1.0);
-
-
-    // Calculate transparency
-    surface_color.a *= 1.0 - clamp((transmit.r + transmit.g + transmit.b) / 3.0, 0.0, 1.0);
-    let a = min(1.0, surface_color.a) * 8.0 + 0.01;
-    let b = in.clip_position.z * 2.0;
-
-    let w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
-
-
-    out.accum = surface_color * w;
-    out.transmit = vec3(surface_color.a);
-
-    return out;
+    return reflected + emissive;
 }
-
 
 fn pbr(
     albedo: vec3<f32>,
@@ -408,3 +365,4 @@ fn fs_composite(
 
     return vec4(color, 1.0);
 }
+

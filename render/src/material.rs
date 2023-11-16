@@ -319,14 +319,12 @@ impl RgbSpec {
     }
 
     pub fn default_transmit() -> Self {
-        /*
         let mut rng = rand::thread_rng();
         let r: f32 = rng.gen::<f32>() * 0.5 + 0.5;
         let g: f32 = rng.gen::<f32>() * 0.5 + 0.5;
         let b: f32 = rng.gen::<f32>() * 0.5 + 0.5;
         Self::Rgb(rgb(r, g, b))
-         */
-        Self::Rgb(rgb(0.0, 0.0, 0.0))
+        //Self::Rgb(rgb(0.0, 0.0, 0.0))
     }
 }
 
