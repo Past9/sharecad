@@ -61,7 +61,8 @@ struct CurveVertexOut {
     @location(0) uv: vec2<f32>,
     @location(1) length: f32,
     @location(2) width: f32,
-    @location(3) direction: vec3<f32>
+    @location(3) direction: vec2<f32>,
+    @location(4) clip_w: f32,
 }
 
 @group(1) @binding(0)
@@ -165,8 +166,8 @@ fn vs_curve(
     let end_clip_pos = globals.camera.view_proj * (position_matrix * vec4(end, 1.0));
 
     // Transform the start and end points into screen space
-    let start_screen_pos = (start_clip_pos / start_clip_pos.w).xyz;
-    let end_screen_pos = (end_clip_pos / end_clip_pos.w).xyz;
+    let start_screen_pos = start_clip_pos.xy / start_clip_pos.w;
+    let end_screen_pos = end_clip_pos.xy / end_clip_pos.w;
 
     // Get the direction of the line in screen space
     let direction = end_screen_pos - start_screen_pos;
@@ -188,36 +189,37 @@ fn vs_curve(
     if is_start {
         flip_travel = -1.0;
     }
-    let travel = normalize(direction.xy) * flip_travel * half_width;
+    let travel = normalize(direction) * flip_travel * half_width;
 
     // Move the vertex along those vectors
-    var final_pos = vec3(0.0);
+    var final_pos = vec2(0.0);
     let c = 1.0;
-    var z = 0.0;
+    var clip_z = 0.0;
+    var clip_w = 0.0;
     if is_start {
         final_pos = start_screen_pos;
-        // Replace the depth with the clip space depth, with a logarithmic Z-buffer applied
-        final_pos.z = log(c * start_clip_pos.z + 1.0) / log(c * globals.camera.zfar + 1.0);
+        clip_z = start_clip_pos.z;
+        clip_w = start_clip_pos.w;
     } else {
         final_pos = end_screen_pos;
-        // Replace the depth with the clip space depth, with a logarithmic Z-buffer applied
-        final_pos.z = log(c * end_clip_pos.z + 1.0) / log(c * globals.camera.zfar + 1.0);
+        clip_z = end_clip_pos.z;
+        clip_w = end_clip_pos.w;
     }
-    final_pos += vec3(orth, 0.0) + vec3(travel, 0.0);
-    
+    final_pos += orth + travel;
+
     // Set the output clip position for the current point
-    out.clip_position = vec4(final_pos, 1.0);
+    out.clip_position = vec4(
+        final_pos.xy * clip_w,
+        log(c * clip_z + 1.0) / log(c * globals.camera.zfar + 1.0) * clip_w,
+        clip_w
+    );
 
     // Set the screen space direction
     out.direction = direction;
 
     out.uv = vec2(flip_travel, flip_orth);
-    out.length = length(direction); //length(end_screen_pos.xy - start_screen_pos.xy);
+    out.length = length(direction);
     out.width = model.width;
-
-    // Apply logarithmic depth buffer 
-    //let c = 1.0;
-    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
