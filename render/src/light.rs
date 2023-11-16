@@ -15,7 +15,7 @@ impl DirectionalLight {
 
     pub fn to_raw(&self) -> DirectionalLightRaw {
         DirectionalLightRaw {
-            direction: self.direction.as_f32s(),
+            direction: self.direction.to_f32s(),
             _padding: 0,
             color: self.color.as_f32s(),
             _padding2: 0,

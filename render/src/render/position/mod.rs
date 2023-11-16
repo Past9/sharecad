@@ -184,7 +184,7 @@ impl PositionRenderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            for object in scene.objects().iter() {
+            for object in scene.surfaces().iter() {
                 let mesh = object.mesh();
                 render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));

@@ -10,7 +10,7 @@ struct Camera {
     zfar: f32,
 };
 
-struct VertexInput {
+struct SurfaceVertexIn {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
     @location(2) normal: vec3<f32>,
@@ -19,7 +19,7 @@ struct VertexInput {
     @location(5) param_coords: vec2<f32>,
 };
 
-struct InstanceInput {
+struct SurfaceInstanceIn {
     @location(6) model_matrix_0: vec4<f32>,
     @location(7) model_matrix_1: vec4<f32>,
     @location(8) model_matrix_2: vec4<f32>,
@@ -30,7 +30,7 @@ struct InstanceInput {
     @location(12) normal_matrix_2: vec3<f32>,
 }
 
-struct VertexOutput {
+struct SurfaceVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
     @location(1) world_position: vec3<f32>,
@@ -39,6 +39,26 @@ struct VertexOutput {
     @location(4) world_bitangent: vec3<f32>,
 };
 
+struct CurveVertexIn {
+    @location(0) position: vec3<f32>,
+    @location(1) direction: vec3<f32>,
+    @location(2) width: f32,
+};
+
+struct CurveInstanceIn {
+    @location(3) model_matrix_0: vec4<f32>,
+    @location(4) model_matrix_1: vec4<f32>,
+    @location(5) model_matrix_2: vec4<f32>,
+    @location(6) model_matrix_3: vec4<f32>,
+};
+
+struct CurveVertexOut {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) color: vec4<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) length: f32,
+}
+
 @group(1) @binding(0)
 var<uniform> globals: Globals;
 
@@ -46,10 +66,10 @@ const PI = 3.14159265359;
 
 @vertex
 fn vs_surface(
-    model: VertexInput,
-    instance: InstanceInput,
-) -> VertexOutput {
-    var out: VertexOutput;
+    model: SurfaceVertexIn,
+    instance: SurfaceInstanceIn,
+) -> SurfaceVertexOut {
+    var out: SurfaceVertexOut;
 
     let model_matrix = mat4x4<f32>(
         instance.model_matrix_0,
@@ -86,6 +106,62 @@ fn vs_surface(
     // Apply logarithmic depth buffer 
     let c = 1.0;
     out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+
+    return out;
+}
+
+@vertex
+fn vs_curve(
+    @builtin(vertex_index) v_idx: u32,
+    model: CurveVertexIn,
+    instance: CurveInstanceIn,
+) -> CurveVertexOut {
+    var out: CurveVertexOut;
+
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
+    let world_position = model_matrix * vec4<f32>(model.position, 1.0);
+    out.clip_position = globals.camera.view_proj * world_position;
+
+
+    // Determine whether we need to push the vertex left or right.
+    // They'll be pushed left (relative to the line segment's
+    // direction of travel) by default. Every second vertex gets 
+    // pushed to the right. We create the `flip` variable to reverse 
+    // the `orth` vector for this purpose. 
+    let v_idx_i = i32(v_idx);
+    var flip_orth: f32 = 1.0;
+    if v_idx_i % 2 == 1 {
+        flip_orth = -1.0;
+    }
+
+    // Get a vector perpendicular to the line's direction
+    // of travel, and flip it if needed. Make its magnitude 
+    // the half width of the line.
+    let orth = normalize(vec2<f32>(-model.direction.y, model.direction.x)) * flip_orth * model.width;
+
+    // Determine whether we need to expand in the diretion of the line's 
+    // travel or the opposite of it. The first two of every four vertices
+    // go opposite, and the second pair goes forward.
+    var flip_travel = 1.0;
+    if v_idx_i % 4 < 2 {
+        flip_travel = -1.0;
+    }
+
+    // Get a vector along the direction of travel but scaled to 
+    // the half width
+    let travel = normalize(model.direction) * flip_travel * model.width;
+
+    // Move the vertex along that vector 
+    var position = model.position.xy + orth + travel.xy;
+
+    out.uv = vec2<f32>(flip_travel, flip_orth);
+    out.length = length(model.direction.xy);
 
     return out;
 }
@@ -137,7 +213,7 @@ struct AmbientLight {
 @fragment
 fn fs_opaque_surface(
     @builtin(front_facing) front_facing: bool,
-    in: VertexOutput
+    in: SurfaceVertexOut
 ) -> @location(0) vec4<f32> {
     var color = compute_reflected(front_facing, in, vec3(0.0));
 
@@ -145,6 +221,13 @@ fn fs_opaque_surface(
     //color = pow(color, vec3(1.0 / 2.2));
 
     return vec4<f32>(color, 1.0);
+}
+
+@fragment
+fn fs_opaque_curve(
+    in: CurveVertexOut
+) -> @location(0) vec4<f32> {
+    return vec4<f32>(vec3(0.0), 1.0);
 }
 
 struct TranslucentOutput {
@@ -156,7 +239,7 @@ struct TranslucentOutput {
 @fragment
 fn fs_translucent_surface(
     @builtin(front_facing) front_facing: bool,
-    in: VertexOutput,
+    in: SurfaceVertexOut,
 ) -> TranslucentOutput {
 
     let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
@@ -182,7 +265,7 @@ fn fs_translucent_surface(
 
 fn compute_reflected(
     front_facing: bool,
-    in: VertexOutput,
+    in: SurfaceVertexOut,
     transmit: vec3<f32>
 ) -> vec3<f32> {
     // Converts from tangent space to world space

@@ -18,21 +18,21 @@ struct Uniforms {
 var<uniform> uniforms: Uniforms;
 
 // Half the width of the line
-const half_width: f32 = 0.01;
+const half_width: f32 = 0.0;
 
 @vertex
 fn vs_main(@builtin(vertex_index) v_idx: u32, v: VertexIn) -> VertexOut {
     var out: VertexOut;
 
     // Determine whether we need to push the vertex left or right.
-    // They'll be pushed left (relative to the line segment's)
-    // direction of travel by default. Every second vertex gets 
+    // They'll be pushed left (relative to the line segment's
+    // direction of travel) by default. Every second vertex gets 
     // pushed to the right. We create the `flip` variable to reverse 
     // the `orth` vector for this purpose. 
     let v_idx_i = i32(v_idx);
     var flip_orth: f32 = 1.0;
     if v_idx_i % 2 == 1 {
-        flip_orth = -1.0; 
+        flip_orth = -1.0;
     }
 
     // Get a vector perpendicular to the line's direction

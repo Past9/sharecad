@@ -2,8 +2,9 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        MaterialSpec, RgbSpec, SceneSurface, SceneSurfaceInstance, SceneSurfaceObject,
-        SurfaceMaterial, SurfaceMaterialId, SurfaceMesh, SurfaceVertex, Vec3Spec,
+        CurveMaterial, CurveMaterialId, CurveMaterialSpec, SceneCurve, SceneSurface,
+        SceneSurfaceInstance, SceneSurfaceObject, SurfaceMaterial, SurfaceMaterialId,
+        SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
     },
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -36,13 +37,17 @@ impl<T: From<u32>> IdSeries<T> {
 
 #[derive(Debug)]
 pub struct Scene {
-    objects: Vec<Box<dyn SceneSurface>>,
+    surfaces: Vec<Box<dyn SceneSurface>>,
+    curves: Vec<Box<dyn SceneCurve>>,
 
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
 
-    material_ids: IdSeries<SurfaceMaterialId>,
-    materials: HashMap<SurfaceMaterialId, SurfaceMaterial>,
+    surface_material_ids: IdSeries<SurfaceMaterialId>,
+    surface_materials: HashMap<SurfaceMaterialId, SurfaceMaterial>,
+
+    curve_material_ids: IdSeries<CurveMaterialId>,
+    curve_materials: HashMap<CurveMaterialId, CurveMaterial>,
 
     directional_lights: Vec<DirectionalLight>,
     ambient_lights: Vec<AmbientLight>,
@@ -51,25 +56,41 @@ unsafe impl Send for Scene {}
 impl Scene {
     pub fn new() -> Self {
         Self {
-            objects: vec![],
+            surfaces: vec![],
+            curves: vec![],
 
             texture_ids: IdSeries::new(),
             textures: HashMap::new(),
 
-            material_ids: IdSeries::new(),
-            materials: HashMap::new(),
+            surface_material_ids: IdSeries::new(),
+            surface_materials: HashMap::new(),
+
+            curve_material_ids: IdSeries::new(),
+            curve_materials: HashMap::new(),
 
             directional_lights: vec![],
             ambient_lights: vec![],
         }
     }
 
-    pub fn objects(&self) -> &[Box<dyn SceneSurface>] {
-        &self.objects
+    pub fn surfaces(&self) -> &[Box<dyn SceneSurface>] {
+        &self.surfaces
     }
 
-    pub fn materials(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
-        &self.materials
+    pub fn curves(&self) -> &[Box<dyn SceneCurve>] {
+        &self.curves
+    }
+
+    pub fn set_curves(&mut self, curves: Vec<Box<dyn SceneCurve>>) {
+        self.curves = curves;
+    }
+
+    pub fn surface_materials(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
+        &self.surface_materials
+    }
+
+    pub fn curve_materials(&self) -> &HashMap<CurveMaterialId, CurveMaterial> {
+        &self.curve_materials
     }
 
     pub fn textures(&self) -> &HashMap<TextureId, Texture> {
@@ -146,7 +167,33 @@ impl Scene {
         }
     }
 
-    fn insert_material(&mut self, spec: MaterialSpec) -> SurfaceMaterialId {
+    pub fn insert_curve_material(&mut self, spec: CurveMaterialSpec) -> CurveMaterialId {
+        let color_id = self.insert_rgb_texture(spec.color.image());
+
+        let id = self
+            .curve_materials
+            .iter()
+            .filter_map(|(id, material)| {
+                if color_id == material.color {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next();
+
+        match id {
+            Some(id) => *id,
+            None => {
+                let id = self.curve_material_ids.next();
+                self.curve_materials
+                    .insert(id, CurveMaterial::new(id, color_id));
+                id
+            }
+        }
+    }
+
+    pub fn insert_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId {
         let diffuse_id = self.insert_rgb_texture(spec.diffuse.image());
         let normal_id = self.insert_vector_map(spec.normal.image());
         let emissive_id = self.insert_rgb_texture(spec.emissive.image());
@@ -157,7 +204,7 @@ impl Scene {
         let is_translucent = spec.is_translucent();
 
         let id = self
-            .materials
+            .surface_materials
             .iter()
             .filter_map(|(id, material)| {
                 if diffuse_id == material.diffuse
@@ -179,8 +226,8 @@ impl Scene {
         match id {
             Some(id) => *id,
             None => {
-                let id = self.material_ids.next();
-                self.materials.insert(
+                let id = self.surface_material_ids.next();
+                self.surface_materials.insert(
                     id,
                     SurfaceMaterial::new(
                         id,
@@ -240,8 +287,9 @@ impl Scene {
         )
         .unwrap();
 
-        let missing_material_id =
-            self.insert_material(MaterialSpec::default().diffuse_rgb(rgb(1.0, 0.0, 1.0)));
+        let missing_material_id = self.insert_surface_material(
+            SurfaceMaterialSpec::default().diffuse_rgb(rgb(1.0, 0.0, 1.0)),
+        );
 
         let mut material_id_map: HashMap<usize, SurfaceMaterialId> = HashMap::new();
         for (index, m) in obj_materials.unwrap().into_iter().enumerate() {
@@ -249,9 +297,11 @@ impl Scene {
                 if m.diffuse_texture != "" {
                     let mut diffuse_pathbuf = parent_path.clone();
                     diffuse_pathbuf.push(m.diffuse_texture);
-                    RgbSpec::from_file(&diffuse_pathbuf.into_os_string().into_string().unwrap())
+                    SurfaceRgbSpec::from_file(
+                        &diffuse_pathbuf.into_os_string().into_string().unwrap(),
+                    )
                 } else {
-                    RgbSpec::Rgb(rgb(m.diffuse[0], m.diffuse[1], m.diffuse[2]))
+                    SurfaceRgbSpec::Rgb(rgb(m.diffuse[0], m.diffuse[1], m.diffuse[2]))
                 }
             };
 
@@ -259,9 +309,11 @@ impl Scene {
                 if m.normal_texture != "" {
                     let mut normal_pathbuf = parent_path.clone();
                     normal_pathbuf.push(m.normal_texture);
-                    Vec3Spec::from_file(&normal_pathbuf.into_os_string().into_string().unwrap())
+                    SurfaceVec3Spec::from_file(
+                        &normal_pathbuf.into_os_string().into_string().unwrap(),
+                    )
                 } else {
-                    Vec3Spec::default_normal()
+                    SurfaceVec3Spec::default_normal()
                 }
             };
 
@@ -270,14 +322,14 @@ impl Scene {
                     if emissive != "" {
                         let mut emissive_pathbuf = parent_path.clone();
                         emissive_pathbuf.push(emissive);
-                        RgbSpec::from_file(
+                        SurfaceRgbSpec::from_file(
                             &emissive_pathbuf.into_os_string().into_string().unwrap(),
                         )
                     } else {
-                        RgbSpec::default_emissive()
+                        SurfaceRgbSpec::default_emissive()
                     }
                 } else {
-                    RgbSpec::default_emissive()
+                    SurfaceRgbSpec::default_emissive()
                 }
             };
 
@@ -286,14 +338,14 @@ impl Scene {
                     if roughness != "" {
                         let mut roughness_pathbuf = parent_path.clone();
                         roughness_pathbuf.push(roughness);
-                        RgbSpec::from_file(
+                        SurfaceRgbSpec::from_file(
                             &roughness_pathbuf.into_os_string().into_string().unwrap(),
                         )
                     } else {
-                        RgbSpec::default_roughness()
+                        SurfaceRgbSpec::default_roughness()
                     }
                 } else {
-                    RgbSpec::default_roughness()
+                    SurfaceRgbSpec::default_roughness()
                 }
             };
 
@@ -302,14 +354,14 @@ impl Scene {
                     if metallic != "" {
                         let mut metallic_pathbuf = parent_path.clone();
                         metallic_pathbuf.push(metallic);
-                        RgbSpec::from_file(
+                        SurfaceRgbSpec::from_file(
                             &metallic_pathbuf.into_os_string().into_string().unwrap(),
                         )
                     } else {
-                        RgbSpec::default_metallic()
+                        SurfaceRgbSpec::default_metallic()
                     }
                 } else {
-                    RgbSpec::default_metallic()
+                    SurfaceRgbSpec::default_metallic()
                 }
             };
 
@@ -318,12 +370,14 @@ impl Scene {
                     if ambient != "" {
                         let mut ambient_pathbuf = parent_path.clone();
                         ambient_pathbuf.push(ambient);
-                        RgbSpec::from_file(&ambient_pathbuf.into_os_string().into_string().unwrap())
+                        SurfaceRgbSpec::from_file(
+                            &ambient_pathbuf.into_os_string().into_string().unwrap(),
+                        )
                     } else {
-                        RgbSpec::default_ambient()
+                        SurfaceRgbSpec::default_ambient()
                     }
                 } else {
-                    RgbSpec::default_ambient()
+                    SurfaceRgbSpec::default_ambient()
                 }
             };
 
@@ -332,19 +386,19 @@ impl Scene {
                     if transmit != "" {
                         let mut transmit_pathbuf = parent_path.clone();
                         transmit_pathbuf.push(transmit);
-                        RgbSpec::from_file(
+                        SurfaceRgbSpec::from_file(
                             &transmit_pathbuf.into_os_string().into_string().unwrap(),
                         )
                     } else {
-                        RgbSpec::default_transmit()
+                        SurfaceRgbSpec::default_transmit()
                     }
                 } else {
-                    RgbSpec::default_transmit()
+                    SurfaceRgbSpec::default_transmit()
                 }
             };
 
-            let id = self.insert_material(
-                MaterialSpec::default()
+            let id = self.insert_surface_material(
+                SurfaceMaterialSpec::default()
                     .diffuse(diffuse)
                     .normal(normal)
                     .emissive(emissive)
@@ -419,17 +473,17 @@ impl Scene {
 
                 // We'll use the same tangent/bitangent for each vertex in the triangle
                 vertices[c[0] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).as_f32s();
+                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).to_f32s();
                 vertices[c[1] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).as_f32s();
+                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).to_f32s();
                 vertices[c[2] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).as_f32s();
+                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).to_f32s();
                 vertices[c[0] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).as_f32s();
+                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).to_f32s();
                 vertices[c[1] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).as_f32s();
+                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).to_f32s();
                 vertices[c[2] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).as_f32s();
+                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).to_f32s();
 
                 // Used to average the tangents/bitangents
                 triangles_included[c[0] as usize] += 1;
@@ -441,8 +495,8 @@ impl Scene {
             for (i, n) in triangles_included.into_iter().enumerate() {
                 let denom = 1.0 / n as f64;
                 let v = &mut vertices[i];
-                v.tangent = (Vec3::from(v.tangent) * denom).as_f32s();
-                v.bitangent = (Vec3::from(v.bitangent) * denom).as_f32s();
+                v.tangent = (Vec3::from(v.tangent) * denom).to_f32s();
+                v.bitangent = (Vec3::from(v.bitangent) * denom).to_f32s();
             }
 
             let mesh = SurfaceMesh::new(vertices, m.mesh.indices);
@@ -457,7 +511,7 @@ impl Scene {
 
             let object = SceneSurfaceObject::new(mesh, instances[0].clone(), material_id);
 
-            self.objects.push(Box::new(object));
+            self.surfaces.push(Box::new(object));
         }
     }
 }

@@ -5,14 +5,17 @@ use crate::{
     color::rgb,
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
-    model::{SurfaceInstanceId, TransformedSurfaceInstance},
+    model::{
+        CurveInstanceId, CurveMaterial, CurveMaterialSpec, CurvePoint, SceneCurveObject,
+        SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
+    },
     render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 11;
+const NUM_INSTANCES_PER_ROW: u32 = 1;
 const SPACE_BETWEEN: f64 = 5.0;
 
 pub struct ViewState {
@@ -120,6 +123,40 @@ impl ViewState {
             let path_str = path.to_str().unwrap();
 
             scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
+
+            let points = vec![
+                point3(0.0, 0.0, -4.0),   //
+                point3(0.2, 0.0, -4.0),   //
+                point3(0.2, 0.2, -4.0),   //
+                point3(0.0, 0.2, -4.0),   //
+                point3(-0.2, -0.2, -4.0), //
+                point3(0.0, -0.1, -4.0),  //
+                point3(0.2, -0.4, -4.0),  //
+                point3(0.2, -0.6, -4.0),  //
+                point3(-0.2, -0.6, -4.0), //
+                point3(0.6, -0.5, -4.0),  //
+                point3(0.6, 0.5, -4.0),   //
+                point3(0.6, 0.8, -4.0),   //
+                point3(0.6, 0.3, -4.0),   //
+            ];
+
+            let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
+            scene.set_curves(vec![Box::new(SceneCurveObject::new(
+                points
+                    .into_iter()
+                    .map(|p| CurvePoint {
+                        position: p,
+                        width: 5.0,
+                    })
+                    .collect::<Vec<_>>(),
+                vec![TransformedCurveInstance {
+                    id: CurveInstanceId(0),
+                    scale: vec3(1.0, 1.0, 1.0),
+                    rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                    position: Vec3::ZERO,
+                }],
+                curve_material,
+            ))]);
 
             scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 

@@ -1,14 +1,17 @@
 use super::{texture::TextureResources, RenderContext, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
-    light::{self, AmbientLightRaw, DirectionalLightRaw},
-    model::{SurfaceMaterial, SurfaceMaterialId, SurfaceVertex, TransformedSurfaceInstanceRaw},
+    light::{AmbientLightRaw, DirectionalLightRaw},
+    model::{
+        CurveMaterial, CurveMaterialId, SurfaceMaterial, SurfaceMaterialId, SurfaceVertex,
+        TransformedSurfaceInstanceRaw,
+    },
     scene::Scene,
     texture::{Texture, TextureId},
     vertex::Vertex2,
 };
 use bytemuck::{Pod, Zeroable};
-use std::{borrow::Cow, cell::OnceCell, cmp::min, collections::HashMap, num::NonZeroU32};
+use std::{cell::OnceCell, cmp::min, collections::HashMap};
 use wgpu::util::DeviceExt;
 
 const MAX_DIRECTIONAL_LIGHTS: u32 = 32;
@@ -71,11 +74,13 @@ pub struct VisualRenderer {
     accum_sampler: wgpu::Sampler,
     transmit_sampler: wgpu::Sampler,
 
-    texture_bind_group_layout: wgpu::BindGroupLayout,
+    surface_texture_bind_group_layout: wgpu::BindGroupLayout,
+    curve_texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: OnceCell<TextureResources>,
     image_textures: HashMap<TextureId, TextureResources>,
 
-    material_bind_groups: HashMap<SurfaceMaterialId, wgpu::BindGroup>,
+    surface_material_bind_groups: HashMap<SurfaceMaterialId, wgpu::BindGroup>,
+    curve_material_bind_groups: HashMap<CurveMaterialId, wgpu::BindGroup>,
 
     globals_buffer: wgpu::Buffer,
     globals_bind_group: wgpu::BindGroup,
@@ -86,6 +91,7 @@ pub struct VisualRenderer {
     ambient_light_buffer: wgpu::Buffer,
 
     opaque_surface_pipeline: wgpu::RenderPipeline,
+    opaque_curve_pipeline: wgpu::RenderPipeline,
     translucent_surface_pipeline: wgpu::RenderPipeline,
     compositing_pipeline: wgpu::RenderPipeline,
 }
@@ -109,9 +115,9 @@ impl VisualRenderer {
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
         );
 
-        let texture_bind_group_layout =
+        let surface_texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("texture_bind_group_layout"),
+                label: None,
                 entries: &[
                     // Diffuse texture
                     wgpu::BindGroupLayoutEntry {
@@ -242,6 +248,31 @@ impl VisualRenderer {
                 ],
             });
 
+        let curve_texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[
+                    // Color texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    // Color sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
         let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
             let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
@@ -337,7 +368,7 @@ impl VisualRenderer {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
                 bind_group_layouts: &[
-                    &texture_bind_group_layout,
+                    &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
                     &light_bind_group_layout,
                 ],
@@ -398,11 +429,71 @@ impl VisualRenderer {
             opaque_surface_pipeline
         };
 
+        let opaque_curve_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&curve_texture_bind_group_layout, &globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Opaque curve shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let opaque_curve_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Opaque curve pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_curve",
+                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_opaque_curve",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: opaque_target.format(),
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent::REPLACE,
+                                alpha: wgpu::BlendComponent::REPLACE,
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::LineList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: TextureResources::DEPTH_FORMAT,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            opaque_curve_pipeline
+        };
+
         let translucent_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
                 bind_group_layouts: &[
-                    &texture_bind_group_layout,
+                    &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
                     &light_bind_group_layout,
                 ],
@@ -690,10 +781,12 @@ impl VisualRenderer {
 
             depth_texture: OnceCell::new(),
 
-            texture_bind_group_layout,
+            surface_texture_bind_group_layout,
+            curve_texture_bind_group_layout,
             image_textures: HashMap::new(),
 
-            material_bind_groups: HashMap::new(),
+            surface_material_bind_groups: HashMap::new(),
+            curve_material_bind_groups: HashMap::new(),
 
             globals_bind_group,
             globals_buffer,
@@ -704,6 +797,7 @@ impl VisualRenderer {
             ambient_light_buffer,
 
             opaque_surface_pipeline,
+            opaque_curve_pipeline,
             translucent_surface_pipeline,
             compositing_pipeline,
         }
@@ -829,8 +923,11 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for object in scene.objects().iter() {
-                        let material = scene.materials().get(&object.material_id()).unwrap();
+                    for object in scene.surfaces().iter() {
+                        let material = scene
+                            .surface_materials()
+                            .get(&object.material_id())
+                            .unwrap();
                         if material.is_translucent {
                             continue;
                         }
@@ -846,7 +943,39 @@ impl VisualRenderer {
 
                         render_pass.set_bind_group(
                             0,
-                            self.material_bind_groups
+                            self.surface_material_bind_groups
+                                .get(&object.material_id())
+                                .unwrap(),
+                            &[],
+                        );
+
+                        render_pass.draw_indexed(
+                            0..mesh.num_elements(),
+                            0,
+                            0..object.num_instances(),
+                        );
+                    }
+                }
+
+                // Render opaque curves
+                {
+                    render_pass.set_pipeline(&self.opaque_curve_pipeline);
+
+                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+
+                    for object in scene.curves().iter() {
+                        let mesh = object.mesh();
+
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+
+                        render_pass.set_bind_group(
+                            0,
+                            self.curve_material_bind_groups
                                 .get(&object.material_id())
                                 .unwrap(),
                             &[],
@@ -921,8 +1050,11 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for object in scene.objects().iter() {
-                        let material = scene.materials().get(&object.material_id()).unwrap();
+                    for object in scene.surfaces().iter() {
+                        let material = scene
+                            .surface_materials()
+                            .get(&object.material_id())
+                            .unwrap();
                         if !material.is_translucent {
                             continue;
                         }
@@ -938,7 +1070,7 @@ impl VisualRenderer {
 
                         render_pass.set_bind_group(
                             0,
-                            self.material_bind_groups
+                            self.surface_material_bind_groups
                                 .get(&object.material_id())
                                 .unwrap(),
                             &[],
@@ -1008,13 +1140,17 @@ impl VisualRenderer {
     }
 
     fn build_material_bind_groups(&mut self, scene: &Scene) {
-        for (_, material) in scene.materials() {
-            self.create_material_bind_group(material);
+        for material in scene.surface_materials().values() {
+            self.create_surface_material_bind_groups(material);
+        }
+
+        for material in scene.curve_materials().values() {
+            self.create_curve_material_bind_groups(material);
         }
     }
 
-    fn create_material_bind_group(&mut self, material: &SurfaceMaterial) {
-        self.material_bind_groups
+    fn create_surface_material_bind_groups(&mut self, material: &SurfaceMaterial) {
+        self.surface_material_bind_groups
             .entry(material.id)
             .or_insert_with(|| {
                 let device = self.output_target.device();
@@ -1028,7 +1164,7 @@ impl VisualRenderer {
                 let transmit = self.image_textures.get(&material.transmit).unwrap();
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &self.texture_bind_group_layout,
+                    layout: &self.surface_texture_bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
                             binding: 0,
@@ -1085,6 +1221,31 @@ impl VisualRenderer {
                         wgpu::BindGroupEntry {
                             binding: 13,
                             resource: wgpu::BindingResource::Sampler(&transmit.sampler),
+                        },
+                    ],
+                    label: None,
+                })
+            });
+    }
+
+    fn create_curve_material_bind_groups(&mut self, material: &CurveMaterial) {
+        self.curve_material_bind_groups
+            .entry(material.id)
+            .or_insert_with(|| {
+                let device = self.output_target.device();
+
+                let color = self.image_textures.get(&material.color).unwrap();
+
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &self.curve_texture_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&color.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&color.sampler),
                         },
                     ],
                     label: None,

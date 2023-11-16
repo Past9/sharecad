@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
-use space::{Mat44, Quat, Vec3};
+use space::{Mat44, Point3, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
 use crate::render::VertexBuffer;
@@ -15,6 +15,11 @@ pub trait SceneCurve: std::fmt::Debug {
     fn num_instances(&self) -> u32;
 }
 
+pub struct CurvePoint {
+    pub position: Point3,
+    pub width: f32,
+}
+
 #[derive(Debug)]
 pub struct SceneCurveObject<T: SceneCurveInstance> {
     pub mesh: CurveMesh,
@@ -23,9 +28,9 @@ pub struct SceneCurveObject<T: SceneCurveInstance> {
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl<T: SceneCurveInstance> SceneCurveObject<T> {
-    pub fn new(mesh: CurveMesh, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
+    pub fn new(points: Vec<CurvePoint>, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
         Self {
-            mesh,
+            mesh: CurveMesh::new(points),
             instances,
             material_id,
             instance_buffer: OnceCell::new(),
@@ -70,7 +75,55 @@ pub struct CurveMesh {
     index_buffer: OnceCell<wgpu::Buffer>,
 }
 impl CurveMesh {
-    pub fn new(vertices: Vec<CurveVertex>, indices: Vec<u32>) -> Self {
+    pub fn new(points: Vec<CurvePoint>) -> Self {
+        let mut vertices = Vec::with_capacity((points.len() - 1) * 4);
+
+        for i in 1..points.len() {
+            let p0 = &points[i - 1];
+            let p1 = &points[i];
+            let line_dir = (p1.position - p0.position).to_f32s();
+            let p0_pos = p0.position.to_f32s();
+            let p1_pos = p1.position.to_f32s();
+            vertices.extend([
+                CurveVertex {
+                    position: p0_pos,
+                    direction: line_dir,
+                    width: p0.width,
+                },
+                CurveVertex {
+                    position: p0_pos,
+                    direction: line_dir,
+                    width: p0.width,
+                },
+                CurveVertex {
+                    position: p1_pos,
+                    direction: line_dir,
+                    width: p1.width,
+                },
+                CurveVertex {
+                    position: p1_pos,
+                    direction: line_dir,
+                    width: p1.width,
+                },
+            ]);
+        }
+
+        let indices = (1..points.len())
+            .flat_map(|i| {
+                let i = (i as u32 - 1) * 4;
+                [
+                    // First triangle
+                    i + 2,
+                    i,
+                    i + 1,
+                    // Second triangle
+                    i + 2,
+                    i + 1,
+                    i + 3,
+                ]
+            })
+            .collect::<Vec<_>>();
+
         Self {
             vertices,
             indices,
@@ -108,12 +161,14 @@ impl CurveMesh {
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct CurveVertex {
     pub position: [f32; 3],
+    pub direction: [f32; 3],
     pub width: f32,
 }
 impl CurveVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
         0 => Float32x3,
-        1 => Float32
+        1 => Float32x3,
+        2 => Float32
     ];
 }
 impl VertexBuffer for CurveVertex {
@@ -172,10 +227,10 @@ pub struct TransformedCurveInstanceRaw {
 }
 impl TransformedCurveInstanceRaw {
     const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        4 => Float32x4,
+        5 => Float32x4,
         6 => Float32x4,
         7 => Float32x4,
-        8 => Float32x4,
-        9 => Float32x4,
     ];
 }
 impl VertexBuffer for TransformedCurveInstanceRaw {
