@@ -40,7 +40,7 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, v: VertexIn) -> VertexOut {
     // the half width of the line.
     let orth = normalize(vec2<f32>(-v.dir.y, v.dir.x)) * flip_orth * half_width;
 
-    // Determine whether we need to expand in the diretion of the line's 
+    // Determine whether we need to expand in the direction of the line's 
     // travel or the opposite of it. The first two of every four vertices
     // go opposite, and the second pair goes forward.
     var flip_travel = 1.0;

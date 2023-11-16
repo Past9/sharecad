@@ -61,7 +61,8 @@ struct CurveVertexOut {
     @location(0) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) length: f32,
-    @location(3) width: f32
+    @location(3) width: f32,
+    @location(4) direction: vec3<f32>
 }
 
 @group(1) @binding(0)
@@ -121,6 +122,11 @@ fn vs_curve(
     model: CurveVertexIn,
     instance: CurveInstanceIn,
 ) -> CurveVertexOut {
+    let v_idx_i = i32(v_idx);
+    let index = v_idx_i % 4;
+    let is_start = index <= 1;
+    let half_width = model.width / 2.0;
+
     var out: CurveVertexOut;
 
     let position_matrix = mat4x4<f32>(
@@ -136,46 +142,67 @@ fn vs_curve(
         instance.direction_matrix_2,
     );
 
-    let world_position = position_matrix * vec4<f32>(model.position, 1.0);
-    out.clip_position = globals.camera.view_proj * world_position;
+    // Depending on the index, the current vertex is either at the start 
+    // or end of the line segment. Using this information and the line's 
+    // direction vector in world space, we find the world space coordinates
+    // of both the start and end points of the segment.
+    var start = vec3(0.0);
+    var end = vec3(0.0);
+    if is_start {
+        start = model.position;
+        end = model.position + model.direction;
+    } else {
+        start = model.position - model.direction;
+        end = model.direction;
+    }
 
-    let direction = direction_matrix * model.direction;
+    // Transform the start and end points into clip space
+    let start_clip_pos = globals.camera.view_proj * position_matrix * vec4(start, 1.0);
+    let end_clip_pos = globals.camera.view_proj * position_matrix * vec4(end, 1.0);
 
+    // Transform the start and end points into screen space
+    let start_screen_pos = (start_clip_pos / start_clip_pos.w).xyz;
+    let end_screen_pos = (end_clip_pos / end_clip_pos.w).xyz;
 
-    // Determine whether we need to push the vertex left or right.
-    // They'll be pushed left (relative to the line segment's
-    // direction of travel) by default. Every second vertex gets 
-    // pushed to the right. We create the `flip` variable to reverse 
-    // the `orth` vector for this purpose. 
-    let v_idx_i = i32(v_idx);
+    // Get the direction of the line in screen space
+    let direction = end_screen_pos - start_screen_pos;
+
+    // Now that we have a screen space direction, we can expand the vertices
+    // to form a camera-aligned quad of the desired width.
+
+    // Get a vector perpendicular to the line direction and flip it if needed. 
+    // Make its magnitude half the desired line width.
     var flip_orth: f32 = 1.0;
     if v_idx_i % 2 == 1 {
         flip_orth = -1.0;
     }
+    let orth = normalize(vec2(-direction.y, direction.x)) * flip_orth * half_width; 
 
-    // Get a vector perpendicular to the line's direction
-    // of travel, and flip it if needed. Make its magnitude 
-    // the half width of the line.
-    let orth = normalize(vec2<f32>(-direction.y, direction.x)) * flip_orth * model.width;
-
-    // Determine whether we need to expand in the diretion of the line's 
-    // travel or the opposite of it. The first two of every four vertices
-    // go opposite, and the second pair goes forward.
-    var flip_travel = 1.0;
-    if v_idx_i % 4 < 2 {
+    // Get a vector along the line's direction and flip it if needed. Make its magnitude 
+    // half the desired line width.
+    var flip_travel: f32 = 1.0;
+    if is_start {
         flip_travel = -1.0;
     }
+    let travel = normalize(direction.xy) * flip_travel * half_width;
 
-    // Get a vector along the direction of travel but scaled to 
-    // the half width
-    let travel = normalize(direction) * flip_travel * model.width;
+    // Move the vertex along those vectors
+    var final_pos = vec3(0.0);
+    if is_start {
+        final_pos = start_screen_pos;
+    } else {
+        final_pos = end_screen_pos;
+    }
+    final_pos += vec3(orth, 0.0) + vec3(travel, 0.0);
+    
+    // Set the output clip position for the current point
+    out.clip_position = vec4(final_pos, 1.0);
 
-    // Move the vertex along that vector 
-    out.clip_position = vec4(out.clip_position.xy + orth + travel.xy, out.clip_position.zw);
+    // Set the screen space direction
+    out.direction = direction;
 
-    out.uv = vec2<f32>(flip_travel, flip_orth);
-    out.length = length(direction.xy);
-    out.width = model.width;
+    out.uv = vec2(flip_travel, flip_orth);
+    out.length = length(end_screen_pos.xy - start_screen_pos.xy);
 
     // Apply logarithmic depth buffer 
     let c = 1.0;
