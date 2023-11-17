@@ -110,8 +110,8 @@ fn vs_surface(
     out.world_bitangent = world_bitangent;
 
     // Apply logarithmic depth buffer 
-    //let c = 1.0;
-    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+    let c = 1.0;
+    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -141,10 +141,6 @@ fn vs_curve(
         instance.direction_matrix_1,
         instance.direction_matrix_2,
     );
-
-    // Works up to here
-    //out.clip_position = globals.camera.view_proj * (position_matrix * vec4(model.position, 1.0));
-    //return out;
 
     // Depending on the index, the current vertex is either at the start 
     // or end of the line segment. Using this information and the line's 
@@ -195,7 +191,6 @@ fn vs_curve(
 
     // Move the vertex along those vectors
     var final_pos = vec2(0.0);
-    let c = 1.0;
     var clip_z = 0.0;
     var clip_w = 0.0;
     if is_start {
@@ -216,6 +211,10 @@ fn vs_curve(
     //    clip_w
     //);
     out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
+
+    // Apply logarithmic depth buffer 
+    //let c = 1.0;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     // Set the screen space direction
     out.direction = direction;
@@ -284,10 +283,16 @@ fn fs_opaque_surface(
     return vec4<f32>(color, 1.0);
 }
 
+struct FsOpaqueCurveOut {
+    @location(0) color: vec4<f32>,
+    @builtin(frag_depth) depth: f32,
+}
+
 @fragment
 fn fs_opaque_curve(
-    in: CurveVertexOut
-) -> @location(0) vec4<f32> {
+    in: CurveVertexOut,
+//) -> @location(0) vec4<f32> {
+) -> FsOpaqueCurveOut {
     //var color = in.color;
 
     // Half the length and width of the original non-expanded line
@@ -316,7 +321,17 @@ fn fs_opaque_curve(
         //discard;
     }
 
-    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    var out: FsOpaqueCurveOut;
+
+    out.color = vec4(0.0, 0.0, 0.0, 1.0);
+    //out.depth = in.clip_position.z;// / in.clip_position.w;
+
+    let c = 1.0;
+    let z = in.clip_position.z / in.clip_position.w;
+    out.depth = log(c * z + 1.0) / log(c * globals.camera.zfar + 1.0);
+
+    return out;
+    //return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 struct TranslucentOutput {
