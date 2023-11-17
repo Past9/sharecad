@@ -59,10 +59,12 @@ struct CurveInstanceIn {
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) length: f32,
-    @location(2) width: f32,
-    @location(3) direction: vec2<f32>,
-    @location(4) clip_w: f32,
+    @location(1) ss_length: f32,
+    @location(2) ss_width: f32,
+    /// Line direction in clip space
+    @location(3) cs_direction: vec3<f32>,
+    @location(4) ws_position: vec3<f32>,
+    @location(5) ws_direction: vec3<f32>,
 }
 
 @group(1) @binding(0)
@@ -110,8 +112,8 @@ fn vs_surface(
     out.world_bitangent = world_bitangent;
 
     // Apply logarithmic depth buffer 
-    let c = 1.0;
-    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+    //let c = 1.0;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -156,17 +158,19 @@ fn vs_curve(
         end = model.position;
     }
 
+    let start_world_pos = position_matrix * vec4(start, 1.0);
+    let end_world_pos = position_matrix * vec4(end, 1.0);
 
     // Transform the start and end points into clip space
-    let start_clip_pos = globals.camera.view_proj * (position_matrix * vec4(start, 1.0));
-    let end_clip_pos = globals.camera.view_proj * (position_matrix * vec4(end, 1.0));
+    let start_clip_pos = globals.camera.view_proj * start_world_pos;
+    let end_clip_pos = globals.camera.view_proj * end_world_pos;
 
     // Transform the start and end points into screen space
     let start_screen_pos = start_clip_pos.xy / start_clip_pos.w;
     let end_screen_pos = end_clip_pos.xy / end_clip_pos.w;
 
-    // Get the direction of the line in screen space
-    let direction = end_screen_pos - start_screen_pos;
+    // Get the screen space direction of the line in screen space
+    let ss_direction = end_screen_pos - start_screen_pos;
 
     // Now that we have a screen space direction, we can expand the vertices
     // to form a camera-aligned quad of the desired width.
@@ -177,8 +181,7 @@ fn vs_curve(
     if v_idx_i % 2 == 1 {
         flip_orth = -1.0;
     }
-    flip_orth *= 0.1;
-    let orth = normalize(vec2(-direction.y, direction.x)) * flip_orth * half_width; 
+    let orth = normalize(vec2(-ss_direction.y, ss_direction.x)) * flip_orth * half_width; 
 
     // Get a vector along the line's direction and flip it if needed. Make its magnitude 
     // half the desired line width.
@@ -187,17 +190,20 @@ fn vs_curve(
         flip_travel = -1.0;
     }
     flip_travel *= 0.0;
-    let travel = normalize(direction) * flip_travel * half_width;
+    let travel = normalize(ss_direction) * flip_travel * half_width;
 
     // Move the vertex along those vectors
     var final_pos = vec2(0.0);
+    var world_pos = vec3(0.0);
     var clip_z = 0.0;
     var clip_w = 0.0;
     if is_start {
+        world_pos = start_world_pos.xyz;
         final_pos = start_screen_pos;
         clip_z = start_clip_pos.z;
         clip_w = start_clip_pos.w;
     } else {
+        world_pos = end_world_pos.xyz;
         final_pos = end_screen_pos;
         clip_z = end_clip_pos.z;
         clip_w = end_clip_pos.w;
@@ -205,23 +211,16 @@ fn vs_curve(
     final_pos += orth + travel;
 
     // Set the output clip position for the current point
-    //out.clip_position = vec4(
-    //    final_pos.xy * clip_w,
-    //    (log(c * clip_z + 1.0) / log(c * globals.camera.zfar + 1.0)) * clip_w,
-    //    clip_w
-    //);
     out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
 
-    // Apply logarithmic depth buffer 
-    //let c = 1.0;
-    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
-
-    // Set the screen space direction
-    out.direction = direction;
+    // Set the normalized direction vector in clip space
+    out.cs_direction = normalize(end_clip_pos.xyz - start_clip_pos.xyz);
 
     out.uv = vec2(flip_travel, flip_orth);
-    out.length = length(direction);
-    out.width = model.width;
+    out.ss_length = length(ss_direction);
+    out.ss_width = model.width;
+    out.ws_position = world_pos;
+    out.ws_direction = (end_world_pos - start_world_pos).xyz;
 
     return out;
 }
@@ -296,8 +295,8 @@ fn fs_opaque_curve(
     //var color = in.color;
 
     // Half the length and width of the original non-expanded line
-    let half_length = in.length / 2.0;
-    let half_width = in.width / 2.0;
+    let half_length = in.ss_length / 2.0;
+    let half_width = in.ss_width / 2.0;
 
     // Get the U passed in from the vertex shader, but we're going to change 
     // it so it represents distance in the U-direction from the endpoints
@@ -323,15 +322,25 @@ fn fs_opaque_curve(
 
     var out: FsOpaqueCurveOut;
 
-    out.color = vec4(0.0, 0.0, 0.0, 1.0);
-    //out.depth = in.clip_position.z;// / in.clip_position.w;
+    out.color = vec4(u, v, 0.0, 1.0);
 
-    let c = 1.0;
-    let z = in.clip_position.z / in.clip_position.w;
-    out.depth = log(c * z + 1.0) / log(c * globals.camera.zfar + 1.0);
+    // Adjust the Z depth to make the line appear cylindrical when clipping through
+    // other objects
+    var z = in.clip_position.z;
+
+    //let delta = sqrt(1.0 - v * v);
+    var delta = 1.0;
+
+    let v_v = normalize(in.ws_position - globals.camera.view_pos.xyz);
+    let v_l = normalize(in.ws_direction);
+    delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
+
+    delta *= sqrt(1.0 - v * v);
+    z -= delta * 0.008;
+
+    out.depth = z;
 
     return out;
-    //return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 struct TranslucentOutput {

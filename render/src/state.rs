@@ -77,7 +77,7 @@ impl ViewState {
             500.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(90.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(camera);
@@ -124,6 +124,7 @@ impl ViewState {
 
             scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
 
+            /*
             let points = vec![
                 point3(-1.5, 0.0, 13.0),  //
                 point3(2.0, 0.0, -4.0),   //
@@ -139,6 +140,12 @@ impl ViewState {
                 point3(6.0, 8.0, -4.0),   //
                 point3(6.0, 3.0, -3.0),   //
             ];
+             */
+
+            let points = vec![
+                point3(-1.0, -1.0, -5.0), //
+                point3(1.0, 1.0, 5.0),    //
+            ];
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
             scene.set_curves(vec![Box::new(SceneCurveObject::new(
@@ -146,7 +153,7 @@ impl ViewState {
                     .into_iter()
                     .map(|p| CurvePoint {
                         position: p,
-                        width: 0.06,
+                        width: 0.08,
                     })
                     .collect::<Vec<_>>(),
                 vec![TransformedCurveInstance {
