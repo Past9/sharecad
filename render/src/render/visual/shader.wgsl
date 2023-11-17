@@ -1,6 +1,7 @@
 struct Globals {
     @align(16) num_directional_lights: u32,
     @align(16) num_ambient_lights: u32,
+    @align(16) viewport_dims: vec2<f32>,
     @align(16) camera: Camera
 }
 
@@ -181,7 +182,9 @@ fn vs_curve(
     if v_idx_i % 2 == 1 {
         flip_orth = -1.0;
     }
-    let orth = normalize(vec2(-ss_direction.y, ss_direction.x)) * flip_orth * half_width; 
+    var orth = normalize(vec2(-ss_direction.y, ss_direction.x)) * flip_orth * half_width;
+    // Scale the vector so it's in pixels, not screen space coordinates
+    orth *= 2.0 / globals.viewport_dims;
 
     // Get a vector along the line's direction and flip it if needed. Make its magnitude 
     // half the desired line width.
@@ -190,7 +193,9 @@ fn vs_curve(
         flip_travel = -1.0;
     }
     flip_travel *= 0.0;
-    let travel = normalize(ss_direction) * flip_travel * half_width;
+    var travel = normalize(ss_direction) * flip_travel * half_width;
+    // Scale the vector so it's in pixels, not screen space coordinates
+    travel *= 2.0 / globals.viewport_dims;
 
     // Move the vertex along those vectors
     var final_pos = vec2(0.0);
@@ -296,7 +301,8 @@ fn fs_opaque_curve(
 
     // Half the length and width of the original non-expanded line
     let half_length = in.ss_length / 2.0;
-    let half_width = in.ss_width / 2.0;
+    let half_width_vec = (in.ss_width / 2.0) * globals.viewport_dims;
+    let half_width = length(half_width_vec);
 
     // Get the U passed in from the vertex shader, but we're going to change 
     // it so it represents distance in the U-direction from the endpoints
@@ -336,7 +342,7 @@ fn fs_opaque_curve(
     delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
 
     delta *= sqrt(1.0 - v * v);
-    z -= delta * 0.008;
+    z -= delta * (0.000008 / in.clip_position.z);
 
     out.depth = z;
 

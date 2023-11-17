@@ -53,9 +53,11 @@ const QUAD_VERTS: [Vertex2; 6] = [
 #[derive(Clone, Copy, Zeroable, Pod)]
 struct GlobalsRaw {
     num_directional_lights: u32,
-    _padding: [u32; 3],
+    _padding1: [u32; 3],
     num_ambient_lights: u32,
     _padding2: [u32; 3],
+    viewport_dims: [f32; 2],
+    _padding3: [u32; 2],
     camera: CameraRaw,
 }
 
@@ -815,14 +817,17 @@ impl VisualRenderer {
     }
 
     fn globals_raw(&self, scene: &Scene, camera: &Camera) -> GlobalsRaw {
+        let size = self.size();
         GlobalsRaw {
             num_directional_lights: min(
                 scene.directional_lights().len() as u32,
                 MAX_DIRECTIONAL_LIGHTS,
             ),
-            _padding: [0; 3],
+            _padding1: [0; 3],
             num_ambient_lights: min(scene.ambient_lights().len() as u32, MAX_AMBIENT_LIGHTS),
             _padding2: [0; 3],
+            viewport_dims: [size.0 as f32, size.1 as f32],
+            _padding3: [0; 2],
             camera: camera.to_raw(self.aspect()),
         }
     }

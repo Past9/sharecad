@@ -142,28 +142,47 @@ impl ViewState {
             ];
              */
 
-            let points = vec![
+            let points1 = vec![
                 point3(-1.0, -1.0, -5.0), //
                 point3(1.0, 1.0, 5.0),    //
             ];
 
+            let points2 = vec![
+                point3(1.0, -1.0, -2.0), //
+                point3(1.0, 1.0, -2.0),  //
+            ];
+
+            let width = 60.0;
+
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
-            scene.set_curves(vec![Box::new(SceneCurveObject::new(
-                points
-                    .into_iter()
-                    .map(|p| CurvePoint {
-                        position: p,
-                        width: 0.08,
-                    })
-                    .collect::<Vec<_>>(),
-                vec![TransformedCurveInstance {
-                    id: CurveInstanceId(0),
-                    scale: vec3(1.0, 1.0, 1.0),
-                    rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                    position: Vec3::ZERO,
-                }],
-                curve_material,
-            ))]);
+            scene.set_curves(vec![
+                Box::new(SceneCurveObject::new(
+                    points1
+                        .into_iter()
+                        .map(|p| CurvePoint { position: p, width })
+                        .collect::<Vec<_>>(),
+                    vec![TransformedCurveInstance {
+                        id: CurveInstanceId(0),
+                        scale: vec3(1.0, 1.0, 1.0),
+                        rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                        position: Vec3::ZERO,
+                    }],
+                    curve_material,
+                )),
+                Box::new(SceneCurveObject::new(
+                    points2
+                        .into_iter()
+                        .map(|p| CurvePoint { position: p, width })
+                        .collect::<Vec<_>>(),
+                    vec![TransformedCurveInstance {
+                        id: CurveInstanceId(0),
+                        scale: vec3(1.0, 1.0, 1.0),
+                        rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                        position: Vec3::ZERO,
+                    }],
+                    curve_material,
+                )),
+            ]);
 
             scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
