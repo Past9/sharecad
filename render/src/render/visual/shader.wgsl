@@ -110,8 +110,8 @@ fn vs_surface(
     out.world_bitangent = world_bitangent;
 
     // Apply logarithmic depth buffer 
-    let c = 1.0;
-    out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+    //let c = 1.0;
+    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -181,6 +181,7 @@ fn vs_curve(
     if v_idx_i % 2 == 1 {
         flip_orth = -1.0;
     }
+    flip_orth *= 0.1;
     let orth = normalize(vec2(-direction.y, direction.x)) * flip_orth * half_width; 
 
     // Get a vector along the line's direction and flip it if needed. Make its magnitude 
@@ -189,6 +190,7 @@ fn vs_curve(
     if is_start {
         flip_travel = -1.0;
     }
+    flip_travel *= 0.0;
     let travel = normalize(direction) * flip_travel * half_width;
 
     // Move the vertex along those vectors
@@ -208,11 +210,12 @@ fn vs_curve(
     final_pos += orth + travel;
 
     // Set the output clip position for the current point
-    out.clip_position = vec4(
-        final_pos.xy * clip_w,
-        log(c * clip_z + 1.0) / log(c * globals.camera.zfar + 1.0) * clip_w,
-        clip_w
-    );
+    //out.clip_position = vec4(
+    //    final_pos.xy * clip_w,
+    //    (log(c * clip_z + 1.0) / log(c * globals.camera.zfar + 1.0)) * clip_w,
+    //    clip_w
+    //);
+    out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
 
     // Set the screen space direction
     out.direction = direction;
@@ -310,7 +313,7 @@ fn fs_opaque_curve(
     let v = abs(in.uv.y);
 
     if u > 0.0 && (sqrt(pow(u, 2.0) + pow(v, 2.0))) > 1.0 {
-        discard;
+        //discard;
     }
 
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);

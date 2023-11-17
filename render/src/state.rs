@@ -125,7 +125,7 @@ impl ViewState {
             scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
 
             let points = vec![
-                point3(0.0, 0.0, 13.0),   //
+                point3(-1.5, 0.0, 13.0),  //
                 point3(2.0, 0.0, -4.0),   //
                 point3(2.0, 2.0, -5.0),   //
                 point3(0.0, 2.0, -4.0),   //
@@ -146,7 +146,7 @@ impl ViewState {
                     .into_iter()
                     .map(|p| CurvePoint {
                         position: p,
-                        width: 0.003,
+                        width: 0.06,
                     })
                     .collect::<Vec<_>>(),
                 vec![TransformedCurveInstance {
