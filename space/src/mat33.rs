@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use auto_ops::impl_op_ex;
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
 use crate::{rad, vec2, Angle, Quat, Vec2};
 
@@ -82,6 +82,67 @@ impl Mat33 {
                 / 4.0,
         )
     }
+
+    pub fn determinant(&self) -> f64 {
+        let a = self[0][0];
+        let b = self[0][1];
+        let c = self[0][2];
+        let d = self[1][0];
+        let e = self[1][1];
+        let f = self[1][2];
+        let g = self[2][0];
+        let h = self[2][1];
+        let i = self[2][2];
+
+        (a*e*i) + (b*f*g) + (c*d*h) - (c*e*g) - (b*d*i) - (a*f*h) 
+    }
+
+    pub fn inverse(&self) -> Option<Self> {
+        let det = self.determinant();
+        if det == 0.0 {
+            None
+        } else {
+            let a = self[0][0];
+            let b = self[0][1];
+            let c = self[0][2];
+            let d = self[1][0];
+            let e = self[1][1];
+            let f = self[1][2];
+            let g = self[2][0];
+            let h = self[2][1];
+            let i = self[2][2];
+
+            let i_a = e*i - f*h;
+            let i_b = -(d*i - f * g);
+            let i_c = d*h - e*g;
+            let i_d = -(b*i - c*h);
+            let i_e = a*i - c*g;
+            let i_f = -(a*h - b*g);
+            let i_g = b*f - c*e;
+            let i_h = -(a*f - c*d);
+            let i_i = a*e - b*d;
+
+            let inv = self.determinant().recip() * Self::new(
+                i_a, i_d, i_g, 
+                i_b, i_e, i_h, 
+                i_c, i_f, i_i
+            );
+
+            Some(inv)
+        }
+    }
+
+    pub fn approx_eq(&self, other: Self, tol: f64) -> bool {
+        let mut equal = true;
+        for r in 0..3 {
+            for c in 0..3 {
+                if (self[r][c] - other[r][c]).abs() > tol {
+                    equal = false;
+                }
+            }
+        } 
+        equal
+    }
 }
 impl Index<usize> for Mat33 {
     type Output = [f64; 3];
@@ -157,11 +218,52 @@ impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
     ])
 });
 
+impl_op_ex_commutative!(*|s: f64, m: Mat33| -> Mat33 {
+    Mat33::new(
+        m[0][0] * s,
+        m[0][1] * s,
+        m[0][2] * s,
+        m[1][0] * s,
+        m[1][1] * s,
+        m[1][2] * s,
+        m[2][0] * s,
+        m[2][1] * s,
+        m[2][2] * s,
+    )
+});
+
 #[cfg(test)]
 mod tests {
     use crate::{deg, point2};
 
     use super::*;
+
+    fn approx_eq(a: Mat33, b: Mat33) {
+        if !a.approx_eq(b, 1e-9) {
+            panic!("Matrices not approximaltey equal: {:?}, {:?}", a, b);
+        }
+    }
+
+    #[test]
+    fn inverts_matrix() {
+        let m = Mat33::new(
+            1.0, 2.0, -1.0, 
+            2.0, 1.0, 2.0, 
+            -1.0, 2.0, 1.0
+        );
+
+        let inv = Mat33::new(
+            3.0 / 16.0, 1.0 / 4.0, -5.0 / 16.0,
+            1.0 / 4.0, 0.0, 1.0 / 4.0,
+            -5.0 / 16.0, 1.0 / 4.0, 3.0 / 16.0
+        );
+
+        approx_eq(m.inverse().unwrap(), inv);
+        approx_eq(m * inv, Mat33::IDENTITY);
+        approx_eq(inv * m, Mat33::IDENTITY);
+        approx_eq(m * m.inverse().unwrap(), Mat33::IDENTITY);
+        approx_eq(m.inverse().unwrap() * m, Mat33::IDENTITY);
+    }
 
     #[test]
     fn makes_rotation_matrix() {

@@ -1,7 +1,7 @@
 mod controller;
 
 use bytemuck::{Pod, Zeroable};
-use space::{Angle, Mat44, Point3, Quat, Vec3};
+use space::{rad, Angle, Mat44, Point3, Quat, Vec3};
 
 pub use controller::*;
 
@@ -148,7 +148,13 @@ impl Camera {
             view_position,
             view_proj,
             zfar,
-            _padding: [0; 3],
+            _padding1: [0; 3],
+            scale: [
+                self.x_scale(aspect) as f32,
+                self.y_scale(aspect) as f32,
+                self.z_scale() as f32,
+            ],
+            _padding2: 0,
         }
     }
 
@@ -182,6 +188,70 @@ impl Camera {
 
     pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
         self.build_projection_matrix(aspect) * self.build_view_matrix()
+    }
+
+    pub fn fovy(&self) -> Angle {
+        self.half_fov * 2.0
+    }
+
+    pub fn frustum_left(&self) -> f64 {
+        -self.target_radius
+    }
+
+    pub fn frustum_right(&self) -> f64 {
+        self.target_radius
+    }
+
+    pub fn frustum_top(&self) -> f64 {
+        -self.target_radius
+    }
+
+    pub fn frustum_bottom(&self) -> f64 {
+        self.target_radius
+    }
+
+    pub fn x_scale(&self, aspect: f64) -> f64 {
+        if self.is_ortho() {
+            let left = self.frustum_left();
+            let right = self.frustum_right();
+            match aspect > 1.0 {
+                true => 2.0 / (right - left) / aspect,
+                false => 2.0 / (right - left),
+            }
+        } else {
+            let f = (self.fovy() / 2.0).cot();
+            match aspect > 1.0 {
+                true => f / aspect,
+                false => f,
+            }
+        }
+    }
+
+    pub fn y_scale(&self, aspect: f64) -> f64 {
+        if self.is_ortho() {
+            let top = self.frustum_top();
+            let bottom = self.frustum_bottom();
+            match aspect > 1.0 {
+                true => 2.0 / (top - bottom),
+                false => aspect * 2.0 / (top - bottom),
+            }
+        } else {
+            let f = (self.fovy() / 2.0).cot();
+            match aspect > 1.0 {
+                true => f,
+                false => f * aspect,
+            }
+        }
+    }
+
+    pub fn z_scale(&self) -> f64 {
+        let far = self.far();
+        let near = self.near();
+        if self.is_ortho() {
+            1.0 / (far - near)
+        } else {
+            (far + near) / (far - near)
+        }
     }
 
     fn orthographic_matrix(
@@ -283,5 +353,7 @@ pub struct CameraRaw {
     view_position: [f32; 4],
     view_proj: [[f32; 4]; 4],
     zfar: f32,
-    _padding: [u32; 3],
+    _padding1: [u32; 3],
+    scale: [f32; 3],
+    _padding2: u32,
 }

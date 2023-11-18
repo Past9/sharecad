@@ -6,8 +6,8 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstanceId, CurveMaterial, CurveMaterialSpec, CurvePoint, SceneCurveObject,
-        SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
+        CurveInstanceId, CurveMaterial, CurveMaterialSpec, CurvePoint, SceneCurve,
+        SceneCurveObject, SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
     },
     render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
@@ -142,19 +142,64 @@ impl ViewState {
             ];
              */
 
+            /*
             let points1 = vec![
                 point3(-1.0, -1.0, -5.0), //
                 point3(1.0, 1.0, 5.0),    //
             ];
+              */
 
-            let points2 = vec![
-                point3(1.0, -1.0, -2.0), //
-                point3(1.0, 1.0, -2.0),  //
+            //let d = 1.37237;
+            let d = 1.4;
+
+            let points = vec![
+                vec![
+                    point3(-1.0, -1.0, -5.0), //
+                    point3(1.0, 1.0, 5.0),    //
+                ], /*
+                   vec![
+                       point3(d, -d, -2.0),  //
+                       point3(d, d, -2.0),   //
+                       point3(-d, d, -2.0),  //
+                       point3(-d, -d, -2.0), //
+                       point3(d, -d, -2.0),  //
+                   ],
+                   vec![
+                       point3(d, -d, -2.0),  //
+                       point3(d, d, -2.0),   //
+                       point3(-d, d, -2.0),  //
+                       point3(-d, -d, -2.0), //
+                       point3(d, -d, -2.0),  //
+                   ],
+                    */
             ];
 
-            let width = 60.0;
+            let width = 30.0;
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
+
+            let curves = points
+                .into_iter()
+                .map(|points| {
+                    Box::new(SceneCurveObject::new(
+                        points
+                            .into_iter()
+                            .map(|p| CurvePoint { position: p, width })
+                            .collect::<Vec<_>>(),
+                        vec![TransformedCurveInstance {
+                            id: CurveInstanceId(0),
+                            scale: vec3(1.0, 1.0, 1.0),
+                            rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                            position: Vec3::ZERO,
+                        }],
+                        curve_material,
+                    )) as Box<dyn SceneCurve>
+                })
+                .collect::<Vec<Box<_>>>();
+
+            scene.set_curves(curves);
+
+            /*
             scene.set_curves(vec![
                 Box::new(SceneCurveObject::new(
                     points1
@@ -183,6 +228,7 @@ impl ViewState {
                     curve_material,
                 )),
             ]);
+                 */
 
             scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 

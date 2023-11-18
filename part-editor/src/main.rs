@@ -28,7 +28,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(1600.0, 900.0)),
+        initial_window_size: Some(egui::vec2(1000.0, 1024.0)),
         renderer: Renderer::Wgpu,
         wgpu_options: WgpuConfiguration {
             device_descriptor: Arc::new(get_device_descriptor),
@@ -43,6 +43,7 @@ fn main() -> Result<(), eframe::Error> {
         let editor_state_left =
             editor_state.get_or_insert_with(|| EditorState::new(frame, PartModel::new()));
 
+        /*
         egui::SidePanel::left("history-panel")
             .min_width(300.0)
             .show(ctx, |ui| {
@@ -56,6 +57,7 @@ fn main() -> Result<(), eframe::Error> {
                 ui.heading("Configuration");
                 ui.separator();
             });
+             */
 
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
             if ui.button("Sketch").clicked() {

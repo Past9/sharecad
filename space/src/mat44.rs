@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use auto_ops::impl_op_ex;
 
-use crate::{Point3, Quat, Vec3};
+use crate::{Point3, Quat, Vec3, Mat33};
 
 #[derive(Copy, Clone)]
 pub struct Mat44(pub [[f64; 4]; 4]);
@@ -103,6 +103,50 @@ impl Mat44 {
 
     pub fn look_at_rh_rotation(eye: Point3, center: Point3, up: Vec3) -> Self {
         Self::look_to_rh_rotation(center - eye, up)
+    }
+
+    pub fn determinant(&self) -> f64 {
+        let a = self[0][0];
+        let b = self[0][1];
+        let c = self[0][2];
+        let d = self[0][3];
+        let e = self[1][0];
+        let f = self[1][1];
+        let g = self[1][2];
+        let h = self[1][3];
+        let i = self[2][0];
+        let j = self[2][1];
+        let k = self[2][2];
+        let l = self[2][3];
+        let m = self[3][0];
+        let n = self[3][1];
+        let o = self[3][2];
+        let p = self[3][3];
+
+        a * Mat33::new(f, g, h, j, k, l, n, o, p).determinant()
+        - b * Mat33::new(e, g, h, i, k, l, m, o, p).determinant()
+        + c * Mat33::new(e, f, h, i, j, l, m, n, p).determinant()
+        - d * Mat33::new(e, g, h, i, j, k, m, n, o).determinant()
+    }
+
+    pub fn powi(&self, power: u32) -> Self {
+        let mut result = Self::IDENTITY;
+        for i in 0..power {
+            result = result * *self;
+        }
+        result
+    }
+
+    pub fn approx_eq(&self, other: Self, tol: f64) -> bool {
+        let mut equal = true;
+        for r in 0..4 {
+            for c in 0..4 {
+                if (self[r][c] - other[r][c]).abs() > tol {
+                    equal = false;
+                }
+            }
+        } 
+        equal
     }
 }
 impl Index<usize> for Mat44 {

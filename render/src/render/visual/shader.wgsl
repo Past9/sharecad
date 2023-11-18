@@ -9,6 +9,7 @@ struct Camera {
     view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
     zfar: f32,
+    scale: vec3<f32>,
 };
 
 struct SurfaceVertexIn {
@@ -64,8 +65,9 @@ struct CurveVertexOut {
     @location(2) ss_width: f32,
     /// Line direction in clip space
     @location(3) cs_direction: vec3<f32>,
-    @location(4) ws_position: vec3<f32>,
-    @location(5) ws_direction: vec3<f32>,
+    @location(4) ss_direction: vec2<f32>,
+    @location(5) ws_position: vec3<f32>,
+    @location(6) ws_direction: vec3<f32>,
 }
 
 @group(1) @binding(0)
@@ -183,7 +185,7 @@ fn vs_curve(
         flip_orth = -1.0;
     }
     var orth = normalize(vec2(-ss_direction.y, ss_direction.x)) * flip_orth * half_width;
-    // Scale the vector so it's in pixels, not screen space coordinates
+    // Scale the vector so it's in screen space coordinates instead of pixels
     orth *= 2.0 / globals.viewport_dims;
 
     // Get a vector along the line's direction and flip it if needed. Make its magnitude 
@@ -194,7 +196,7 @@ fn vs_curve(
     }
     flip_travel *= 0.0;
     var travel = normalize(ss_direction) * flip_travel * half_width;
-    // Scale the vector so it's in pixels, not screen space coordinates
+    // Scale the vector so it's in screen space coordinates instead of pixels
     travel *= 2.0 / globals.viewport_dims;
 
     // Move the vertex along those vectors
@@ -226,6 +228,7 @@ fn vs_curve(
     out.ss_width = model.width;
     out.ws_position = world_pos;
     out.ws_direction = (end_world_pos - start_world_pos).xyz;
+    out.ss_direction = ss_direction;
 
     return out;
 }
@@ -301,37 +304,23 @@ fn fs_opaque_curve(
 
     // Half the length and width of the original non-expanded line
     let half_length = in.ss_length / 2.0;
-    let half_width_vec = (in.ss_width / 2.0) * globals.viewport_dims;
+    let half_width_vec = in.ss_width / (2.0 * globals.viewport_dims);
     let half_width = length(half_width_vec);
 
     // Get the U passed in from the vertex shader, but we're going to change 
     // it so it represents distance in the U-direction from the endpoints
     // of the unexpanded line, not from the center of the line. 
     var u = abs(in.uv.x);
-
-    // Get the U-coordinate where the line ends (before the forward/backward extension)
-    // (positive only, we'll be working with distance and absolute values so it's fine)
-    let line_end_u = half_length / (half_length + half_width);
-
-    // Get how much of U is past that point
-    u = u - line_end_u;
-
-    // Now scale that so it's between 0.0 and 1.0 again.
-    u = u / (1.0 - line_end_u); 
-
-    // Get V
     let v = abs(in.uv.y);
-
-    if u > 0.0 && (sqrt(pow(u, 2.0) + pow(v, 2.0))) > 1.0 {
-        //discard;
-    }
 
     var out: FsOpaqueCurveOut;
 
-    out.color = vec4(u, v, 0.0, 1.0);
+    //out.color = vec4(1.0, 0.0, 1.0, 1.0);
+    out.color = vec4(0.0, v, 0.0, 1.0);
 
     // Adjust the Z depth to make the line appear cylindrical when clipping through
-    // other objects
+    // other objects. This makes a line that lies in a planar surface "stick out" so 
+    // it doesn't z-fight, and it looks nice when thicker lines penetrate surfaces.
     var z = in.clip_position.z;
 
     //let delta = sqrt(1.0 - v * v);
@@ -340,9 +329,14 @@ fn fs_opaque_curve(
     let v_v = normalize(in.ws_position - globals.camera.view_pos.xyz);
     let v_l = normalize(in.ws_direction);
     delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
+    delta *= sqrt(1.0 - v * v); //
+    var scale = globals.camera.scale.z / globals.camera.scale.x;
+    //let scale = 15.0 / globals.camera.zfar; //abs(dot(normalize(in.ss_direction.yx), half_width_vec));
+    z -= delta * scale;
 
-    delta *= sqrt(1.0 - v * v);
-    z -= delta * (0.000008 / in.clip_position.z);
+
+
+    //z = in.clip_position.z - (1.0 - v) * 0.000001;
 
     out.depth = z;
 
