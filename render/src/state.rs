@@ -153,25 +153,32 @@ impl ViewState {
             let d = 1.4;
 
             let points = vec![
+                /*
                 vec![
                     point3(-1.0, -1.0, -5.0), //
                     point3(1.0, 1.0, 5.0),    //
-                ], /*
-                   vec![
-                       point3(d, -d, -2.0),  //
-                       point3(d, d, -2.0),   //
-                       point3(-d, d, -2.0),  //
-                       point3(-d, -d, -2.0), //
-                       point3(d, -d, -2.0),  //
-                   ],
-                   vec![
-                       point3(d, -d, -2.0),  //
-                       point3(d, d, -2.0),   //
-                       point3(-d, d, -2.0),  //
-                       point3(-d, -d, -2.0), //
-                       point3(d, -d, -2.0),  //
-                   ],
-                    */
+                ],
+                */
+                vec![
+                    point3(0.0, 0.0, -5.0), //
+                    point3(0.0, 0.0, 5.0),  //
+                ],
+                /*
+                vec![
+                    point3(d, -d, -2.0),  //
+                    point3(d, d, -2.0),   //
+                    point3(-d, d, -2.0),  //
+                    point3(-d, -d, -2.0), //
+                    point3(d, -d, -2.0),  //
+                ],
+                vec![
+                    point3(d, -d, -2.0),  //
+                    point3(d, d, -2.0),   //
+                    point3(-d, d, -2.0),  //
+                    point3(-d, -d, -2.0), //
+                    point3(d, -d, -2.0),  //
+                ],
+                 */
             ];
 
             let width = 30.0;

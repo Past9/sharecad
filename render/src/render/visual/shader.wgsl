@@ -173,10 +173,12 @@ fn vs_curve(
     let end_screen_pos = end_clip_pos.xy / end_clip_pos.w;
 
     // Get the screen space direction of the line in screen space
-    let ss_direction = end_screen_pos - start_screen_pos;
+    let ss_direction = (end_screen_pos - start_screen_pos);
 
     // Now that we have a screen space direction, we can expand the vertices
     // to form a camera-aligned quad of the desired width.
+
+    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
 
     // Get a vector perpendicular to the line direction and flip it if needed. 
     // Make its magnitude half the desired line width.
@@ -184,9 +186,10 @@ fn vs_curve(
     if v_idx_i % 2 == 1 {
         flip_orth = -1.0;
     }
-    var orth = normalize(vec2(-ss_direction.y, ss_direction.x)) * flip_orth * half_width;
+    var orth = normalize(vec2(-ss_direction.y / aspect, ss_direction.x)) * flip_orth * half_width;
     // Scale the vector so it's in screen space coordinates instead of pixels
     orth *= 2.0 / globals.viewport_dims;
+
 
     // Get a vector along the line's direction and flip it if needed. Make its magnitude 
     // half the desired line width.
@@ -195,7 +198,7 @@ fn vs_curve(
         flip_travel = -1.0;
     }
     flip_travel *= 0.0;
-    var travel = normalize(ss_direction) * flip_travel * half_width;
+    var travel = normalize(vec2(ss_direction.x / aspect, ss_direction.y)) * flip_travel * half_width;
     // Scale the vector so it's in screen space coordinates instead of pixels
     travel *= 2.0 / globals.viewport_dims;
 
@@ -326,13 +329,19 @@ fn fs_opaque_curve(
     //let delta = sqrt(1.0 - v * v);
     var delta = 1.0;
 
+    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
+
     let v_v = normalize(in.ws_position - globals.camera.view_pos.xyz);
     let v_l = normalize(in.ws_direction);
+    // Calculate how much to pull the pixel back towards the camera
     delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
+    // Scale that pull so it's less near the line edges, giving it a cylindrical profile
     delta *= sqrt(1.0 - v * v); //
-    var scale = globals.camera.scale.z / globals.camera.scale.x;
+    var scale = sqrt(4.0) * globals.camera.scale.z / sqrt(pow(globals.camera.scale.y, 2.0) + pow(globals.camera.scale.x, 2.0));
+    //scale *= 1.0 / aspect;
+    //scale *= abs(dot(normalize(in.ss_direction.xy), vec2(0.0, 1.0)));
     //let scale = 15.0 / globals.camera.zfar; //abs(dot(normalize(in.ss_direction.yx), half_width_vec));
-    z -= delta * scale;
+    z -= delta * scale ;
 
 
 
