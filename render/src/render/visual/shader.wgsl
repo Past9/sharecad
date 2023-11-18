@@ -62,7 +62,7 @@ struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
     @location(1) ss_length: f32,
-    @location(2) ss_width: f32,
+    @location(2) ss_half_width: f32,
     /// Line direction in clip space
     @location(3) cs_direction: vec3<f32>,
     @location(4) ss_direction: vec2<f32>,
@@ -74,6 +74,7 @@ struct CurveVertexOut {
 var<uniform> globals: Globals;
 
 const PI = 3.14159265359;
+const LOG_DEPTH_C = 1.0;
 
 @vertex
 fn vs_surface(
@@ -115,8 +116,7 @@ fn vs_surface(
     out.world_bitangent = world_bitangent;
 
     // Apply logarithmic depth buffer 
-    //let c = 1.0;
-    //out.clip_position.z = log(c * out.clip_position.z + 1.0) / log(c * globals.camera.zfar + 1.0) * out.clip_position.w;
+    out.clip_position.z = log(LOG_DEPTH_C * out.clip_position.z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -228,7 +228,7 @@ fn vs_curve(
 
     out.uv = vec2(flip_travel, flip_orth);
     out.ss_length = length(ss_direction);
-    out.ss_width = model.width;
+    out.ss_half_width = length(orth); //model.width;
     out.ws_position = world_pos;
     out.ws_direction = (end_world_pos - start_world_pos).xyz;
     out.ss_direction = ss_direction;
@@ -301,51 +301,26 @@ struct FsOpaqueCurveOut {
 @fragment
 fn fs_opaque_curve(
     in: CurveVertexOut,
-//) -> @location(0) vec4<f32> {
 ) -> FsOpaqueCurveOut {
-    //var color = in.color;
+    // Adjust the z-depth of the fragment so that it's closer to the camera by 
+    // the half_width below:
 
-    // Half the length and width of the original non-expanded line
-    let half_length = in.ss_length / 2.0;
-    let half_width_vec = in.ss_width / (2.0 * globals.viewport_dims);
-    let half_width = length(half_width_vec);
+    // Get the actual W, not the weird reciprocal that OpenGL provides for some reason.
+    let w = 1.0 / in.clip_position.w;
+    // Reverse-transform Z
+    var z = in.clip_position.z * w;
+    // Get a scaling factor that maps pixels to a depth distance
+    var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
+    // Move the Z by `half_width` "pixels" towards the camera
 
-    // Get the U passed in from the vertex shader, but we're going to change 
-    // it so it represents distance in the U-direction from the endpoints
-    // of the unexpanded line, not from the center of the line. 
-    var u = abs(in.uv.x);
-    let v = abs(in.uv.y);
+    // Apply logarithmic depth buffer 
+    z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
+
+    z -= in.ss_half_width * scale;
 
     var out: FsOpaqueCurveOut;
-
-    //out.color = vec4(1.0, 0.0, 1.0, 1.0);
-    out.color = vec4(0.0, v, 0.0, 1.0);
-
-    // Adjust the Z depth to make the line appear cylindrical when clipping through
-    // other objects. This makes a line that lies in a planar surface "stick out" so 
-    // it doesn't z-fight, and it looks nice when thicker lines penetrate surfaces.
-    var z = in.clip_position.z;
-
-    //let delta = sqrt(1.0 - v * v);
-    var delta = 1.0;
-
-    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
-
-    let v_v = normalize(in.ws_position - globals.camera.view_pos.xyz);
-    let v_l = normalize(in.ws_direction);
-    // Calculate how much to pull the pixel back towards the camera
-    delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
-    // Scale that pull so it's less near the line edges, giving it a cylindrical profile
-    delta *= sqrt(1.0 - v * v); //
-    var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
-    z -= delta * scale;
-
-
-
-    //z = in.clip_position.z - (1.0 - v) * 0.000001;
-
-    out.depth = z;
-
+    out.depth = z / w;
+    out.color = vec4(1.0, 0.0, 1.0, 1.0);
     return out;
 }
 
