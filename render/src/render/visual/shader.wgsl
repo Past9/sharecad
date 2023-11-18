@@ -337,11 +337,8 @@ fn fs_opaque_curve(
     delta *= half_width / sqrt(1.0 - pow(dot(v_l, v_v), 2.0));
     // Scale that pull so it's less near the line edges, giving it a cylindrical profile
     delta *= sqrt(1.0 - v * v); //
-    var scale = sqrt(4.0) * globals.camera.scale.z / sqrt(pow(globals.camera.scale.y, 2.0) + pow(globals.camera.scale.x, 2.0));
-    //scale *= 1.0 / aspect;
-    //scale *= abs(dot(normalize(in.ss_direction.xy), vec2(0.0, 1.0)));
-    //let scale = 15.0 / globals.camera.zfar; //abs(dot(normalize(in.ss_direction.yx), half_width_vec));
-    z -= delta * scale ;
+    var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
+    z -= delta * scale;
 
 
 
