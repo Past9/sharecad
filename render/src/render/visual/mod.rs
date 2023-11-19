@@ -11,6 +11,7 @@ use crate::{
     vertex::Vertex2,
 };
 use bytemuck::{Pod, Zeroable};
+use egui::output;
 use std::{cell::OnceCell, cmp::min, collections::HashMap};
 use wgpu::util::DeviceExt;
 
@@ -185,12 +186,14 @@ impl VisualRenderer {
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
         );
+
         let accum_target = context.render_into_memory(
             output_target.size(),
             wgpu::TextureFormat::Rgba16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
         );
+
         let transmit_target = context.render_into_memory(
             output_target.size(),
             wgpu::TextureFormat::R16Float,
@@ -488,7 +491,6 @@ impl VisualRenderer {
                         topology: wgpu::PrimitiveTopology::TriangleList,
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
-                        //cull_mode: Some(wgpu::Face::Back),
                         cull_mode: None,
                         unclipped_depth: false,
                         polygon_mode: wgpu::PolygonMode::Fill,
@@ -539,20 +541,6 @@ impl VisualRenderer {
                         targets: &[Some(wgpu::ColorTargetState {
                             format: opaque_target.format(),
                             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                            /*
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent {
-                                    src_factor: wgpu::BlendFactor::SrcAlpha,
-                                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                    operation: wgpu::BlendOperation::Add,
-                                },
-                                alpha: wgpu::BlendComponent {
-                                    src_factor: wgpu::BlendFactor::Zero,
-                                    dst_factor: wgpu::BlendFactor::One,
-                                    operation: wgpu::BlendOperation::Add,
-                                },
-                            }),
-                             */
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -697,6 +685,13 @@ impl VisualRenderer {
             transmit_sampler,
             quad_buffer,
         ) = {
+            let multisampled = msaa_samples.is_multisampled();
+            let filterable = !multisampled;
+            let sampler_ty = wgpu::BindingType::Sampler(match multisampled {
+                true => wgpu::SamplerBindingType::NonFiltering,
+                false => wgpu::SamplerBindingType::Filtering,
+            });
+
             let compositing_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: Some("compositing-bind-group-layout"),
@@ -706,10 +701,8 @@ impl VisualRenderer {
                             binding: 0,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: msaa_samples.is_multisampled(),
-                                sample_type: wgpu::TextureSampleType::Float {
-                                    filterable: !msaa_samples.is_multisampled(),
-                                },
+                                multisampled,
+                                sample_type: wgpu::TextureSampleType::Float { filterable },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -718,7 +711,7 @@ impl VisualRenderer {
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
                             visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                            ty: sampler_ty,
                             count: None,
                         },
                         // Accum texture
@@ -726,10 +719,8 @@ impl VisualRenderer {
                             binding: 2,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: msaa_samples.is_multisampled(),
-                                sample_type: wgpu::TextureSampleType::Float {
-                                    filterable: !msaa_samples.is_multisampled(),
-                                },
+                                multisampled,
+                                sample_type: wgpu::TextureSampleType::Float { filterable },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -738,7 +729,7 @@ impl VisualRenderer {
                         wgpu::BindGroupLayoutEntry {
                             binding: 3,
                             visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                            ty: sampler_ty,
                             count: None,
                         },
                         // Transmit texture
@@ -746,10 +737,8 @@ impl VisualRenderer {
                             binding: 4,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: msaa_samples.is_multisampled(),
-                                sample_type: wgpu::TextureSampleType::Float {
-                                    filterable: !msaa_samples.is_multisampled(),
-                                },
+                                multisampled,
+                                sample_type: wgpu::TextureSampleType::Float { filterable },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -758,7 +747,7 @@ impl VisualRenderer {
                         wgpu::BindGroupLayoutEntry {
                             binding: 5,
                             visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                            ty: sampler_ty,
                             count: None,
                         },
                     ],
@@ -823,6 +812,11 @@ impl VisualRenderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
+            let format = match &msaa_target {
+                Some(target) => target.format(),
+                None => output_target.format(),
+            };
+
             let compositing_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("compositing-pipeline"),
@@ -836,7 +830,7 @@ impl VisualRenderer {
                         module: &shader,
                         entry_point: "fs_composite",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: output_target.format(),
+                            format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -1193,16 +1187,16 @@ impl VisualRenderer {
 
             // Composite
             {
-                let target = match &self.msaa_target {
-                    Some(target) => target.texture_view(),
-                    None => None,
+                let (view, resolve_target) = match &self.msaa_target {
+                    Some(target) => (target.texture_view().unwrap(), Some(output_view)),
+                    None => (output_view, None),
                 };
 
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("compositing-render-pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &output_view,
-                        resolve_target: target,
+                        view,
+                        resolve_target,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                             store: true,
@@ -1230,7 +1224,11 @@ impl VisualRenderer {
 
     fn depth_texture(&self) -> &TextureResources {
         self.depth_texture.get_or_init(|| {
-            TextureResources::depth(self.output_target.device(), self.output_target.size())
+            TextureResources::depth(
+                self.output_target.device(),
+                self.output_target.size(),
+                self.msaa_samples,
+            )
         })
     }
 
@@ -1246,6 +1244,7 @@ impl VisualRenderer {
                 &texture.image,
                 self.output_target.device(),
                 self.output_target.queue(),
+                MsaaSamples::Samples1,
             )
         });
     }

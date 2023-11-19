@@ -31,6 +31,7 @@ impl ViewState {
     pub fn new_from_resources(
         render_state: &egui_wgpu::RenderState,
         visual_texture_usage: Option<wgpu::TextureUsages>,
+        msaa_samples: MsaaSamples,
         resource_dir: &str,
     ) -> ViewState {
         let render_context = RenderContext::from_resources(
@@ -44,7 +45,12 @@ impl ViewState {
             visual_texture_usage,
             MsaaSamples::Samples1,
         );
-        Self::create(render_context, visual_render_target, resource_dir)
+        Self::create(
+            render_context,
+            visual_render_target,
+            msaa_samples,
+            resource_dir,
+        )
     }
 
     #[cfg(feature = "winit")]
@@ -57,16 +63,22 @@ impl ViewState {
     pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> ViewState {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);
-        Self::create(render_context, visual_render_target, out_dir)
+        Self::create(
+            render_context,
+            visual_render_target,
+            MsaaSamples::Samples1,
+            out_dir,
+        )
     }
 
     fn create(
         render_context: RenderContext,
         visual_render_target: RenderTarget,
+        msaa_samples: MsaaSamples,
         resource_dir: &str,
     ) -> ViewState {
         let visual_renderer =
-            VisualRenderer::new(&render_context, visual_render_target, MsaaSamples::Samples4);
+            VisualRenderer::new(&render_context, visual_render_target, msaa_samples);
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
             visual_renderer.size(),
             wgpu::TextureFormat::Rgba32Float,

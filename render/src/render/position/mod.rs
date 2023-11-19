@@ -212,8 +212,13 @@ impl PositionRenderer {
     }
 
     fn depth_texture(&self) -> &TextureResources {
-        self.depth_texture
-            .get_or_init(|| TextureResources::depth(self.target.device(), self.target.size()))
+        self.depth_texture.get_or_init(|| {
+            TextureResources::depth(
+                self.target.device(),
+                self.target.size(),
+                MsaaSamples::Samples1,
+            )
+        })
     }
 
     fn output_buffer(&self) -> &wgpu::Buffer {

@@ -7,7 +7,7 @@ use eframe::{
 };
 use render::{
     input::InputEvent,
-    render::{EguiTransfer, RenderContext},
+    render::{EguiTransfer, MsaaSamples, RenderContext},
     state::ViewState,
 };
 use space::point2;
@@ -27,6 +27,8 @@ fn main() -> Result<(), eframe::Error> {
         }
     };
 
+    let msaa_samples = MsaaSamples::Samples1;
+
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1000.0, 1024.0)),
         renderer: Renderer::Wgpu,
@@ -34,14 +36,15 @@ fn main() -> Result<(), eframe::Error> {
             device_descriptor: Arc::new(get_device_descriptor),
             ..Default::default()
         },
+        multisampling: msaa_samples.samples() as u16,
         ..Default::default()
     };
 
     let mut editor_state: Option<EditorState> = None;
 
     eframe::run_simple_native("Part Editor", options, move |ctx, frame| {
-        let editor_state_left =
-            editor_state.get_or_insert_with(|| EditorState::new(frame, PartModel::new()));
+        let editor_state_left = editor_state
+            .get_or_insert_with(|| EditorState::new(frame, PartModel::new(), msaa_samples));
 
         /*
         egui::SidePanel::left("history-panel")
@@ -85,13 +88,14 @@ struct EditorStateInner {
     model: PartModel,
 }
 impl EditorStateInner {
-    pub fn new(frame: &eframe::Frame, model: PartModel) -> Self {
+    pub fn new(frame: &eframe::Frame, model: PartModel, msaa_samples: MsaaSamples) -> Self {
         println!("EditorStateInner::new");
         let render_state = frame.wgpu_render_state().unwrap();
 
         let view_state = ViewState::new_from_resources(
             render_state,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
+            msaa_samples,
             env!("OUT_DIR"),
         );
 
@@ -125,9 +129,13 @@ struct EditorState {
     inner: Arc<Mutex<EditorStateInner>>,
 }
 impl EditorState {
-    pub fn new(frame: &eframe::Frame, model: PartModel) -> Self {
+    pub fn new(frame: &eframe::Frame, model: PartModel, msaa_samples: MsaaSamples) -> Self {
         println!("EditorState::new");
-        let inner = Arc::new(Mutex::new(EditorStateInner::new(frame, model)));
+        let inner = Arc::new(Mutex::new(EditorStateInner::new(
+            frame,
+            model,
+            msaa_samples,
+        )));
         Self { inner }
     }
 }

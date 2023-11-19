@@ -173,7 +173,7 @@ impl TargetTexture {
         size: (u32, u32),
         format: wgpu::TextureFormat,
         usage: Option<wgpu::TextureUsages>,
-        samples: MsaaSamples,
+        msaa_samples: MsaaSamples,
     ) -> Self {
         let usage = match usage {
             Some(addl_usage) => {
@@ -181,6 +181,7 @@ impl TargetTexture {
             }
             None => wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
         };
+
         let desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
                 width: size.0,
@@ -188,7 +189,7 @@ impl TargetTexture {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: samples.samples(),
+            sample_count: msaa_samples.samples(),
             dimension: wgpu::TextureDimension::D2,
             format,
             usage,

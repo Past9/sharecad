@@ -2,6 +2,8 @@ use image::GenericImageView;
 
 use crate::texture::TextureImage;
 
+use super::MsaaSamples;
+
 #[derive(Debug)]
 pub(super) struct TextureResources {
     pub texture: wgpu::Texture,
@@ -11,7 +13,7 @@ pub(super) struct TextureResources {
 impl TextureResources {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn depth(device: &wgpu::Device, size: (u32, u32)) -> Self {
+    pub fn depth(device: &wgpu::Device, size: (u32, u32), msaa_samples: MsaaSamples) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
@@ -20,7 +22,7 @@ impl TextureResources {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: msaa_samples.samples(),
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -49,7 +51,12 @@ impl TextureResources {
         }
     }
 
-    pub fn image(image: &TextureImage, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+    pub fn image(
+        image: &TextureImage,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        msaa_samples: MsaaSamples,
+    ) -> Self {
         let (image, format) = match image {
             TextureImage::Rgb(image) => (image, wgpu::TextureFormat::Rgba8Unorm),
             TextureImage::Vector(image) => (image, wgpu::TextureFormat::Rgba8Unorm),
@@ -67,7 +74,7 @@ impl TextureResources {
             label: None,
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: msaa_samples.samples(),
             dimension: wgpu::TextureDimension::D2,
             format: format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
