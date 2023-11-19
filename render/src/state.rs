@@ -77,7 +77,7 @@ impl ViewState {
             800.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(camera);
@@ -158,11 +158,11 @@ impl ViewState {
                     point3(-1.0, -1.0, -5.0), //
                     point3(1.0, 1.0, 5.0),    //
                 ],
+                */
                 vec![
                     point3(0.0, 0.0, -5.0), //
                     point3(0.0, 0.0, 5.0),  //
                 ],
-                */
                 vec![
                     point3(d, -d, -2.0),  //
                     point3(d, d, -2.0),   //
@@ -188,7 +188,7 @@ impl ViewState {
                  */
             ];
 
-            let width = 3.0;
+            let width = 30.0;
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
 
