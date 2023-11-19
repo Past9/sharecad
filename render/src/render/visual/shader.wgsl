@@ -307,23 +307,24 @@ fn fs_opaque_curve(
 
     // Get the actual W, not the weird reciprocal that OpenGL provides for some reason.
     let w = 1.0 / in.clip_position.w;
+
     // Reverse-transform Z
     var z = in.clip_position.z * w;
+
     // Get a scaling factor that maps pixels to a depth distance
     var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
+
     // Move the Z by `half_width` "pixels" towards the camera
-
-
     z -= in.ss_half_width * scale * w;
 
     // Apply logarithmic depth buffer 
     z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
 
     var out: FsOpaqueCurveOut;
+
     out.depth = z / w;
-
-
     out.color = vec4(1.0, 0.0, 1.0, 1.0);
+
     return out;
 }
 
