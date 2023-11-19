@@ -757,7 +757,7 @@ impl VisualRenderer {
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
+                mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
                 mipmap_filter: wgpu::FilterMode::Nearest,
                 ..Default::default()
@@ -767,7 +767,7 @@ impl VisualRenderer {
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
+                mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
                 mipmap_filter: wgpu::FilterMode::Nearest,
                 ..Default::default()
@@ -777,7 +777,7 @@ impl VisualRenderer {
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
+                mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
                 mipmap_filter: wgpu::FilterMode::Nearest,
                 ..Default::default()
@@ -803,7 +803,7 @@ impl VisualRenderer {
         let compositing_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("compositing-pipeline-layout"),
-                bind_group_layouts: &[&compositing_bind_group_layout],
+                bind_group_layouts: &[&compositing_bind_group_layout, &globals_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -926,10 +926,13 @@ impl VisualRenderer {
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
-            self.output_target.resize(new_size, self.msaa_samples);
+            self.output_target.resize(new_size, MsaaSamples::Samples1);
             self.opaque_target.resize(new_size, self.msaa_samples);
             self.accum_target.resize(new_size, self.msaa_samples);
             self.transmit_target.resize(new_size, self.msaa_samples);
+            if let Some(ref mut msaa_target) = self.msaa_target {
+                msaa_target.resize(new_size, self.msaa_samples);
+            }
             self.compositing_bind_group = OnceCell::new();
             self.depth_texture = OnceCell::new()
         }
@@ -1212,6 +1215,7 @@ impl VisualRenderer {
                     &self.compositing_bind_group(opaque_view, accum_view, transmit_view),
                     &[],
                 );
+                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                 render_pass.draw(0..QUAD_VERTS.len() as u32, 0..1);
             }
         }

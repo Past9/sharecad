@@ -505,15 +505,15 @@ fn vs_composite(
 }
 
 @group(0) @binding(0)
-var t_opaque_target: texture_2d<f32>;
+var t_opaque_target: texture_multisampled_2d<f32>;
 @group(0) @binding(1)
 var s_opaque_target: sampler;
 @group(0) @binding(2)
-var t_accum_target: texture_2d<f32>;
+var t_accum_target: texture_multisampled_2d<f32>;
 @group(0) @binding(3)
 var s_accum_target: sampler;
 @group(0) @binding(4)
-var t_transmit_target: texture_2d<f32>;
+var t_transmit_target: texture_multisampled_2d<f32>;
 @group(0) @binding(5)
 var s_transmit_target: sampler;
 
@@ -527,11 +527,15 @@ fn max_component4(v: vec4<f32>) -> f32 {
 
 @fragment
 fn fs_composite(
-    in: ScreenVertexOut
+    in: ScreenVertexOut,
+    @builtin(sample_index) sample_index: u32
 ) -> @location(0) vec4<f32> {
-    var color_background = textureSample(t_opaque_target, s_opaque_target, in.tex_coord).rgb;
-    var color_transmit = textureSample(t_transmit_target, s_transmit_target, in.tex_coord).r;
-    var color_accum = textureSample(t_accum_target, s_accum_target, in.tex_coord).rgba;
+    var tc = (in.tex_coord * globals.viewport_dims);
+    var tc2: vec2<i32> = vec2<i32>(i32(tc.x), i32(tc.y));
+    var si = i32(sample_index);
+    var color_background = textureLoad(t_opaque_target, tc2, si).rgb;
+    var color_transmit = textureLoad(t_transmit_target, tc2, si).r;
+    var color_accum = textureLoad(t_accum_target, tc2, si).rgba;
 
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
 

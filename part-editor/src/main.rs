@@ -27,7 +27,7 @@ fn main() -> Result<(), eframe::Error> {
         }
     };
 
-    let msaa_samples = MsaaSamples::Samples1;
+    let msaa_samples = MsaaSamples::Samples4;
 
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1000.0, 1024.0)),
@@ -36,7 +36,7 @@ fn main() -> Result<(), eframe::Error> {
             device_descriptor: Arc::new(get_device_descriptor),
             ..Default::default()
         },
-        multisampling: msaa_samples.samples() as u16,
+        multisampling: 1, // msaa_samples.samples() as u16,
         ..Default::default()
     };
 
