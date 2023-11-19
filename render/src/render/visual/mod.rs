@@ -61,6 +61,57 @@ struct GlobalsRaw {
     camera: CameraRaw,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MsaaSamples {
+    Samples1,
+    Samples2,
+    Samples4,
+    Samples8,
+    Samples16,
+}
+impl MsaaSamples {
+    pub fn max_from_flags(flags: wgpu::TextureFormatFeatureFlags) -> Self {
+        if flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X16) {
+            Self::Samples16
+        } else if flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X8) {
+            Self::Samples8
+        } else if flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X4) {
+            Self::Samples4
+        } else if flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X2) {
+            Self::Samples2
+        } else {
+            Self::Samples1
+        }
+    }
+
+    pub fn samples(&self) -> u32 {
+        match self {
+            MsaaSamples::Samples1 => 1,
+            MsaaSamples::Samples2 => 2,
+            MsaaSamples::Samples4 => 4,
+            MsaaSamples::Samples8 => 8,
+            MsaaSamples::Samples16 => 16,
+        }
+    }
+
+    pub fn is_multisampled(&self) -> bool {
+        match self {
+            MsaaSamples::Samples1 => false,
+            _ => true,
+        }
+    }
+}
+impl PartialOrd for MsaaSamples {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.samples().partial_cmp(&other.samples())
+    }
+}
+impl Ord for MsaaSamples {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.samples().cmp(&other.samples())
+    }
+}
+
 #[derive(Debug)]
 pub struct VisualRenderer {
     output_target: RenderTarget,
@@ -96,30 +147,60 @@ pub struct VisualRenderer {
     opaque_curve_pipeline: wgpu::RenderPipeline,
     translucent_surface_pipeline: wgpu::RenderPipeline,
     compositing_pipeline: wgpu::RenderPipeline,
+
+    msaa_samples: MsaaSamples,
+    msaa_target: Option<RenderTarget>,
 }
 impl VisualRenderer {
-    pub fn new(context: &RenderContext, output_target: RenderTarget) -> Self {
+    pub fn new(
+        context: &RenderContext,
+        output_target: RenderTarget,
+        msaa_samples: MsaaSamples,
+    ) -> Self {
         let device = output_target.device();
+
+        let max_msaa_samples = MsaaSamples::max_from_flags(
+            output_target
+                .adapter()
+                .get_texture_format_features(output_target.format())
+                .flags,
+        );
+
+        let msaa_samples = msaa_samples.min(max_msaa_samples);
+
+        let msaa_target = if msaa_samples.is_multisampled() {
+            Some(context.render_into_memory(
+                output_target.size(),
+                output_target.format(),
+                Some(wgpu::TextureUsages::TEXTURE_BINDING),
+                msaa_samples,
+            ))
+        } else {
+            None
+        };
 
         let opaque_target = context.render_into_memory(
             output_target.size(),
             wgpu::TextureFormat::Rgb10a2Unorm,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
+            msaa_samples,
         );
         let accum_target = context.render_into_memory(
             output_target.size(),
             wgpu::TextureFormat::Rgba16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
+            msaa_samples,
         );
         let transmit_target = context.render_into_memory(
             output_target.size(),
             wgpu::TextureFormat::R16Float,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
+            msaa_samples,
         );
 
         let surface_texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: None,
+                label: Some("surface-texture-bind-group-layout"),
                 entries: &[
                     // Diffuse texture
                     wgpu::BindGroupLayoutEntry {
@@ -252,7 +333,7 @@ impl VisualRenderer {
 
         let curve_texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: None,
+                label: Some("curve-texture-bind-group-layout"),
                 entries: &[
                     // Color texture
                     wgpu::BindGroupLayoutEntry {
@@ -277,14 +358,14 @@ impl VisualRenderer {
 
         let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
             let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
+                label: Some("globals-buffer"),
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<GlobalsRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
             let globals_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: None,
+                    label: Some("globals-bind-group-layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -298,7 +379,7 @@ impl VisualRenderer {
                 });
 
             let globals_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: None,
+                label: Some("globals-bind-group"),
                 layout: &globals_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
@@ -316,6 +397,7 @@ impl VisualRenderer {
         let (light_bind_group_layout, directional_light_buffer, ambient_light_buffer) = {
             let light_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("light-bind-group-layout"),
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
@@ -342,18 +424,17 @@ impl VisualRenderer {
                             count: None,
                         },
                     ],
-                    label: None,
                 });
 
             let directional_light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: None,
+                label: Some("directional-light-buffer"),
                 size: DIRECTIONAL_LIGHT_UNIFORM_SIZE as u64,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
 
             let ambient_light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: None,
+                label: Some("ambient-light-buffer"),
                 size: AMBIENT_LIGHT_UNIFORM_SIZE as u64,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
@@ -368,7 +449,7 @@ impl VisualRenderer {
 
         let opaque_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
+                label: Some("opauq-surface-pipeline"),
                 bind_group_layouts: &[
                     &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
@@ -378,13 +459,13 @@ impl VisualRenderer {
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Opaque surface shader"),
+                label: Some("opaque-surface-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
             let opaque_surface_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Opaque surface pipeline"),
+                    label: Some("opaque-surface-pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
@@ -421,7 +502,7 @@ impl VisualRenderer {
                         bias: wgpu::DepthBiasState::default(),
                     }),
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: msaa_samples.samples(),
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },
@@ -433,19 +514,19 @@ impl VisualRenderer {
 
         let opaque_curve_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
+                label: Some("opaque-curve-pipeline-layout"),
                 bind_group_layouts: &[&curve_texture_bind_group_layout, &globals_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Opaque curve shader"),
+                label: Some("opaque-curve-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
             let opaque_curve_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Opaque curve pipeline"),
+                    label: Some("opaque-curve-pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
@@ -492,7 +573,7 @@ impl VisualRenderer {
                         bias: wgpu::DepthBiasState::default(),
                     }),
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: msaa_samples.samples(),
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },
@@ -504,7 +585,7 @@ impl VisualRenderer {
 
         let translucent_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
+                label: Some("translucent-surface-pipeline-layout"),
                 bind_group_layouts: &[
                     &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
@@ -514,13 +595,13 @@ impl VisualRenderer {
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Truanslucent surface shader"),
+                label: Some("translucent-surface-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
             let translucent_surface_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Translucent surface pipeline"),
+                    label: Some("translucent-surface-pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
@@ -599,7 +680,7 @@ impl VisualRenderer {
                         bias: wgpu::DepthBiasState::default(),
                     }),
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: msaa_samples.samples(),
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },
@@ -618,15 +699,17 @@ impl VisualRenderer {
         ) = {
             let compositing_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: None,
+                    label: Some("compositing-pipeline-layout"),
                     entries: &[
                         // Opaque texture
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                multisampled: msaa_samples.is_multisampled(),
+                                sample_type: wgpu::TextureSampleType::Float {
+                                    filterable: !msaa_samples.is_multisampled(),
+                                },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -643,8 +726,10 @@ impl VisualRenderer {
                             binding: 2,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                multisampled: msaa_samples.is_multisampled(),
+                                sample_type: wgpu::TextureSampleType::Float {
+                                    filterable: !msaa_samples.is_multisampled(),
+                                },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -661,8 +746,10 @@ impl VisualRenderer {
                             binding: 4,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                multisampled: msaa_samples.is_multisampled(),
+                                sample_type: wgpu::TextureSampleType::Float {
+                                    filterable: !msaa_samples.is_multisampled(),
+                                },
                                 view_dimension: wgpu::TextureViewDimension::D2,
                             },
                             count: None,
@@ -709,7 +796,7 @@ impl VisualRenderer {
 
             let quad_buffer = {
                 device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: None,
+                    label: Some("quad-buffer"),
                     contents: bytemuck::cast_slice(&QUAD_VERTS),
                     usage: wgpu::BufferUsages::VERTEX,
                 })
@@ -726,19 +813,19 @@ impl VisualRenderer {
 
         let compositing_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Compositing Pipeline Layout"),
+                label: Some("compositing-pipeline-layout"),
                 bind_group_layouts: &[&compositing_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Compositing shader"),
+                label: Some("compositing-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
             let compositing_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Compositing pipeline"),
+                    label: Some("compositing-pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
@@ -768,7 +855,7 @@ impl VisualRenderer {
                     },
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: msaa_samples.samples(),
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },
@@ -813,6 +900,9 @@ impl VisualRenderer {
             opaque_curve_pipeline,
             translucent_surface_pipeline,
             compositing_pipeline,
+
+            msaa_samples,
+            msaa_target,
         }
     }
 
@@ -842,10 +932,10 @@ impl VisualRenderer {
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
-            self.output_target.resize(new_size);
-            self.opaque_target.resize(new_size);
-            self.accum_target.resize(new_size);
-            self.transmit_target.resize(new_size);
+            self.output_target.resize(new_size, self.msaa_samples);
+            self.opaque_target.resize(new_size, self.msaa_samples);
+            self.accum_target.resize(new_size, self.msaa_samples);
+            self.transmit_target.resize(new_size, self.msaa_samples);
             self.compositing_bind_group = OnceCell::new();
             self.depth_texture = OnceCell::new()
         }
@@ -885,7 +975,7 @@ impl VisualRenderer {
         }
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Visual render encoder"),
+            label: Some("visual-render-encoder"),
         });
 
         let accum_frame = self.accum_target.frame();
@@ -905,7 +995,7 @@ impl VisualRenderer {
             // Render opaque geometry
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Opaque Render Pass"),
+                    label: Some("opaque-render-pass"),
                     color_attachments: &[
                         // Opaque
                         Some(wgpu::RenderPassColorAttachment {
@@ -1009,7 +1099,7 @@ impl VisualRenderer {
             // Render translucent geometry
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Translucent Render Pass"),
+                    label: Some("translucent-render-pass"),
                     color_attachments: &[
                         // Accum
                         Some(wgpu::RenderPassColorAttachment {
@@ -1103,11 +1193,16 @@ impl VisualRenderer {
 
             // Composite
             {
+                let target = match &self.msaa_target {
+                    Some(target) => target.texture_view(),
+                    None => None,
+                };
+
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Compositing Render Pass"),
+                    label: Some("compositing-render-pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &output_view,
-                        resolve_target: None,
+                        resolve_target: target,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                             store: true,
@@ -1180,6 +1275,7 @@ impl VisualRenderer {
                 let transmit = self.image_textures.get(&material.transmit).unwrap();
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("surface-material-bind-group"),
                     layout: &self.surface_texture_bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -1239,7 +1335,6 @@ impl VisualRenderer {
                             resource: wgpu::BindingResource::Sampler(&transmit.sampler),
                         },
                     ],
-                    label: None,
                 })
             });
     }
@@ -1253,6 +1348,7 @@ impl VisualRenderer {
                 let color = self.image_textures.get(&material.color).unwrap();
 
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("curve-material-bind-group"),
                     layout: &self.curve_texture_bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -1264,7 +1360,6 @@ impl VisualRenderer {
                             resource: wgpu::BindingResource::Sampler(&color.sampler),
                         },
                     ],
-                    label: None,
                 })
             });
     }
@@ -1279,7 +1374,7 @@ impl VisualRenderer {
             let device = self.output_target.device();
 
             device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: None,
+                label: Some("compositing-bind-group"),
                 layout: &self.compositing_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -1316,7 +1411,7 @@ impl VisualRenderer {
             let device = self.output_target.device();
 
             device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: None,
+                label: Some("light-bind-group"),
                 layout: &self.light_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {

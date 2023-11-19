@@ -92,6 +92,7 @@ impl RenderContext {
         size: (u32, u32),
         format: wgpu::TextureFormat,
         usage: Option<wgpu::TextureUsages>,
+        samples: MsaaSamples,
     ) -> RenderTarget {
         RenderTarget {
             context: self.inner.clone(),
@@ -100,6 +101,7 @@ impl RenderContext {
                 size,
                 format,
                 usage,
+                samples,
             )),
         }
     }
@@ -171,6 +173,7 @@ impl TargetTexture {
         size: (u32, u32),
         format: wgpu::TextureFormat,
         usage: Option<wgpu::TextureUsages>,
+        samples: MsaaSamples,
     ) -> Self {
         let usage = match usage {
             Some(addl_usage) => {
@@ -185,7 +188,7 @@ impl TargetTexture {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: samples.samples(),
             dimension: wgpu::TextureDimension::D2,
             format,
             usage,
@@ -235,6 +238,10 @@ impl RenderTarget {
         &self.context.device
     }
 
+    pub fn adapter(&self) -> &wgpu::Adapter {
+        &self.context.adapter
+    }
+
     pub fn queue(&self) -> &wgpu::Queue {
         &self.context.queue
     }
@@ -253,7 +260,7 @@ impl RenderTarget {
         }
     }
 
-    pub fn resize(&mut self, size: (u32, u32)) {
+    pub fn resize(&mut self, size: (u32, u32), samples: MsaaSamples) {
         if size.0 == 0 || size.1 == 0 {
             return;
         }
@@ -270,6 +277,7 @@ impl RenderTarget {
                 size,
                 target.texture.format(),
                 Some(target.texture.usage()),
+                samples,
             ));
         } else {
             todo!("Resize not yet implemented for target type");

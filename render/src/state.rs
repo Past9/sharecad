@@ -6,10 +6,10 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstanceId, CurveMaterial, CurveMaterialSpec, CurvePoint, SceneCurve,
-        SceneCurveObject, SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
+        CurveInstanceId, CurveMaterialSpec, CurvePoint, SceneCurve, SceneCurveObject,
+        SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
     },
-    render::{PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
+    render::{MsaaSamples, PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
@@ -42,6 +42,7 @@ impl ViewState {
             (300, 300),
             render_state.target_format,
             visual_texture_usage,
+            MsaaSamples::Samples1,
         );
         Self::create(render_context, visual_render_target, resource_dir)
     }
@@ -64,11 +65,13 @@ impl ViewState {
         visual_render_target: RenderTarget,
         resource_dir: &str,
     ) -> ViewState {
-        let visual_renderer = VisualRenderer::new(&render_context, visual_render_target);
+        let visual_renderer =
+            VisualRenderer::new(&render_context, visual_render_target, MsaaSamples::Samples4);
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
             visual_renderer.size(),
             wgpu::TextureFormat::Rgba32Float,
             None,
+            MsaaSamples::Samples1,
         ));
 
         let camera = Camera::new(

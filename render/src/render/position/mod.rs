@@ -1,4 +1,4 @@
-use super::{pad_u32, texture::TextureResources, RenderTarget, VertexBuffer};
+use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
     model::{SurfaceVertex, TransformedSurfaceInstanceRaw},
@@ -134,7 +134,7 @@ impl PositionRenderer {
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
         if new_size.0 > 0 || new_size.1 > 0 {
-            self.target.resize(new_size);
+            self.target.resize(new_size, MsaaSamples::Samples1);
             self.depth_texture = OnceCell::new();
             self.output_buffer = OnceCell::new();
         }
