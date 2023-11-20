@@ -3,15 +3,15 @@ use crate::{
     camera::{Camera, CameraRaw},
     light::{AmbientLightRaw, DirectionalLightRaw},
     model::{
-        CurveMaterial, CurveMaterialId, CurveVertex, SurfaceMaterial, SurfaceMaterialId,
-        SurfaceVertex, TransformedCurveInstanceRaw, TransformedSurfaceInstanceRaw,
+        CurveMaterial, CurveMaterialId, CurveVertex, PointMaterial, PointMaterialId, PointVertex,
+        SurfaceMaterial, SurfaceMaterialId, SurfaceVertex, TransformedCurveInstanceRaw,
+        TransformedPointInstanceRaw, TransformedSurfaceInstanceRaw,
     },
     scene::Scene,
     texture::{Texture, TextureId},
     vertex::Vertex2,
 };
 use bytemuck::{Pod, Zeroable};
-use egui::output;
 use std::{cell::OnceCell, cmp::min, collections::HashMap};
 use wgpu::util::DeviceExt;
 
@@ -130,11 +130,13 @@ pub struct VisualRenderer {
 
     surface_texture_bind_group_layout: wgpu::BindGroupLayout,
     curve_texture_bind_group_layout: wgpu::BindGroupLayout,
+    point_texture_bind_group_layout: wgpu::BindGroupLayout,
     depth_texture: OnceCell<TextureResources>,
     image_textures: HashMap<TextureId, TextureResources>,
 
     surface_material_bind_groups: HashMap<SurfaceMaterialId, wgpu::BindGroup>,
     curve_material_bind_groups: HashMap<CurveMaterialId, wgpu::BindGroup>,
+    point_material_bind_groups: HashMap<PointMaterialId, wgpu::BindGroup>,
 
     globals_buffer: wgpu::Buffer,
     globals_bind_group: wgpu::BindGroup,
@@ -146,6 +148,7 @@ pub struct VisualRenderer {
 
     opaque_surface_pipeline: wgpu::RenderPipeline,
     opaque_curve_pipeline: wgpu::RenderPipeline,
+    opaque_point_pipeline: wgpu::RenderPipeline,
     translucent_surface_pipeline: wgpu::RenderPipeline,
     compositing_pipeline: wgpu::RenderPipeline,
 
@@ -337,6 +340,31 @@ impl VisualRenderer {
         let curve_texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("curve-texture-bind-group-layout"),
+                entries: &[
+                    // Color texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    // Color sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let point_texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("point-texture-bind-group-layout"),
                 entries: &[
                     // Color texture
                     wgpu::BindGroupLayoutEntry {
@@ -569,6 +597,63 @@ impl VisualRenderer {
                 });
 
             opaque_curve_pipeline
+        };
+
+        let opaque_point_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("opaque-point-pipeline-layout"),
+                bind_group_layouts: &[&point_texture_bind_group_layout, &globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("opaque-point-shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let opaque_point_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("opaque-point-pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_point",
+                        buffers: &[PointVertex::desc(), TransformedPointInstanceRaw::desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_opaque_point",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: opaque_target.format(),
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: TextureResources::DEPTH_FORMAT,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: msaa_samples.samples(),
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            opaque_point_pipeline
         };
 
         let translucent_surface_pipeline = {
@@ -877,10 +962,12 @@ impl VisualRenderer {
 
             surface_texture_bind_group_layout,
             curve_texture_bind_group_layout,
+            point_texture_bind_group_layout,
             image_textures: HashMap::new(),
 
             surface_material_bind_groups: HashMap::new(),
             curve_material_bind_groups: HashMap::new(),
+            point_material_bind_groups: HashMap::new(),
 
             globals_bind_group,
             globals_buffer,
@@ -892,6 +979,7 @@ impl VisualRenderer {
 
             opaque_surface_pipeline,
             opaque_curve_pipeline,
+            opaque_point_pipeline,
             translucent_surface_pipeline,
             compositing_pipeline,
 
@@ -1091,6 +1179,38 @@ impl VisualRenderer {
                         );
                     }
                 }
+
+                // Render opaque points
+                {
+                    render_pass.set_pipeline(&self.opaque_point_pipeline);
+
+                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+
+                    for object in scene.points().iter() {
+                        let mesh = object.mesh();
+
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+
+                        render_pass.set_bind_group(
+                            0,
+                            self.point_material_bind_groups
+                                .get(&object.material_id())
+                                .unwrap(),
+                            &[],
+                        );
+
+                        render_pass.draw_indexed(
+                            0..mesh.num_elements(),
+                            0,
+                            0..object.num_instances(),
+                        );
+                    }
+                }
             }
 
             // Render translucent geometry
@@ -1261,6 +1381,10 @@ impl VisualRenderer {
         for material in scene.curve_materials().values() {
             self.create_curve_material_bind_groups(material);
         }
+
+        for material in scene.point_materials().values() {
+            self.create_point_material_bind_groups(material);
+        }
     }
 
     fn create_surface_material_bind_groups(&mut self, material: &SurfaceMaterial) {
@@ -1353,6 +1477,31 @@ impl VisualRenderer {
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("curve-material-bind-group"),
                     layout: &self.curve_texture_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&color.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&color.sampler),
+                        },
+                    ],
+                })
+            });
+    }
+
+    fn create_point_material_bind_groups(&mut self, material: &PointMaterial) {
+        self.point_material_bind_groups
+            .entry(material.id)
+            .or_insert_with(|| {
+                let device = self.output_target.device();
+
+                let color = self.image_textures.get(&material.color).unwrap();
+
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("point-material-bind-group"),
+                    layout: &self.point_texture_bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
                             binding: 0,

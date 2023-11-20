@@ -2,9 +2,10 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveMaterial, CurveMaterialId, CurveMaterialSpec, SceneCurve, SceneSurface,
-        SceneSurfaceInstance, SceneSurfaceObject, SurfaceMaterial, SurfaceMaterialId,
-        SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
+        CurveMaterial, CurveMaterialId, CurveMaterialSpec, PointMaterial, PointMaterialId,
+        PointMaterialSpec, SceneCurve, ScenePoint, SceneSurface, SceneSurfaceInstance,
+        SceneSurfaceObject, SurfaceMaterial, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh,
+        SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
     },
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -39,6 +40,7 @@ impl<T: From<u32>> IdSeries<T> {
 pub struct Scene {
     surfaces: Vec<Box<dyn SceneSurface>>,
     curves: Vec<Box<dyn SceneCurve>>,
+    points: Vec<Box<dyn ScenePoint>>,
 
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
@@ -49,6 +51,9 @@ pub struct Scene {
     curve_material_ids: IdSeries<CurveMaterialId>,
     curve_materials: HashMap<CurveMaterialId, CurveMaterial>,
 
+    point_material_ids: IdSeries<PointMaterialId>,
+    point_materials: HashMap<PointMaterialId, PointMaterial>,
+
     directional_lights: Vec<DirectionalLight>,
     ambient_lights: Vec<AmbientLight>,
 }
@@ -58,6 +63,7 @@ impl Scene {
         Self {
             surfaces: vec![],
             curves: vec![],
+            points: vec![],
 
             texture_ids: IdSeries::new(),
             textures: HashMap::new(),
@@ -67,6 +73,9 @@ impl Scene {
 
             curve_material_ids: IdSeries::new(),
             curve_materials: HashMap::new(),
+
+            point_material_ids: IdSeries::new(),
+            point_materials: HashMap::new(),
 
             directional_lights: vec![],
             ambient_lights: vec![],
@@ -85,12 +94,24 @@ impl Scene {
         self.curves = curves;
     }
 
+    pub fn points(&self) -> &[Box<dyn ScenePoint>] {
+        &self.points
+    }
+
+    pub fn set_points(&mut self, points: Vec<Box<dyn ScenePoint>>) {
+        self.points = points;
+    }
+
     pub fn surface_materials(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
         &self.surface_materials
     }
 
     pub fn curve_materials(&self) -> &HashMap<CurveMaterialId, CurveMaterial> {
         &self.curve_materials
+    }
+
+    pub fn point_materials(&self) -> &HashMap<PointMaterialId, PointMaterial> {
+        &self.point_materials
     }
 
     pub fn textures(&self) -> &HashMap<TextureId, Texture> {
@@ -188,6 +209,32 @@ impl Scene {
                 let id = self.curve_material_ids.next();
                 self.curve_materials
                     .insert(id, CurveMaterial::new(id, color_id));
+                id
+            }
+        }
+    }
+
+    pub fn insert_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterialId {
+        let color_id = self.insert_rgb_texture(spec.color.image());
+
+        let id = self
+            .point_materials
+            .iter()
+            .filter_map(|(id, material)| {
+                if color_id == material.color {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next();
+
+        match id {
+            Some(id) => *id,
+            None => {
+                let id = self.point_material_ids.next();
+                self.point_materials
+                    .insert(id, PointMaterial::new(id, color_id));
                 id
             }
         }

@@ -60,7 +60,25 @@ struct CurveInstanceIn {
 
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
-    // Width of the line in screen space
+    // Half the width of the line in screen space
+    @location(2) ss_half_width: f32,
+}
+
+struct PointVertexIn {
+    @location(0) position: vec3<f32>,
+    @location(1) width: f32,
+}
+
+struct PointInstanceIn {
+    @location(2) position_matrix_0: vec4<f32>,
+    @location(3) position_matrix_1: vec4<f32>,
+    @location(4) position_matrix_2: vec4<f32>,
+    @location(5) position_matrix_3: vec4<f32>,
+};
+
+struct PointVertexOut {
+    @builtin(position) clip_position: vec4<f32>,
+    // Half the width of the point in screen space
     @location(2) ss_half_width: f32,
 }
 
@@ -221,6 +239,55 @@ fn vs_curve(
     return out;
 }
 
+@vertex
+fn vs_point(
+    @builtin(vertex_index) v_idx: u32,
+    model: PointVertexIn,
+    instance: PointInstanceIn,
+) -> PointVertexOut {
+    let v_idx_i = i32(v_idx);
+    let index = v_idx_i % 4;
+    let half_width = model.width / 2.0;
+
+    var out: PointVertexOut;
+
+    let position_matrix = mat4x4<f32>(
+        instance.position_matrix_0,
+        instance.position_matrix_1,
+        instance.position_matrix_2,
+        instance.position_matrix_3,
+    );
+
+    let world_pos = position_matrix * vec4(model.position, 1.0);
+
+    // Transform the start and end points into clip space
+    let clip_pos = globals.camera.view_proj * world_pos;
+
+    // Transform the start and end points into screen space
+    let screen_pos = clip_pos.xy / clip_pos.w;
+
+    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
+
+    var y_vec = vec2(0.0, 1.0) * half_width;
+    var x_vec = vec2(1.0, 0.0) * half_width;
+
+    if index == 0 || index == 1 {
+        x_vec *= -1.0;
+    } 
+
+    if index == 1 || index == 3 {
+        y_vec *= -1.0;
+    }
+
+    var final_pos = screen_pos.xy + x_vec + y_vec;
+
+    // Set the output clip position for the current point
+    out.clip_position = vec4(final_pos * clip_pos.w, clip_pos.z, clip_pos.w);
+    out.ss_half_width = length(half_width); 
+
+    return out;
+}
+
 @group(0) @binding(0)
 var t_albedo: texture_2d<f32>;
 @group(0) @binding(1)
@@ -271,10 +338,6 @@ fn fs_opaque_surface(
     in: SurfaceVertexOut
 ) -> @location(0) vec4<f32> {
     var color = compute_reflected(front_facing, in, vec3(0.0));
-
-    //color = color / (color + vec3(1.0));
-    //color = pow(color, vec3(1.0 / 2.2));
-
     return vec4<f32>(color, 1.0);
 }
 
@@ -309,6 +372,23 @@ fn fs_opaque_curve(
 
     out.depth = z / w;
     out.color = vec4(1.0, 0.0, 1.0, 1.0);
+
+    return out;
+}
+
+struct FsOpaquePointOut {
+    @location(0) color: vec4<f32>,
+    @builtin(frag_depth) depth: f32,
+}
+
+@fragment
+fn fs_opaque_point(
+    in: PointVertexOut,
+) -> FsOpaquePointOut {
+    var out: FsOpaquePointOut; 
+
+    out.depth = in.clip_position.z / in.clip_position.w;
+    out.color = vec4(0.0, 0.5, 1.0, 1.0);
 
     return out;
 }

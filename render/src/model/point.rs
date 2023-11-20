@@ -1,29 +1,33 @@
-use std::cell::OnceCell;
-
 use bytemuck::{Pod, Zeroable};
-use space::{Mat33, Mat44, Quat, Vec3};
+use space::{Mat44, Point3, Quat, Vec3};
+use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
 use crate::render::VertexBuffer;
 
-use super::SurfaceMaterialId;
+use super::PointMaterialId;
 
-pub trait SceneSurface: std::fmt::Debug {
-    fn mesh(&self) -> &SurfaceMesh;
+pub trait ScenePoint: std::fmt::Debug {
+    fn mesh(&self) -> &PointMesh;
     fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer;
-    fn material_id(&self) -> SurfaceMaterialId;
+    fn material_id(&self) -> PointMaterialId;
     fn num_instances(&self) -> u32;
 }
 
+pub struct PointPoint {
+    pub position: Point3,
+    pub width: f32,
+}
+
 #[derive(Debug)]
-pub struct SceneSurfaceObject<T: SceneSurfaceInstance> {
-    pub mesh: SurfaceMesh,
+pub struct ScenePointObject<T: ScenePointInstance> {
+    pub mesh: PointMesh,
     pub instances: Vec<T>,
-    pub material_id: SurfaceMaterialId,
+    pub material_id: PointMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: SceneSurfaceInstance> SceneSurfaceObject<T> {
-    pub fn new(mesh: SurfaceMesh, instances: Vec<T>, material_id: SurfaceMaterialId) -> Self {
+impl<T: ScenePointInstance> ScenePointObject<T> {
+    pub fn new(mesh: PointMesh, instances: Vec<T>, material_id: PointMaterialId) -> Self {
         Self {
             mesh,
             instances,
@@ -32,8 +36,8 @@ impl<T: SceneSurfaceInstance> SceneSurfaceObject<T> {
         }
     }
 }
-impl<T: SceneSurfaceInstance> SceneSurface for SceneSurfaceObject<T> {
-    fn mesh(&self) -> &SurfaceMesh {
+impl<T: ScenePointInstance> ScenePoint for ScenePointObject<T> {
+    fn mesh(&self) -> &PointMesh {
         &self.mesh
     }
 
@@ -53,7 +57,7 @@ impl<T: SceneSurfaceInstance> SceneSurface for SceneSurfaceObject<T> {
         })
     }
 
-    fn material_id(&self) -> SurfaceMaterialId {
+    fn material_id(&self) -> PointMaterialId {
         self.material_id
     }
 
@@ -63,14 +67,42 @@ impl<T: SceneSurfaceInstance> SceneSurface for SceneSurfaceObject<T> {
 }
 
 #[derive(Debug)]
-pub struct SurfaceMesh {
-    vertices: Vec<SurfaceVertex>,
+pub struct PointMesh {
+    vertices: Vec<PointVertex>,
     indices: Vec<u32>,
     vertex_buffer: OnceCell<wgpu::Buffer>,
     index_buffer: OnceCell<wgpu::Buffer>,
 }
-impl SurfaceMesh {
-    pub fn new(vertices: Vec<SurfaceVertex>, indices: Vec<u32>) -> Self {
+impl PointMesh {
+    pub fn new(points: Vec<PointPoint>) -> Self {
+        let mut vertices = Vec::with_capacity((points.len() * 4));
+
+        for i in 0..points.len() {
+            let p = &points[i];
+            vertices.extend(
+                [PointVertex {
+                    position: p.position.to_f32s(),
+                    width: p.width,
+                }; 4],
+            );
+        }
+
+        let indices = (0..points.len())
+            .flat_map(|i| {
+                let i = i as u32 * 4;
+                [
+                    // First triangle
+                    i + 2,
+                    i,
+                    i + 1,
+                    // Second triangle
+                    i + 2,
+                    i + 1,
+                    i + 3,
+                ]
+            })
+            .collect::<Vec<_>>();
+
         Self {
             vertices,
             indices,
@@ -106,39 +138,20 @@ impl SurfaceMesh {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
-pub struct SurfaceVertex {
-    /// Position in world space
+pub struct PointVertex {
     pub position: [f32; 3],
-
-    /// Texture UV coordinates
-    pub tex_coords: [f32; 2],
-
-    /// Normal vector
-    pub normal: [f32; 3],
-
-    /// Tangent vector
-    pub tangent: [f32; 3],
-
-    /// Bitangent vector
-    pub bitangent: [f32; 3],
-
-    /// Parameteric surface UV coordinates
-    pub param_coords: [f32; 2],
+    pub width: f32,
 }
-impl SurfaceVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+impl PointVertex {
+    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
         0 => Float32x3,
-        1 => Float32x2,
-        2 => Float32x3,
-        3 => Float32x3,
-        4 => Float32x3,
-        5 => Float32x2
+        1 => Float32
     ];
 }
-impl VertexBuffer for SurfaceVertex {
+impl VertexBuffer for PointVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<SurfaceVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<PointVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }
@@ -146,68 +159,62 @@ impl VertexBuffer for SurfaceVertex {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct SurfaceInstanceId(pub u32);
-impl From<u32> for SurfaceInstanceId {
+pub struct PointInstanceId(pub u32);
+impl From<u32> for PointInstanceId {
     fn from(id: u32) -> Self {
-        SurfaceInstanceId(id)
+        PointInstanceId(id)
     }
 }
 
-pub trait SceneSurfaceInstance: std::fmt::Debug + Clone + 'static {
+pub trait ScenePointInstance: std::fmt::Debug + Clone + 'static {
     type RawBuffer: VertexBuffer;
 
-    fn id(&self) -> SurfaceInstanceId;
+    fn id(&self) -> PointInstanceId;
     fn to_raw(&self) -> Self::RawBuffer;
 }
 
 #[derive(Debug, Clone)]
-pub struct TransformedSurfaceInstance {
-    pub id: SurfaceInstanceId,
+pub struct TransformedPointInstance {
+    pub id: PointInstanceId,
     pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
 }
-impl SceneSurfaceInstance for TransformedSurfaceInstance {
-    type RawBuffer = TransformedSurfaceInstanceRaw;
+impl ScenePointInstance for TransformedPointInstance {
+    type RawBuffer = TransformedPointInstanceRaw;
 
-    fn id(&self) -> SurfaceInstanceId {
+    fn id(&self) -> PointInstanceId {
         self.id
     }
 
     fn to_raw(&self) -> Self::RawBuffer {
-        let model = Mat44::translation(self.position)
+        let position = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
-        TransformedSurfaceInstanceRaw {
-            model: model.transpose().into(),
-            normal: Mat33::from(self.rotation).transpose().into(),
+        TransformedPointInstanceRaw {
+            position: position.transpose().into(),
         }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct TransformedSurfaceInstanceRaw {
-    pub model: [[f32; 4]; 4],
-    pub normal: [[f32; 3]; 3],
+pub struct TransformedPointInstanceRaw {
+    pub position: [[f32; 4]; 4],
 }
-impl TransformedSurfaceInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
-        6 => Float32x4,
-        7 => Float32x4,
-        8 => Float32x4,
-        9 => Float32x4,
-
-        10 => Float32x3,
-        11 => Float32x3,
-        12 => Float32x3,
+impl TransformedPointInstanceRaw {
+    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        2 => Float32x4,
+        3 => Float32x4,
+        4 => Float32x4,
+        5 => Float32x4,
     ];
 }
-impl VertexBuffer for TransformedSurfaceInstanceRaw {
+impl VertexBuffer for TransformedPointInstanceRaw {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TransformedSurfaceInstanceRaw>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<TransformedPointInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }

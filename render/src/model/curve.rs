@@ -28,9 +28,9 @@ pub struct SceneCurveObject<T: SceneCurveInstance> {
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl<T: SceneCurveInstance> SceneCurveObject<T> {
-    pub fn new(points: Vec<CurvePoint>, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
+    pub fn new(mesh: CurveMesh, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
         Self {
-            mesh: CurveMesh::new(points),
+            mesh,
             instances,
             material_id,
             instance_buffer: OnceCell::new(),
@@ -247,9 +247,6 @@ impl VertexBuffer for TransformedCurveInstanceRaw {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<TransformedCurveInstanceRaw>() as wgpu::BufferAddress,
-            // We need to switch from using a step mode of Vertex to Instance
-            // This means that our shaders will only change to use the next
-            // instance when the shader starts processing a new instance
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }

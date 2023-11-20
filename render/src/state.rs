@@ -6,8 +6,10 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstanceId, CurveMaterialSpec, CurvePoint, SceneCurve, SceneCurveObject,
-        SurfaceInstanceId, TransformedCurveInstance, TransformedSurfaceInstance,
+        CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, PointInstanceId,
+        PointMaterialSpec, PointMesh, PointPoint, SceneCurve, SceneCurveObject, ScenePoint,
+        ScenePointObject, SurfaceInstanceId, TransformedCurveInstance, TransformedPointInstance,
+        TransformedSurfaceInstance,
     },
     render::{MsaaSamples, PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
     scene::Scene,
@@ -139,46 +141,9 @@ impl ViewState {
 
             scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
 
-            /*
-            let points = vec![
-                point3(-1.5, 0.0, 13.0),  //
-                point3(2.0, 0.0, -4.0),   //
-                point3(2.0, 2.0, -5.0),   //
-                point3(0.0, 2.0, -4.0),   //
-                point3(-2.0, -2.0, -3.0), //
-                point3(0.0, -1.0, -4.0),  //
-                point3(2.0, -4.0, -5.0),  //
-                point3(2.0, -6.0, -4.0),  //
-                point3(-2.0, -6.0, -3.0), //
-                point3(6.0, -5.0, -4.0),  //
-                point3(6.0, 5.0, -5.0),   //
-                point3(6.0, 8.0, -4.0),   //
-                point3(6.0, 3.0, -3.0),   //
-            ];
-             */
-
-            /*
-            let points1 = vec![
-                point3(-1.0, -1.0, -5.0), //
-                point3(1.0, 1.0, 5.0),    //
-            ];
-              */
-
             let d = 1.37237;
-            //let d = 1.4;
 
-            let points = vec![
-                /*
-                vec![
-                    point3(-1.0, -1.0, -5.0), //
-                    point3(1.0, 1.0, 5.0),    //
-                ],
-
-                vec![
-                    point3(0.0, 0.0, -50.0), //
-                    point3(0.0, 0.0, 50.0),  //
-                ],
-                */
+            let curve_points = vec![
                 vec![
                     point3(d, -d, -2.0),  //
                     point3(d, d, -2.0),   //
@@ -193,29 +158,25 @@ impl ViewState {
                     point3(-d, 2.0, -d), //
                     point3(d, 2.0, -d),  //
                 ],
-                /*
-                vec![
-                    point3(d, -d, -2.0),  //
-                    point3(d, d, -2.0),   //
-                    point3(-d, d, -2.0),  //
-                    point3(-d, -d, -2.0), //
-                    point3(d, -d, -2.0),  //
-                ],
-                 */
             ];
 
-            let width = 3.0;
+            let curve_width = 3.0;
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
 
-            let curves = points
+            let scene_curves = curve_points
                 .into_iter()
                 .map(|points| {
                     Box::new(SceneCurveObject::new(
-                        points
-                            .into_iter()
-                            .map(|p| CurvePoint { position: p, width })
-                            .collect::<Vec<_>>(),
+                        CurveMesh::new(
+                            points
+                                .into_iter()
+                                .map(|p| CurvePoint {
+                                    position: p,
+                                    width: curve_width,
+                                })
+                                .collect::<Vec<_>>(),
+                        ),
                         vec![TransformedCurveInstance {
                             id: CurveInstanceId(0),
                             scale: vec3(1.0, 1.0, 1.0),
@@ -227,7 +188,41 @@ impl ViewState {
                 })
                 .collect::<Vec<Box<_>>>();
 
-            scene.set_curves(curves);
+            scene.set_curves(scene_curves);
+
+            let point_points = vec![vec![
+                point3(0.0, 0.0, -3.0), //
+            ]];
+
+            let point_width = 10.0;
+
+            let point_material = scene.insert_point_material(PointMaterialSpec::default());
+
+            let scene_points = point_points
+                .into_iter()
+                .map(|points| {
+                    Box::new(ScenePointObject::new(
+                        PointMesh::new(
+                            points
+                                .into_iter()
+                                .map(|p| PointPoint {
+                                    position: p,
+                                    width: point_width,
+                                })
+                                .collect::<Vec<_>>(),
+                        ),
+                        vec![TransformedPointInstance {
+                            id: PointInstanceId(0),
+                            scale: vec3(1.0, 1.0, 1.0),
+                            rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                            position: Vec3::ZERO,
+                        }],
+                        point_material,
+                    )) as Box<dyn ScenePoint>
+                })
+                .collect::<Vec<Box<_>>>();
+
+            scene.set_points(scene_points);
 
             /*
             scene.set_curves(vec![
