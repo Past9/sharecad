@@ -61,7 +61,7 @@ struct CurveInstanceIn {
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the line in screen space
-    @location(2) ss_half_width: f32,
+    @location(0) ss_half_width: f32,
 }
 
 struct PointVertexIn {
@@ -79,7 +79,8 @@ struct PointInstanceIn {
 struct PointVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the point in screen space
-    @location(2) ss_half_width: f32,
+    @location(0) ss_half_width: f32,
+    @location(1) uv: vec2<f32>,
 }
 
 @group(1) @binding(0)
@@ -234,6 +235,11 @@ fn vs_curve(
 
     // Set the output clip position for the current point
     out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
+    
+    // TODO: This doesn't quite make sense. The half-width in screen space
+    // is only necessarily equal to length(orth) if the aspect ratio is 1.0.
+    // This needs to be adjusted to somehow account for both directions, or
+    // allow the fragment shader to account for it.
     out.ss_half_width = length(orth); 
 
     return out;
@@ -268,22 +274,32 @@ fn vs_point(
 
     let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
 
-    var y_vec = vec2(0.0, 1.0) * half_width;
-    var x_vec = vec2(1.0, 0.0) * half_width;
+    var y_vec = (vec2(0.0, 2.0) * half_width) / globals.viewport_dims.y;
+    var x_vec = (vec2(2.0, 0.0) * half_width) / globals.viewport_dims.x;
+
+    var u = 1.0;
+    var v = 1.0;
 
     if index == 0 || index == 1 {
-        x_vec *= -1.0;
+        u *= -1.0;
     } 
 
     if index == 1 || index == 3 {
-        y_vec *= -1.0;
+        v *= -1.0;
     }
 
-    var final_pos = screen_pos.xy + x_vec + y_vec;
+    var final_pos = screen_pos.xy + x_vec * u + y_vec * v;
 
     // Set the output clip position for the current point
     out.clip_position = vec4(final_pos * clip_pos.w, clip_pos.z, clip_pos.w);
-    out.ss_half_width = length(half_width); 
+    
+    // TODO: This doesn't quite make sense. The half-width in screen space
+    // is only necessarily equal to length(x_vec) if the aspect ratio is 1.0.
+    // This needs to be adjusted to somehow account for both directions, or
+    // allow the fragment shader to account for it.
+    out.ss_half_width = length(x_vec); 
+
+    out.uv = vec2(u, v);
 
     return out;
 }
@@ -385,10 +401,28 @@ struct FsOpaquePointOut {
 fn fs_opaque_point(
     in: PointVertexOut,
 ) -> FsOpaquePointOut {
+    if length(in.uv) > 1.0 {
+        discard;
+    }
+
+    let w = 1.0 / in.clip_position.w;
+    var z = in.clip_position.z * w;
+
+    // Get a scaling factor that maps pixels to a depth distance
+    var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
+
+    scale *= sqrt(1.0 - pow(length(in.uv), 2.0));
+
+    // Move the Z by `half_width` "pixels" towards the camera
+    z -= in.ss_half_width * scale * w;
+
+    // Apply logarithmic depth buffer 
+    z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
+
     var out: FsOpaquePointOut; 
 
-    out.depth = in.clip_position.z / in.clip_position.w;
-    out.color = vec4(0.0, 0.5, 1.0, 1.0);
+    out.depth = z / w;
+    out.color = vec4(0.0, 1.0, 0.5, 1.0);
 
     return out;
 }
