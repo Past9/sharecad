@@ -60,14 +60,8 @@ struct CurveInstanceIn {
 
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-    @location(1) ss_length: f32,
+    // Width of the line in screen space
     @location(2) ss_half_width: f32,
-    /// Line direction in clip space
-    @location(3) cs_direction: vec3<f32>,
-    @location(4) ss_direction: vec2<f32>,
-    @location(5) ws_position: vec3<f32>,
-    @location(6) ws_direction: vec3<f32>,
 }
 
 @group(1) @binding(0)
@@ -222,16 +216,7 @@ fn vs_curve(
 
     // Set the output clip position for the current point
     out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
-
-    // Set the normalized direction vector in clip space
-    out.cs_direction = normalize(end_clip_pos.xyz - start_clip_pos.xyz);
-
-    out.uv = vec2(flip_travel, flip_orth);
-    out.ss_length = length(ss_direction);
-    out.ss_half_width = length(orth); //model.width;
-    out.ws_position = world_pos;
-    out.ws_direction = (end_world_pos - start_world_pos).xyz;
-    out.ss_direction = ss_direction;
+    out.ss_half_width = length(orth); 
 
     return out;
 }
