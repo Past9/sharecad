@@ -10,6 +10,8 @@ pub struct Rgba {
     pub a: f32,
 }
 impl Rgba {
+    pub const TRANSPARENT: Self = rgba(0.0, 0.0, 0.0, 0.0);
+
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }

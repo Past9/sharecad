@@ -21,9 +21,9 @@ const NUM_Y_INSTANCES: u32 = 3;
 const NUM_Z_INSTANCES: u32 = 1;
 const SPACE_BETWEEN: f64 = 5.0;
 
-const SELECTED_SURFACE_COLOR: Rgba = rgba(0.0, 0.7, 1.0, 0.7);
-const SELECTED_CURVE_COLOR: Rgba = rgba(1.0, 0.5, 1.0, 1.0);
-const SELECTED_POINT_COLOR: Rgba = SELECTED_CURVE_COLOR;
+const SELECTED_SURFACE_TINT: Rgba = rgba(0.0, 0.6, 0.8, 0.7);
+const SELECTED_CURVE_TINT: Rgba = rgba(0.0, 1.0, 1.0, 1.0);
+const SELECTED_POINT_TINT: Rgba = SELECTED_CURVE_TINT;
 
 pub struct ViewState {
     visual_renderer: VisualRenderer,
@@ -141,8 +141,8 @@ impl ViewState {
                             );
 
                             let tint = match x % 2 == 1 || y % 2 == 1 || z % 2 == 1 {
-                                true => rgba(0.0, 0.7, 1.0, 0.7),
-                                false => rgba(0.0, 0.0, 0.0, 0.0),
+                                true => SELECTED_SURFACE_TINT,
+                                false => Rgba::TRANSPARENT,
                             };
 
                             SurfaceInstance {
@@ -211,8 +211,8 @@ impl ViewState {
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
                             tint: match i % 2 == 1 {
-                                true => rgba(1.0, 0.5, 1.0, 1.0),
-                                false => rgba(0.0, 0.0, 0.0, 0.0),
+                                true => SELECTED_CURVE_TINT,
+                                false => Rgba::TRANSPARENT,
                             },
                         }],
                         curve_material,
@@ -255,7 +255,7 @@ impl ViewState {
                             scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
-                            tint: rgba(1.0, 0.5, 1.0, 1.0),
+                            tint: SELECTED_POINT_TINT,
                         }],
                         point_material,
                     )) as Box<dyn ScenePoint>
