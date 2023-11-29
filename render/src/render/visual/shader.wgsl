@@ -80,8 +80,9 @@ struct PointVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the point in screen space
     @location(0) ss_half_width: vec2<f32>,
-    @location(1) uv: vec2<f32>,
-    @location(2) ss_pixel_size: vec2<f32>,
+    @location(1) ss_pixel_size: vec2<f32>,
+    @location(2) uv: vec2<f32>,
+    @location(3) width: f32
 }
 
 @group(1) @binding(0)
@@ -302,8 +303,8 @@ fn vs_point(
 
     out.ss_half_width = ss_half_width;
     out.ss_pixel_size = ss_pixel_size;
-
     out.uv = uv;
+    out.width = model.width;
 
     return out;
 }
@@ -408,7 +409,8 @@ fn fs_opaque_point(
     // The bulk of this shader "pulls" the pixels at the center of the point
     // quads closer to the camera to give them a spherical appearance. Note
     // that this is an approximation and may give poor results if very 
-    // large-radius points are used, especially at extreme aspect ratios.
+    // large-radius points are used, especially at extreme aspect ratios and
+    // when the point is displayed far from the center of the viewport.
     //
     // The rest of the shader discards pixels on the corners of the point 
     // quads to make them circular, then feathers the edges for some cheap
@@ -436,9 +438,11 @@ fn fs_opaque_point(
     z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
 
     // Feather the edges for anti-aliasing
-    let FEATHER_RADIUS: f32 = 5.0;
-    let distance = 1.0 - length(in.uv);
-    let alpha = 1.0;
+    let FEATHER_RADIUS: f32 = 1.0;
+    let distance = length(in.uv);
+    let half_width = in.width / 2.0;
+    let full_alpha_radius = 1.0 - (FEATHER_RADIUS / half_width);
+    let alpha = 1.0 - (distance - full_alpha_radius) / (1.0 - full_alpha_radius);
 
     var out: FsOpaquePointOut;
 

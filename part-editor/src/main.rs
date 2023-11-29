@@ -44,7 +44,7 @@ fn main() -> Result<(), eframe::Error> {
 
     eframe::run_simple_native("Part Editor", options, move |ctx, frame| {
         let editor_state_left = editor_state
-            .get_or_insert_with(|| EditorState::new(frame, PartModel::new(), msaa_samples));
+            .get_or_insert_with(|| EditorState::new(ctx, frame, PartModel::new(), msaa_samples));
 
         /*
         egui::SidePanel::left("history-panel")
@@ -88,7 +88,12 @@ struct EditorStateInner {
     model: PartModel,
 }
 impl EditorStateInner {
-    pub fn new(frame: &eframe::Frame, model: PartModel, msaa_samples: MsaaSamples) -> Self {
+    pub fn new(
+        ctx: &egui::Context,
+        frame: &eframe::Frame,
+        model: PartModel,
+        msaa_samples: MsaaSamples,
+    ) -> Self {
         println!("EditorStateInner::new");
         let render_state = frame.wgpu_render_state().unwrap();
 
@@ -97,6 +102,7 @@ impl EditorStateInner {
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
             env!("OUT_DIR"),
+            ctx.pixels_per_point(),
         );
 
         init_transfer(
@@ -129,9 +135,15 @@ struct EditorState {
     inner: Arc<Mutex<EditorStateInner>>,
 }
 impl EditorState {
-    pub fn new(frame: &eframe::Frame, model: PartModel, msaa_samples: MsaaSamples) -> Self {
+    pub fn new(
+        ctx: &egui::Context,
+        frame: &eframe::Frame,
+        model: PartModel,
+        msaa_samples: MsaaSamples,
+    ) -> Self {
         println!("EditorState::new");
         let inner = Arc::new(Mutex::new(EditorStateInner::new(
+            ctx,
             frame,
             model,
             msaa_samples,

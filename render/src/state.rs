@@ -27,6 +27,7 @@ pub struct ViewState {
     scene: Scene,
     needs_position_update: bool,
     directional_lights: Vec<DirectionalLight>,
+    pixels_per_point: f32,
 }
 impl ViewState {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
@@ -35,6 +36,7 @@ impl ViewState {
         visual_texture_usage: Option<wgpu::TextureUsages>,
         msaa_samples: MsaaSamples,
         resource_dir: &str,
+        pixels_per_point: f32,
     ) -> ViewState {
         let render_context = RenderContext::from_resources(
             render_state.adapter.clone(),
@@ -52,17 +54,27 @@ impl ViewState {
             visual_render_target,
             msaa_samples,
             resource_dir,
+            pixels_per_point,
         )
     }
 
     #[cfg(feature = "winit")]
-    pub async fn new_on_window(window: &winit::window::Window, out_dir: &str) -> Self {
+    pub async fn new_on_window(
+        window: &winit::window::Window,
+        out_dir: &str,
+        pixels_per_point: f32,
+    ) -> Self {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_window(window);
         Self::create(render_context, visual_render_target, out_dir)
     }
 
-    pub async fn new_on_surface(surface: Surface, size: (u32, u32), out_dir: &str) -> ViewState {
+    pub async fn new_on_surface(
+        surface: Surface,
+        size: (u32, u32),
+        out_dir: &str,
+        pixels_per_point: f32,
+    ) -> ViewState {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);
         Self::create(
@@ -70,6 +82,7 @@ impl ViewState {
             visual_render_target,
             MsaaSamples::Samples1,
             out_dir,
+            pixels_per_point,
         )
     }
 
@@ -78,6 +91,7 @@ impl ViewState {
         visual_render_target: RenderTarget,
         msaa_samples: MsaaSamples,
         resource_dir: &str,
+        pixels_per_point: f32,
     ) -> ViewState {
         let visual_renderer =
             VisualRenderer::new(&render_context, visual_render_target, msaa_samples);
@@ -164,7 +178,7 @@ impl ViewState {
                 vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
             ];
 
-            let curve_width = 3.0;
+            let curve_width = 1.0;
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
 
@@ -177,7 +191,7 @@ impl ViewState {
                                 .into_iter()
                                 .map(|p| CurvePoint {
                                     position: p,
-                                    width: curve_width,
+                                    width: curve_width * pixels_per_point,
                                 })
                                 .collect::<Vec<_>>(),
                         ),
@@ -202,7 +216,7 @@ impl ViewState {
                 point3(-1.0, -1.0, -2.0), //
             ]];
 
-            let point_width = 45.0;
+            let point_width = 8.0;
 
             let point_material = scene.insert_point_material(PointMaterialSpec::default());
 
@@ -215,7 +229,7 @@ impl ViewState {
                                 .into_iter()
                                 .map(|p| PointPoint {
                                     position: p,
-                                    width: point_width,
+                                    width: point_width * pixels_per_point,
                                 })
                                 .collect::<Vec<_>>(),
                         ),
@@ -281,6 +295,7 @@ impl ViewState {
             scene,
             needs_position_update: true,
             directional_lights,
+            pixels_per_point,
         }
     }
 
