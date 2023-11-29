@@ -1,24 +1,29 @@
-use std::path::Path;
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 use crate::{
     camera::{Camera, CameraController, CameraControllerRequest},
-    color::rgb,
+    color::{rgb, rgba, Rgba},
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, PointInstanceId,
-        PointMaterialSpec, PointMesh, PointPoint, SceneCurve, SceneCurveObject, ScenePoint,
-        ScenePointObject, SurfaceInstanceId, TransformedCurveInstance, TransformedPointInstance,
-        TransformedSurfaceInstance,
+        CurveInstance, CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, PointInstance,
+        PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, SceneCurve, SceneCurveObject,
+        ScenePoint, ScenePointObject, SurfaceInstance, SurfaceInstanceId,
     },
     render::{MsaaSamples, PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
-    scene::Scene,
+    scene::{IdSeries, Scene},
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use wgpu::Surface;
 
-const NUM_INSTANCES_PER_ROW: u32 = 1;
+const NUM_X_INSTANCES: u32 = 3;
+const NUM_Y_INSTANCES: u32 = 3;
+const NUM_Z_INSTANCES: u32 = 1;
 const SPACE_BETWEEN: f64 = 5.0;
+
+const SELECTED_SURFACE_COLOR: Rgba = rgba(0.0, 0.7, 1.0, 0.7);
+const SELECTED_CURVE_COLOR: Rgba = rgba(1.0, 0.5, 1.0, 1.0);
+const SELECTED_POINT_COLOR: Rgba = SELECTED_CURVE_COLOR;
 
 pub struct ViewState {
     visual_renderer: VisualRenderer,
@@ -116,32 +121,36 @@ impl ViewState {
         let scene = {
             let mut scene = Scene::new();
 
-            let instances = (0..NUM_INSTANCES_PER_ROW)
+            let mut last_id = 0;
+
+            let instances = (0..NUM_Z_INSTANCES)
                 .flat_map(|z| {
-                    (0..NUM_INSTANCES_PER_ROW).flat_map(move |y| {
-                        (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                            let id = SurfaceInstanceId(
-                                y * NUM_INSTANCES_PER_ROW.pow(2) + z * NUM_INSTANCES_PER_ROW + x,
-                            );
+                    (0..NUM_Y_INSTANCES).flat_map(move |y| {
+                        (0..NUM_X_INSTANCES).map(move |x| {
+                            last_id += 1;
+                            let id = SurfaceInstanceId(last_id);
 
                             let scale = vec3(1.0, 1.0, 1.0);
 
                             let rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
 
                             let position = vec3(
-                                SPACE_BETWEEN
-                                    * (x as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
-                                SPACE_BETWEEN
-                                    * (y as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
-                                SPACE_BETWEEN
-                                    * (z as f64 - NUM_INSTANCES_PER_ROW as f64 / 2.0 + 0.5),
+                                SPACE_BETWEEN * (x as f64 - NUM_X_INSTANCES as f64 / 2.0 + 0.5),
+                                SPACE_BETWEEN * (y as f64 - NUM_Y_INSTANCES as f64 / 2.0 + 0.5),
+                                SPACE_BETWEEN * (z as f64 - NUM_Z_INSTANCES as f64 / 2.0 + 0.5),
                             );
 
-                            TransformedSurfaceInstance {
+                            let tint = match x % 2 == 1 || y % 2 == 1 || z % 2 == 1 {
+                                true => rgba(0.0, 0.7, 1.0, 0.7),
+                                false => rgba(0.0, 0.0, 0.0, 0.0),
+                            };
+
+                            SurfaceInstance {
                                 id,
                                 scale,
                                 rotation,
                                 position,
+                                tint,
                             }
                         })
                     })
@@ -153,7 +162,7 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file::<TransformedSurfaceInstance>(path_str, vec![instances]);
+            scene.load_wavefront_obj_file::<SurfaceInstance>(path_str, vec![instances]);
 
             let d = 1.37237;
 
@@ -184,7 +193,8 @@ impl ViewState {
 
             let scene_curves = curve_points
                 .into_iter()
-                .map(|points| {
+                .enumerate()
+                .map(|(i, points)| {
                     Box::new(SceneCurveObject::new(
                         CurveMesh::new(
                             points
@@ -195,16 +205,22 @@ impl ViewState {
                                 })
                                 .collect::<Vec<_>>(),
                         ),
-                        vec![TransformedCurveInstance {
+                        vec![CurveInstance {
                             id: CurveInstanceId(0),
                             scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
+                            tint: match i % 2 == 1 {
+                                true => rgba(1.0, 0.5, 1.0, 1.0),
+                                false => rgba(0.0, 0.0, 0.0, 0.0),
+                            },
                         }],
                         curve_material,
                     )) as Box<dyn SceneCurve>
                 })
                 .collect::<Vec<Box<_>>>();
+
+            println!("curves {:#?}", scene_curves);
 
             scene.set_curves(scene_curves);
 
@@ -222,7 +238,8 @@ impl ViewState {
 
             let scene_points = point_points
                 .into_iter()
-                .map(|points| {
+                .enumerate()
+                .map(|(i, points)| {
                     Box::new(ScenePointObject::new(
                         PointMesh::new(
                             points
@@ -233,11 +250,12 @@ impl ViewState {
                                 })
                                 .collect::<Vec<_>>(),
                         ),
-                        vec![TransformedPointInstance {
+                        vec![PointInstance {
                             id: PointInstanceId(0),
                             scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
+                            tint: rgba(1.0, 0.5, 1.0, 1.0),
                         }],
                         point_material,
                     )) as Box<dyn ScenePoint>

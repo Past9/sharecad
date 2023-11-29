@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use space::{Mat33, Mat44, Point3, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-use crate::render::VertexBuffer;
+use crate::{color::Rgba, render::VertexBuffer};
 
 use super::CurveMaterialId;
 
@@ -200,14 +200,15 @@ pub trait SceneCurveInstance: std::fmt::Debug + Clone + 'static {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransformedCurveInstance {
+pub struct CurveInstance {
     pub id: CurveInstanceId,
     pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
+    pub tint: Rgba,
 }
-impl SceneCurveInstance for TransformedCurveInstance {
-    type RawBuffer = TransformedCurveInstanceRaw;
+impl SceneCurveInstance for CurveInstance {
+    type RawBuffer = CurveInstanceRaw;
 
     fn id(&self) -> CurveInstanceId {
         self.id
@@ -217,21 +218,23 @@ impl SceneCurveInstance for TransformedCurveInstance {
         let position = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
-        TransformedCurveInstanceRaw {
+        CurveInstanceRaw {
             position: position.transpose().into(),
             direction: Mat33::from(self.rotation).transpose().into(),
+            tint: self.tint.as_f32s(),
         }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct TransformedCurveInstanceRaw {
+pub struct CurveInstanceRaw {
     pub position: [[f32; 4]; 4],
     pub direction: [[f32; 3]; 3],
+    pub tint: [f32; 4],
 }
-impl TransformedCurveInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
+impl CurveInstanceRaw {
+    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
         3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
@@ -240,13 +243,15 @@ impl TransformedCurveInstanceRaw {
         7 => Float32x3,
         8 => Float32x3,
         9 => Float32x3,
+
+        10 => Float32x4
     ];
 }
-impl VertexBuffer for TransformedCurveInstanceRaw {
+impl VertexBuffer for CurveInstanceRaw {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TransformedCurveInstanceRaw>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<CurveInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }

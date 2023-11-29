@@ -10,7 +10,7 @@ pub struct Rgba {
     pub a: f32,
 }
 impl Rgba {
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 
@@ -42,11 +42,15 @@ impl Rgba {
         ]
     }
 
+    pub fn as_f32s(&self) -> [f32; 4] {
+        [self.r, self.g, self.b, self.a]
+    }
+
     fn f32_to_u8(val: f32) -> u8 {
         (val * 255.0).round() as u8
     }
 }
-pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Rgba {
+pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Rgba {
     Rgba::new(r, g, b, a)
 }
 

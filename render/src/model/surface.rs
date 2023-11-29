@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use space::{Mat33, Mat44, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-use crate::render::VertexBuffer;
+use crate::{color::Rgba, render::VertexBuffer};
 
 use super::SurfaceMaterialId;
 
@@ -161,14 +161,15 @@ pub trait SceneSurfaceInstance: std::fmt::Debug + Clone + 'static {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransformedSurfaceInstance {
+pub struct SurfaceInstance {
     pub id: SurfaceInstanceId,
     pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
+    pub tint: Rgba,
 }
-impl SceneSurfaceInstance for TransformedSurfaceInstance {
-    type RawBuffer = TransformedSurfaceInstanceRaw;
+impl SceneSurfaceInstance for SurfaceInstance {
+    type RawBuffer = SurfaceInstanceRaw;
 
     fn id(&self) -> SurfaceInstanceId {
         self.id
@@ -178,21 +179,23 @@ impl SceneSurfaceInstance for TransformedSurfaceInstance {
         let model = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
-        TransformedSurfaceInstanceRaw {
+        SurfaceInstanceRaw {
             model: model.transpose().into(),
             normal: Mat33::from(self.rotation).transpose().into(),
+            tint: self.tint.as_f32s(),
         }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct TransformedSurfaceInstanceRaw {
+pub struct SurfaceInstanceRaw {
     pub model: [[f32; 4]; 4],
     pub normal: [[f32; 3]; 3],
+    pub tint: [f32; 4],
 }
-impl TransformedSurfaceInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
+impl SurfaceInstanceRaw {
+    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
         6 => Float32x4,
         7 => Float32x4,
         8 => Float32x4,
@@ -201,13 +204,15 @@ impl TransformedSurfaceInstanceRaw {
         10 => Float32x3,
         11 => Float32x3,
         12 => Float32x3,
+
+        13 => Float32x4
     ];
 }
-impl VertexBuffer for TransformedSurfaceInstanceRaw {
+impl VertexBuffer for SurfaceInstanceRaw {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TransformedSurfaceInstanceRaw>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<SurfaceInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }

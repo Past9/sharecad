@@ -1,7 +1,7 @@
 use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
-    model::{SurfaceVertex, TransformedSurfaceInstanceRaw},
+    model::{SurfaceInstanceRaw, SurfaceVertex},
     scene::Scene,
 };
 use space::{vec3, Point3, Vec3};
@@ -76,7 +76,7 @@ impl PositionRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
+                    buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,

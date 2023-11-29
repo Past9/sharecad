@@ -3,9 +3,9 @@ use crate::{
     camera::{Camera, CameraRaw},
     light::{AmbientLightRaw, DirectionalLightRaw},
     model::{
-        CurveMaterial, CurveMaterialId, CurveVertex, PointMaterial, PointMaterialId, PointVertex,
-        SurfaceMaterial, SurfaceMaterialId, SurfaceVertex, TransformedCurveInstanceRaw,
-        TransformedPointInstanceRaw, TransformedSurfaceInstanceRaw,
+        CurveInstanceRaw, CurveMaterial, CurveMaterialId, CurveVertex, PointInstanceRaw,
+        PointMaterial, PointMaterialId, PointVertex, SurfaceInstanceRaw, SurfaceMaterial,
+        SurfaceMaterialId, SurfaceVertex,
     },
     scene::Scene,
     texture::{Texture, TextureId},
@@ -501,7 +501,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -558,7 +558,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_curve",
-                        buffers: &[CurveVertex::desc(), TransformedCurveInstanceRaw::desc()],
+                        buffers: &[CurveVertex::desc(), CurveInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -615,7 +615,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_point",
-                        buffers: &[PointVertex::desc(), TransformedPointInstanceRaw::desc()],
+                        buffers: &[PointVertex::desc(), PointInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -679,7 +679,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[SurfaceVertex::desc(), TransformedSurfaceInstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,

@@ -30,6 +30,8 @@ struct SurfaceInstanceIn {
     @location(10) normal_matrix_0: vec3<f32>,
     @location(11) normal_matrix_1: vec3<f32>,
     @location(12) normal_matrix_2: vec3<f32>,
+
+    @location(13) tint: vec4<f32>,
 }
 
 struct SurfaceVertexOut {
@@ -39,6 +41,7 @@ struct SurfaceVertexOut {
     @location(2) world_normal: vec3<f32>,
     @location(3) world_tangent: vec3<f32>,
     @location(4) world_bitangent: vec3<f32>,
+    @location(5) tint: vec4<f32>,
 };
 
 struct CurveVertexIn {
@@ -56,12 +59,15 @@ struct CurveInstanceIn {
     @location(7) direction_matrix_0: vec3<f32>,
     @location(8) direction_matrix_1: vec3<f32>,
     @location(9) direction_matrix_2: vec3<f32>,
+    
+    @location(10) tint: vec4<f32>,
 };
 
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the line in screen space
     @location(0) ss_half_width: f32,
+    @location(1) tint: vec4<f32>,
 }
 
 struct PointVertexIn {
@@ -74,6 +80,7 @@ struct PointInstanceIn {
     @location(3) position_matrix_1: vec4<f32>,
     @location(4) position_matrix_2: vec4<f32>,
     @location(5) position_matrix_3: vec4<f32>,
+    @location(6) tint: vec4<f32>
 };
 
 struct PointVertexOut {
@@ -82,7 +89,8 @@ struct PointVertexOut {
     @location(0) ss_half_width: vec2<f32>,
     @location(1) ss_pixel_size: vec2<f32>,
     @location(2) uv: vec2<f32>,
-    @location(3) width: f32
+    @location(3) width: f32,
+    @location(4) tint: vec4<f32>
 }
 
 @group(1) @binding(0)
@@ -129,6 +137,7 @@ fn vs_surface(
     out.world_normal = normalize(normal_matrix * world_normal);
     out.world_tangent = world_tangent;
     out.world_bitangent = world_bitangent;
+    out.tint = instance.tint;
 
     // Apply logarithmic depth buffer 
     out.clip_position.z = log(LOG_DEPTH_C * out.clip_position.z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * out.clip_position.w;
@@ -244,6 +253,8 @@ fn vs_curve(
     // allow the fragment shader to account for it.
     out.ss_half_width = length(orth);
 
+    out.tint = instance.tint;
+
     return out;
 }
 
@@ -305,6 +316,7 @@ fn vs_point(
     out.ss_pixel_size = ss_pixel_size;
     out.uv = uv;
     out.width = model.width;
+    out.tint = instance.tint;
 
     return out;
 }
@@ -358,7 +370,12 @@ fn fs_opaque_surface(
     @builtin(front_facing) front_facing: bool,
     in: SurfaceVertexOut
 ) -> @location(0) vec4<f32> {
+    // Calculate lighting
     var color = compute_reflected(front_facing, in, vec3(0.0));
+
+    // Apply tint
+    color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);
+
     return vec4<f32>(color, 1.0);
 }
 
@@ -389,10 +406,15 @@ fn fs_opaque_curve(
     // Apply logarithmic depth buffer 
     z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
 
+    var color = vec3(0.0, 0.0, 0.0);
+
+    // Apply tint
+    color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);
+
     var out: FsOpaqueCurveOut;
 
     out.depth = z / w;
-    out.color = vec4(1.0, 0.0, 1.0, 1.0);
+    out.color = vec4(color, 1.0);
 
     return out;
 }
@@ -444,10 +466,15 @@ fn fs_opaque_point(
     let full_alpha_radius = 1.0 - (FEATHER_RADIUS / half_width);
     let alpha = 1.0 - (distance - full_alpha_radius) / (1.0 - full_alpha_radius);
 
+    var color = vec3(0.0, 0.0, 0.0);
+
+    // Apply tint
+    color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);
+
     var out: FsOpaquePointOut;
 
     out.depth = z / w;
-    out.color = vec4(0.0, 1.0, 0.5, alpha);
+    out.color = vec4(color, alpha);
 
     return out;
 }

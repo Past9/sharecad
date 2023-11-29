@@ -3,7 +3,7 @@ use space::{Mat44, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
-use crate::render::VertexBuffer;
+use crate::{color::Rgba, render::VertexBuffer};
 
 use super::PointMaterialId;
 
@@ -174,14 +174,15 @@ pub trait ScenePointInstance: std::fmt::Debug + Clone + 'static {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransformedPointInstance {
+pub struct PointInstance {
     pub id: PointInstanceId,
     pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
+    pub tint: Rgba,
 }
-impl ScenePointInstance for TransformedPointInstance {
-    type RawBuffer = TransformedPointInstanceRaw;
+impl ScenePointInstance for PointInstance {
+    type RawBuffer = PointInstanceRaw;
 
     fn id(&self) -> PointInstanceId {
         self.id
@@ -191,30 +192,33 @@ impl ScenePointInstance for TransformedPointInstance {
         let position = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
-        TransformedPointInstanceRaw {
+        PointInstanceRaw {
             position: position.transpose().into(),
+            tint: self.tint.as_f32s(),
         }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct TransformedPointInstanceRaw {
+pub struct PointInstanceRaw {
     pub position: [[f32; 4]; 4],
+    pub tint: [f32; 4],
 }
-impl TransformedPointInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+impl PointInstanceRaw {
+    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
         2 => Float32x4,
         3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
+        6 => Float32x4,
     ];
 }
-impl VertexBuffer for TransformedPointInstanceRaw {
+impl VertexBuffer for PointInstanceRaw {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TransformedPointInstanceRaw>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<PointInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }
