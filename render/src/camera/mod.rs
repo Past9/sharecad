@@ -1,7 +1,7 @@
 mod controller;
 
 use bytemuck::{Pod, Zeroable};
-use space::{rad, Angle, Mat44, Point3, Quat, Vec3};
+use space::{Angle, Mat44, Point3, Quat, Vec3};
 
 pub use controller::*;
 

@@ -1,21 +1,15 @@
 use eframe::{
     egui,
     egui_wgpu::{self, RenderState, WgpuConfiguration},
-    epaint::Rect,
     wgpu::{self, Features},
     Renderer,
 };
 use render::{
     input::InputEvent,
-    render::{EguiTransfer, MsaaSamples, RenderContext},
+    render::{EguiTransfer, MsaaSamples},
     state::ViewState,
 };
-use space::point2;
-use std::{
-    cell::OnceCell,
-    iter::Once,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -84,7 +78,6 @@ impl PartModel {
 struct EditorStateInner {
     resized: bool,
     view_state: ViewState,
-    //transfer: EguiTransfer,
     model: PartModel,
 }
 impl EditorStateInner {
@@ -101,7 +94,6 @@ impl EditorStateInner {
             render_state,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
-            env!("OUT_DIR"),
             ctx.pixels_per_point(),
         );
 
@@ -110,17 +102,9 @@ impl EditorStateInner {
             view_state.visual_target().texture_view().unwrap(),
         );
 
-        /*
-        let transfer = EguiTransfer::new(
-            render_state,
-            view_state.visual_target().texture_view().unwrap(),
-        );
-         */
-
         Self {
             resized: false,
             view_state,
-            //transfer,
             model,
         }
     }

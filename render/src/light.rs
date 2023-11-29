@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use space::{Point3, Vec3};
+use space::Vec3;
 
 use crate::color::Rgb;
 

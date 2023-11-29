@@ -1,5 +1,3 @@
-use std::{cell::RefCell, path::Path, rc::Rc};
-
 use crate::{
     camera::{Camera, CameraController, CameraControllerRequest},
     color::{rgb, rgba, Rgba},
@@ -11,9 +9,10 @@ use crate::{
         ScenePoint, ScenePointObject, SurfaceInstance, SurfaceInstanceId,
     },
     render::{MsaaSamples, PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
-    scene::{IdSeries, Scene},
+    scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
+use std::path::Path;
 use wgpu::Surface;
 
 const NUM_X_INSTANCES: u32 = 3;
@@ -40,7 +39,6 @@ impl ViewState {
         render_state: &egui_wgpu::RenderState,
         visual_texture_usage: Option<wgpu::TextureUsages>,
         msaa_samples: MsaaSamples,
-        resource_dir: &str,
         pixels_per_point: f32,
     ) -> ViewState {
         let render_context = RenderContext::from_resources(
@@ -58,7 +56,6 @@ impl ViewState {
             render_context,
             visual_render_target,
             msaa_samples,
-            resource_dir,
             pixels_per_point,
         )
     }
@@ -77,7 +74,6 @@ impl ViewState {
     pub async fn new_on_surface(
         surface: Surface,
         size: (u32, u32),
-        out_dir: &str,
         pixels_per_point: f32,
     ) -> ViewState {
         let render_context = RenderContext::new().await;
@@ -86,7 +82,6 @@ impl ViewState {
             render_context,
             visual_render_target,
             MsaaSamples::Samples1,
-            out_dir,
             pixels_per_point,
         )
     }
@@ -95,7 +90,6 @@ impl ViewState {
         render_context: RenderContext,
         visual_render_target: RenderTarget,
         msaa_samples: MsaaSamples,
-        resource_dir: &str,
         pixels_per_point: f32,
     ) -> ViewState {
         let visual_renderer =

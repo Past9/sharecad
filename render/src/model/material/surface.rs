@@ -4,7 +4,7 @@ use image::GenericImageView;
 use space::{vec3, Vec3};
 
 use crate::{
-    color::{rgb, rgba, Rgb, Rgba},
+    color::{rgb, Rgb},
     texture::TextureId,
 };
 

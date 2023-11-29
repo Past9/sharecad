@@ -1,7 +1,5 @@
-use std::{cell::RefCell, sync::Arc};
-
-use bytemuck::{Pod, Zeroable};
 use egui_wgpu::RenderState;
+use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex2;

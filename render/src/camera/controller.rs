@@ -1,4 +1,4 @@
-use crate::input::{InputEvent, Key, MouseButton};
+use crate::input::{InputEvent, MouseButton};
 
 use super::Camera;
 use space::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
