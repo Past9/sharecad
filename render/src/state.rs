@@ -158,6 +158,10 @@ impl ViewState {
                     point3(-d, 2.0, -d), //
                     point3(d, 2.0, -d),  //
                 ],
+                vec![point3(0.0, 0.0, -3.0), point3(1.0, 1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(-1.0, 1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(1.0, -1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
             ];
 
             let curve_width = 3.0;
@@ -198,7 +202,7 @@ impl ViewState {
                 point3(-1.0, -1.0, -2.0), //
             ]];
 
-            let point_width = 15.0;
+            let point_width = 45.0;
 
             let point_material = scene.insert_point_material(PointMaterialSpec::default());
 

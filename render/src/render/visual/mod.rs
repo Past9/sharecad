@@ -508,10 +508,7 @@ impl VisualRenderer {
                         entry_point: "fs_opaque_surface",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: opaque_target.format(),
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
-                            }),
+                            blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -568,7 +565,7 @@ impl VisualRenderer {
                         entry_point: "fs_opaque_curve",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: opaque_target.format(),
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -625,6 +622,9 @@ impl VisualRenderer {
                         entry_point: "fs_opaque_point",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: opaque_target.format(),
+                            // Unlike the other opaque pipelines, this one uses
+                            // alpha blending so we can feather the edges for cheap
+                            // anti-aliasing.
                             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],

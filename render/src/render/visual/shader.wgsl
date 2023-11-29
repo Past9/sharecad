@@ -79,8 +79,9 @@ struct PointInstanceIn {
 struct PointVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the point in screen space
-    @location(0) ss_half_width: f32,
+    @location(0) ss_half_width: vec2<f32>,
     @location(1) uv: vec2<f32>,
+    @location(2) ss_pixel_size: vec2<f32>,
 }
 
 @group(1) @binding(0)
@@ -240,7 +241,7 @@ fn vs_curve(
     // is only necessarily equal to length(orth) if the aspect ratio is 1.0.
     // This needs to be adjusted to somehow account for both directions, or
     // allow the fragment shader to account for it.
-    out.ss_half_width = length(orth); 
+    out.ss_half_width = length(orth);
 
     return out;
 }
@@ -274,21 +275,22 @@ fn vs_point(
 
     let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
 
-    var y_vec = (vec2(0.0, 2.0) * half_width) / globals.viewport_dims.y;
-    var x_vec = (vec2(2.0, 0.0) * half_width) / globals.viewport_dims.x;
+    let ss_pixel_size = vec2(2.0, 2.0) / globals.viewport_dims;
+    let ss_half_width = ss_pixel_size * half_width;
 
     var u = 1.0;
     var v = 1.0;
 
     if index == 0 || index == 1 {
         u *= -1.0;
-    } 
+    }
 
     if index == 1 || index == 3 {
         v *= -1.0;
     }
 
-    var final_pos = screen_pos.xy + x_vec * u + y_vec * v;
+    let uv = vec2(u, v);
+    let final_pos = screen_pos.xy + ss_half_width * uv;
 
     // Set the output clip position for the current point
     out.clip_position = vec4(final_pos * clip_pos.w, clip_pos.z, clip_pos.w);
@@ -297,9 +299,11 @@ fn vs_point(
     // is only necessarily equal to length(x_vec) if the aspect ratio is 1.0.
     // This needs to be adjusted to somehow account for both directions, or
     // allow the fragment shader to account for it.
-    out.ss_half_width = length(x_vec); 
 
-    out.uv = vec2(u, v);
+    out.ss_half_width = ss_half_width;
+    out.ss_pixel_size = ss_pixel_size;
+
+    out.uv = uv;
 
     return out;
 }
@@ -401,6 +405,16 @@ struct FsOpaquePointOut {
 fn fs_opaque_point(
     in: PointVertexOut,
 ) -> FsOpaquePointOut {
+    // The bulk of this shader "pulls" the pixels at the center of the point
+    // quads closer to the camera to give them a spherical appearance. Note
+    // that this is an approximation and may give poor results if very 
+    // large-radius points are used, especially at extreme aspect ratios.
+    //
+    // The rest of the shader discards pixels on the corners of the point 
+    // quads to make them circular, then feathers the edges for some cheap
+    // anti-aliasing.
+
+
     if length(in.uv) > 1.0 {
         discard;
     }
@@ -408,21 +422,28 @@ fn fs_opaque_point(
     let w = 1.0 / in.clip_position.w;
     var z = in.clip_position.z * w;
 
+    var aspect_ratio = globals.viewport_dims.x / globals.viewport_dims.y;
+
     // Get a scaling factor that maps pixels to a depth distance
-    var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
+    var scale = globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
 
     scale *= sqrt(1.0 - pow(length(in.uv), 2.0));
 
     // Move the Z by `half_width` "pixels" towards the camera
-    z -= in.ss_half_width * scale * w;
+    z -= length(in.ss_half_width) * scale * w;
 
     // Apply logarithmic depth buffer 
     z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
 
-    var out: FsOpaquePointOut; 
+    // Feather the edges for anti-aliasing
+    let FEATHER_RADIUS: f32 = 5.0;
+    let distance = 1.0 - length(in.uv);
+    let alpha = 1.0;
+
+    var out: FsOpaquePointOut;
 
     out.depth = z / w;
-    out.color = vec4(0.0, 1.0, 0.5, 1.0);
+    out.color = vec4(0.0, 1.0, 0.5, alpha);
 
     return out;
 }
