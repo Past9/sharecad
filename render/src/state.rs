@@ -246,37 +246,6 @@ impl ViewState {
 
             scene.set_points(scene_points);
 
-            /*
-            scene.set_curves(vec![
-                Box::new(SceneCurveObject::new(
-                    points1
-                        .into_iter()
-                        .map(|p| CurvePoint { position: p, width })
-                        .collect::<Vec<_>>(),
-                    vec![TransformedCurveInstance {
-                        id: CurveInstanceId(0),
-                        scale: vec3(1.0, 1.0, 1.0),
-                        rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                        position: Vec3::ZERO,
-                    }],
-                    curve_material,
-                )),
-                Box::new(SceneCurveObject::new(
-                    points2
-                        .into_iter()
-                        .map(|p| CurvePoint { position: p, width })
-                        .collect::<Vec<_>>(),
-                    vec![TransformedCurveInstance {
-                        id: CurveInstanceId(0),
-                        scale: vec3(1.0, 1.0, 1.0),
-                        rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                        position: Vec3::ZERO,
-                    }],
-                    curve_material,
-                )),
-            ]);
-                 */
-
             scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
             scene
