@@ -199,6 +199,8 @@ impl ViewState {
 
             let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
 
+            let mut curve_ids = IdSeries::new();
+
             let scene_curves = curve_points
                 .into_iter()
                 .enumerate()
@@ -214,7 +216,7 @@ impl ViewState {
                                 .collect::<Vec<_>>(),
                         ),
                         vec![CurveInstance {
-                            id: CurveInstanceId(0),
+                            id: curve_ids.next(),
                             scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
@@ -227,6 +229,8 @@ impl ViewState {
                     )) as Box<dyn SceneCurve>
                 })
                 .collect::<Vec<Box<_>>>();
+
+            println!("scene_curves = {:#?}", scene_curves);
 
             scene.set_curves(scene_curves);
 

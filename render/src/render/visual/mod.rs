@@ -1,4 +1,7 @@
-use super::{texture::TextureResources, RenderContext, RenderTarget, VertexBuffer};
+use super::{
+    texture::TextureResources, GlobalsRaw, RenderContext, RenderTarget, VertexBuffer,
+    MAX_AMBIENT_LIGHTS, MAX_DIRECTIONAL_LIGHTS,
+};
 use crate::{
     camera::{Camera, CameraRaw},
     light::{AmbientLightRaw, DirectionalLightRaw},
@@ -15,11 +18,9 @@ use bytemuck::{Pod, Zeroable};
 use std::{cell::OnceCell, cmp::min, collections::HashMap};
 use wgpu::util::DeviceExt;
 
-const MAX_DIRECTIONAL_LIGHTS: u32 = 32;
 const DIRECTIONAL_LIGHT_UNIFORM_SIZE: u32 =
     std::mem::size_of::<DirectionalLightRaw>() as u32 * MAX_DIRECTIONAL_LIGHTS;
 
-const MAX_AMBIENT_LIGHTS: u32 = 32;
 const AMBIENT_LIGHT_UNIFORM_SIZE: u32 =
     std::mem::size_of::<AmbientLightRaw>() as u32 * MAX_AMBIENT_LIGHTS;
 
@@ -49,18 +50,6 @@ const QUAD_VERTS: [Vertex2; 6] = [
         tex_coords: [1.0, 1.0],
     },
 ];
-
-#[repr(C)]
-#[derive(Clone, Copy, Zeroable, Pod)]
-struct GlobalsRaw {
-    num_directional_lights: u32,
-    _padding1: [u32; 3],
-    num_ambient_lights: u32,
-    _padding2: [u32; 3],
-    viewport_dims: [f32; 2],
-    _padding3: [u32; 2],
-    camera: CameraRaw,
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MsaaSamples {
@@ -988,22 +977,6 @@ impl VisualRenderer {
         }
     }
 
-    fn globals_raw(&self, scene: &Scene, camera: &Camera) -> GlobalsRaw {
-        let size = self.size();
-        GlobalsRaw {
-            num_directional_lights: min(
-                scene.directional_lights().len() as u32,
-                MAX_DIRECTIONAL_LIGHTS,
-            ),
-            _padding1: [0; 3],
-            num_ambient_lights: min(scene.ambient_lights().len() as u32, MAX_AMBIENT_LIGHTS),
-            _padding2: [0; 3],
-            viewport_dims: [size.0 as f32, size.1 as f32],
-            _padding3: [0; 2],
-            camera: camera.to_raw(self.aspect()),
-        }
-    }
-
     pub fn target(&self) -> &RenderTarget {
         &self.output_target
     }
@@ -1040,7 +1013,8 @@ impl VisualRenderer {
         queue.write_buffer(
             &self.globals_buffer,
             0,
-            bytemuck::cast_slice(&[self.globals_raw(scene, camera)]),
+            //bytemuck::cast_slice(&[self.globals_raw(scene, camera)]),
+            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size())]),
         );
 
         for (i, light) in scene.directional_lights().iter().enumerate() {

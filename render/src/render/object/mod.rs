@@ -2,11 +2,13 @@ use std::cell::OnceCell;
 
 use crate::{
     camera::{Camera, CameraRaw},
-    model::{SurfaceInstanceRaw, SurfaceVertex},
+    model::{CurveInstanceRaw, CurveVertex, SurfaceInstanceRaw, SurfaceVertex},
     scene::Scene,
 };
 
-use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
+use super::{
+    pad_u32, texture::TextureResources, GlobalsRaw, MsaaSamples, RenderTarget, VertexBuffer,
+};
 use wgpu::{util::DeviceExt, BlendState};
 
 const PIXEL_BYTES: u32 = 4;
@@ -14,25 +16,26 @@ const PIXEL_BYTES: u32 = 4;
 pub struct ObjectRenderer {
     target: RenderTarget,
     depth_texture: OnceCell<TextureResources>,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
+    globals_buffer: wgpu::Buffer,
+    globals_bind_group: wgpu::BindGroup,
     surface_pipeline: wgpu::RenderPipeline,
+    curve_pipeline: wgpu::RenderPipeline,
     output_buffer: OnceCell<wgpu::Buffer>,
 }
 impl ObjectRenderer {
     pub fn new(target: RenderTarget) -> Self {
         let device = target.device();
 
-        let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {
-            let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("camera-buffer"),
-                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraRaw>()]),
+        let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
+            let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("globals-buffer"),
+                contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<GlobalsRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
-            let camera_bind_group_layout =
+            let globals_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("camera-bind-group-layout"),
+                    label: Some("globals-bind-group-layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -45,22 +48,26 @@ impl ObjectRenderer {
                     }],
                 });
 
-            let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("camera-bind-group"),
-                layout: &camera_bind_group_layout,
+            let globals_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("globals-bind-group"),
+                layout: &globals_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
+                    resource: globals_buffer.as_entire_binding(),
                 }],
             });
 
-            (camera_bind_group_layout, camera_bind_group, camera_buffer)
+            (
+                globals_bind_group_layout,
+                globals_bind_group,
+                globals_buffer,
+            )
         };
 
         let surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("object-surface-pipeline-layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&globals_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -113,12 +120,70 @@ impl ObjectRenderer {
             surface_pipeline
         };
 
+        let curve_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("object-curve-pipeline-layout"),
+                bind_group_layouts: &[&globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("object-curve-shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let opaque_curve_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("object-curve-pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_curve",
+                        buffers: &[CurveVertex::desc(), CurveInstanceRaw::desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_curve",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: target.format(),
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: TextureResources::DEPTH_FORMAT,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            opaque_curve_pipeline
+        };
+
         Self {
             target,
             depth_texture: OnceCell::new(),
-            camera_buffer,
-            camera_bind_group,
+            globals_buffer,
+            globals_bind_group,
             surface_pipeline,
+            curve_pipeline,
             output_buffer: OnceCell::new(),
         }
     }
@@ -150,9 +215,10 @@ impl ObjectRenderer {
         let view = frame.view();
 
         queue.write_buffer(
-            &self.camera_buffer,
+            &self.globals_buffer,
             0,
-            bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
+            //bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
+            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size())]),
         );
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -181,23 +247,46 @@ impl ObjectRenderer {
                 ..Default::default()
             });
 
-            render_pass.set_pipeline(&self.surface_pipeline);
+            // Render surfaces
+            {
+                render_pass.set_pipeline(&self.surface_pipeline);
 
-            for object in scene.surfaces().iter() {
-                let mesh = object.mesh();
-                render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                render_pass.set_index_buffer(
-                    mesh.index_buffer(device).slice(..),
-                    wgpu::IndexFormat::Uint32,
-                );
+                for object in scene.surfaces().iter() {
+                    let mesh = object.mesh();
+                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_index_buffer(
+                        mesh.index_buffer(device).slice(..),
+                        wgpu::IndexFormat::Uint32,
+                    );
 
-                {
-                    // TODO: Move these out of the loop? Probably don't need to set these for
-                    // every object since they don't change.
-                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    {
+                        // TODO: Move these out of the loop? Probably don't need to set these for
+                        // every object since they don't change.
+                        render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
+                    }
+                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
                 }
-                render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+            }
+
+            // Render curves
+            {
+                render_pass.set_pipeline(&self.curve_pipeline);
+
+                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+
+                for object in scene.curves().iter() {
+                    let mesh = object.mesh();
+
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                    render_pass.set_index_buffer(
+                        mesh.index_buffer(device).slice(..),
+                        wgpu::IndexFormat::Uint32,
+                    );
+
+                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                }
             }
         }
 

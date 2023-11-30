@@ -7,7 +7,7 @@ mod visual;
 mod egui;
 
 use bytemuck::{Pod, Zeroable};
-use std::sync::Arc;
+use std::{cmp::min, sync::Arc};
 use wgpu::Surface;
 
 pub use object::*;
@@ -17,12 +17,48 @@ pub use visual::*;
 #[cfg(feature = "egui")]
 pub use egui::*;
 
+use crate::{
+    camera::{Camera, CameraRaw},
+    scene::Scene,
+};
+
+const MAX_DIRECTIONAL_LIGHTS: u32 = 32;
+const MAX_AMBIENT_LIGHTS: u32 = 32;
+
 pub trait VertexBuffer: Pod + Zeroable {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
 }
 
 pub fn pad_u32(num: u32, pad: u32) -> u32 {
     num + (pad - num % pad)
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Zeroable, Pod)]
+struct GlobalsRaw {
+    num_directional_lights: u32,
+    _padding1: [u32; 3],
+    num_ambient_lights: u32,
+    _padding2: [u32; 3],
+    viewport_dims: [f32; 2],
+    _padding3: [u32; 2],
+    camera: CameraRaw,
+}
+impl GlobalsRaw {
+    fn build(scene: &Scene, camera: &Camera, aspect: f64, size: (u32, u32)) -> GlobalsRaw {
+        GlobalsRaw {
+            num_directional_lights: min(
+                scene.directional_lights().len() as u32,
+                MAX_DIRECTIONAL_LIGHTS,
+            ),
+            _padding1: [0; 3],
+            num_ambient_lights: min(scene.ambient_lights().len() as u32, MAX_AMBIENT_LIGHTS),
+            _padding2: [0; 3],
+            viewport_dims: [size.0 as f32, size.1 as f32],
+            _padding3: [0; 2],
+            camera: camera.to_raw(aspect),
+        }
+    }
 }
 
 pub struct RenderContext {

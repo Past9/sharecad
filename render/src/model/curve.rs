@@ -219,6 +219,7 @@ impl SceneCurveInstance for CurveInstance {
             position: position.transpose().into(),
             direction: Mat33::from(self.rotation).transpose().into(),
             tint: self.tint.as_f32s(),
+            id: self.id.0,
         }
     }
 }
@@ -229,9 +230,10 @@ pub struct CurveInstanceRaw {
     pub position: [[f32; 4]; 4],
     pub direction: [[f32; 3]; 3],
     pub tint: [f32; 4],
+    pub id: u32,
 }
 impl CurveInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 9] = wgpu::vertex_attr_array![
         3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
@@ -241,7 +243,9 @@ impl CurveInstanceRaw {
         8 => Float32x3,
         9 => Float32x3,
 
-        10 => Float32x4
+        10 => Float32x4,
+
+        11 => Uint32,
     ];
 }
 impl VertexBuffer for CurveInstanceRaw {
