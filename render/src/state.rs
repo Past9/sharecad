@@ -4,9 +4,9 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstance, CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, PointInstance,
-        PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, SceneCurve, SceneCurveObject,
-        ScenePoint, ScenePointObject, SurfaceInstance, SurfaceInstanceId,
+        CurveInstance, CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, InstanceId,
+        PointInstance, PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, SceneCurve,
+        SceneCurveObject, ScenePoint, ScenePointObject, SurfaceInstance, SurfaceInstanceId,
     },
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
@@ -318,8 +318,8 @@ impl ViewState {
     pub fn input(&mut self, event: &InputEvent) -> bool {
         match event {
             InputEvent::CursorMoved(point) => {
-                let id = self.get_surface_instance_id_at(point);
-                if id.0 > 0 {
+                let id = self.get_instance_id_at(point);
+                if let Some(id) = id {
                     println!("hover {:?}", id);
                 }
             }
@@ -420,13 +420,13 @@ impl ViewState {
         }
     }
 
-    fn get_surface_instance_id_at(&mut self, coords: &Point2) -> SurfaceInstanceId {
+    fn get_instance_id_at(&mut self, coords: &Point2) -> Option<InstanceId> {
         self.render_object().unwrap();
 
         let coords = (coords.x as u32, coords.y as u32);
         let id = pollster::block_on(self.object_renderer.get_id_at(coords));
 
-        SurfaceInstanceId(id)
+        InstanceId::from_shader_value(id)
     }
 
     fn render_object(&mut self) -> Result<(), wgpu::SurfaceError> {

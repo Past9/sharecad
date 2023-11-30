@@ -66,6 +66,7 @@ fn vs_main(
 fn fs_main(
     in: VertexOutput
 ) -> @location(0) u32 {
-    return in.id;
+    // Bitshift the ID left two places, then add the type identifier for surfaces (0b01)
+    return (in.id << u32(2)) | u32(1);
 }
 
