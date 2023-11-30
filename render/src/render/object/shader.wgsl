@@ -35,7 +35,7 @@ struct Camera {
 var<uniform> camera: Camera;
 
 @vertex
-fn vs_main(
+fn vs_surface(
     model: VertexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
@@ -63,7 +63,7 @@ fn vs_main(
 
 
 @fragment
-fn fs_main(
+fn fs_surface(
     in: VertexOutput
 ) -> @location(0) u32 {
     // Bitshift the ID left two places, then add the type identifier for surfaces (0b01)

@@ -74,12 +74,12 @@ impl ObjectRenderer {
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: "vs_main",
+                    entry_point: "vs_surface",
                     buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_main",
+                    entry_point: "fs_surface",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
                         blend: None,
