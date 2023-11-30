@@ -1,15 +1,18 @@
 use std::cell::OnceCell;
 
 use crate::{
-    camera::{Camera, CameraRaw},
-    model::{CurveInstanceRaw, CurveVertex, SurfaceInstanceRaw, SurfaceVertex},
+    camera::Camera,
+    model::{
+        CurveInstanceRaw, CurveVertex, PointInstanceRaw, PointVertex, SurfaceInstanceRaw,
+        SurfaceVertex,
+    },
     scene::Scene,
 };
 
 use super::{
     pad_u32, texture::TextureResources, GlobalsRaw, MsaaSamples, RenderTarget, VertexBuffer,
 };
-use wgpu::{util::DeviceExt, BlendState};
+use wgpu::util::DeviceExt;
 
 const PIXEL_BYTES: u32 = 4;
 
@@ -20,6 +23,7 @@ pub struct ObjectRenderer {
     globals_bind_group: wgpu::BindGroup,
     surface_pipeline: wgpu::RenderPipeline,
     curve_pipeline: wgpu::RenderPipeline,
+    point_pipeline: wgpu::RenderPipeline,
     output_buffer: OnceCell<wgpu::Buffer>,
 }
 impl ObjectRenderer {
@@ -132,20 +136,79 @@ impl ObjectRenderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-            let opaque_curve_pipeline =
+            let curve_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("object-curve-pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_curve",
+                    buffers: &[CurveVertex::desc(), CurveInstanceRaw::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_curve",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: target.format(),
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: None,
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: TextureResources::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+
+            curve_pipeline
+        };
+
+        let point_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("object-point-pipeline-layout"),
+                bind_group_layouts: &[&globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("object-point-shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let opaque_point_pipeline =
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("object-curve-pipeline"),
+                    label: Some("object-point-pipeline"),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
-                        entry_point: "vs_curve",
-                        buffers: &[CurveVertex::desc(), CurveInstanceRaw::desc()],
+                        entry_point: "vs_point",
+                        buffers: &[PointVertex::desc(), PointInstanceRaw::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: "fs_curve",
+                        entry_point: "fs_point",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: target.format(),
+                            // Unlike the other opaque pipelines, this one uses
+                            // alpha blending so we can feather the edges for cheap
+                            // anti-aliasing.
                             blend: None,
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
@@ -161,7 +224,7 @@ impl ObjectRenderer {
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
                         format: TextureResources::DEPTH_FORMAT,
-                        depth_write_enabled: true,
+                        depth_write_enabled: false,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
@@ -174,7 +237,7 @@ impl ObjectRenderer {
                     multiview: None,
                 });
 
-            opaque_curve_pipeline
+            opaque_point_pipeline
         };
 
         Self {
@@ -184,6 +247,7 @@ impl ObjectRenderer {
             globals_bind_group,
             surface_pipeline,
             curve_pipeline,
+            point_pipeline,
             output_buffer: OnceCell::new(),
         }
     }
@@ -276,6 +340,26 @@ impl ObjectRenderer {
                 render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
 
                 for object in scene.curves().iter() {
+                    let mesh = object.mesh();
+
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
+                    render_pass.set_index_buffer(
+                        mesh.index_buffer(device).slice(..),
+                        wgpu::IndexFormat::Uint32,
+                    );
+
+                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                }
+            }
+
+            // Render points
+            {
+                render_pass.set_pipeline(&self.point_pipeline);
+
+                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+
+                for object in scene.points().iter() {
                     let mesh = object.mesh();
 
                     render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));

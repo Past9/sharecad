@@ -234,17 +234,19 @@ impl ViewState {
 
             scene.set_curves(scene_curves);
 
-            let point_points = vec![vec![
-                point3(0.0, 0.0, -3.0),   //
-                point3(1.0, 1.0, -2.0),   //
-                point3(-1.0, 1.0, -2.0),  //
-                point3(1.0, -1.0, -2.0),  //
-                point3(-1.0, -1.0, -2.0), //
-            ]];
+            let point_points = vec![
+                vec![point3(0.0, 0.0, -3.0)],   //
+                vec![point3(1.0, 1.0, -2.0)],   //
+                vec![point3(-1.0, 1.0, -2.0)],  //
+                vec![point3(1.0, -1.0, -2.0)],  //
+                vec![point3(-1.0, -1.0, -2.0)], //
+            ];
 
             let point_width = 8.0;
 
             let point_material = scene.insert_point_material(PointMaterialSpec::default());
+
+            let mut point_ids = IdSeries::new();
 
             let scene_points = point_points
                 .into_iter()
@@ -261,7 +263,7 @@ impl ViewState {
                                 .collect::<Vec<_>>(),
                         ),
                         vec![PointInstance {
-                            id: PointInstanceId(0),
+                            id: point_ids.next(),
                             scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,

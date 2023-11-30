@@ -195,6 +195,7 @@ impl ScenePointInstance for PointInstance {
         PointInstanceRaw {
             position: position.transpose().into(),
             tint: self.tint.as_f32s(),
+            id: self.id.0,
         }
     }
 }
@@ -204,14 +205,17 @@ impl ScenePointInstance for PointInstance {
 pub struct PointInstanceRaw {
     pub position: [[f32; 4]; 4],
     pub tint: [f32; 4],
+    pub id: u32,
 }
 impl PointInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
         2 => Float32x4,
         3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
         6 => Float32x4,
+
+        7 => Uint32,
     ];
 }
 impl VertexBuffer for PointInstanceRaw {
