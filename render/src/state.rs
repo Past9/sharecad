@@ -8,11 +8,13 @@ use crate::{
         PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, SceneCurve, SceneCurveObject,
         ScenePoint, ScenePointObject, SurfaceInstance, SurfaceInstanceId,
     },
-    render::{MsaaSamples, PositionRenderer, RenderContext, RenderTarget, VisualRenderer},
-    scene::Scene,
+    render::{
+        MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
+    },
+    scene::{IdSeries, Scene},
 };
-use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use std::path::Path;
+use space::{deg, point3, vec3, Point2, Point3, Quat, Vec3};
+use std::{cell::RefCell, path::Path, rc::Rc};
 use wgpu::Surface;
 
 const NUM_X_INSTANCES: u32 = 3;
@@ -27,11 +29,13 @@ const SELECTED_POINT_TINT: Rgba = SELECTED_CURVE_TINT;
 pub struct ViewState {
     visual_renderer: VisualRenderer,
     position_renderer: PositionRenderer,
+    object_renderer: ObjectRenderer,
     camera_controller: CameraController,
     scene: Scene,
-    needs_position_update: bool,
     directional_lights: Vec<DirectionalLight>,
     pixels_per_point: f32,
+    needs_position_update: bool,
+    needs_object_update: bool,
 }
 impl ViewState {
     #[cfg(all(not(feature = "winit"), feature = "egui"))]
@@ -47,7 +51,7 @@ impl ViewState {
             render_state.queue.clone(),
         );
         let visual_render_target = render_context.render_into_memory(
-            (300, 300),
+            (1, 1),
             render_state.target_format,
             visual_texture_usage,
             MsaaSamples::Samples1,
@@ -94,6 +98,12 @@ impl ViewState {
     ) -> ViewState {
         let visual_renderer =
             VisualRenderer::new(&render_context, visual_render_target, msaa_samples);
+        let object_renderer = ObjectRenderer::new(render_context.render_into_memory(
+            visual_renderer.size(),
+            wgpu::TextureFormat::R32Uint,
+            None,
+            MsaaSamples::Samples1,
+        ));
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
             visual_renderer.size(),
             wgpu::TextureFormat::Rgba32Float,
@@ -115,14 +125,18 @@ impl ViewState {
         let scene = {
             let mut scene = Scene::new();
 
-            let mut last_id = 0;
+            let ids = Rc::new(RefCell::new(IdSeries::new()));
 
             let instances = (0..NUM_Z_INSTANCES)
                 .flat_map(|z| {
+                    let ids = ids.clone();
                     (0..NUM_Y_INSTANCES).flat_map(move |y| {
+                        let ids = ids.clone();
                         (0..NUM_X_INSTANCES).map(move |x| {
-                            last_id += 1;
-                            let id = SurfaceInstanceId(last_id);
+                            let id = ids.borrow_mut().next();
+                            //let id = ids.next();
+
+                            println!("surface instance id = {:?}", id);
 
                             let scale = vec3(1.0, 1.0, 1.0);
 
@@ -214,8 +228,6 @@ impl ViewState {
                 })
                 .collect::<Vec<Box<_>>>();
 
-            println!("curves {:#?}", scene_curves);
-
             scene.set_curves(scene_curves);
 
             let point_points = vec![vec![
@@ -271,12 +283,14 @@ impl ViewState {
 
         Self {
             visual_renderer,
+            object_renderer,
             position_renderer,
             camera_controller,
             scene,
-            needs_position_update: true,
             directional_lights,
             pixels_per_point,
+            needs_position_update: true,
+            needs_object_update: true,
         }
     }
 
@@ -284,11 +298,16 @@ impl ViewState {
         self.visual_renderer.target()
     }
 
+    pub fn object_target(&self) -> &RenderTarget {
+        self.object_renderer.target()
+    }
+
     pub fn resize(&mut self, new_size: (u32, u32)) -> bool {
         if new_size != self.visual_renderer.size() {
             self.visual_renderer.resize(new_size);
             self.position_renderer
                 .resize((new_size.0 / 10, new_size.1 / 10));
+            self.object_renderer.resize(new_size);
             self.camera_controller.resize(new_size);
             true
         } else {
@@ -297,6 +316,16 @@ impl ViewState {
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {
+        match event {
+            InputEvent::CursorMoved(point) => {
+                let id = self.get_surface_instance_id_at(point);
+                if id.0 > 0 {
+                    println!("hover {:?}", id);
+                }
+            }
+            _ => {}
+        };
+
         let result = self.camera_controller.process_events(event);
 
         for request in result.requests {
@@ -334,11 +363,13 @@ impl ViewState {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.visual_renderer
-            .render(&self.scene, self.camera_controller.camera())
-            .unwrap();
+        let camera = self.camera_controller.camera();
+
+        self.visual_renderer.render(&self.scene, camera).unwrap();
+        self.object_renderer.render(&self.scene, camera).unwrap();
 
         self.needs_position_update = true;
+        self.needs_object_update = true;
 
         Ok(())
     }
@@ -374,8 +405,42 @@ impl ViewState {
 
     fn render_position(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.needs_position_update {
-            self.position_renderer
+            match self
+                .position_renderer
                 .render(&self.scene, &self.camera_controller.camera())
+            {
+                Ok(_) => {
+                    self.needs_position_update = false;
+                    Ok(())
+                }
+                err @ Err(_) => err,
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    fn get_surface_instance_id_at(&mut self, coords: &Point2) -> SurfaceInstanceId {
+        self.render_object().unwrap();
+
+        let coords = (coords.x as u32, coords.y as u32);
+        let id = pollster::block_on(self.object_renderer.get_id_at(coords));
+
+        SurfaceInstanceId(id)
+    }
+
+    fn render_object(&mut self) -> Result<(), wgpu::SurfaceError> {
+        if self.needs_object_update {
+            match self
+                .object_renderer
+                .render(&self.scene, &self.camera_controller.camera())
+            {
+                Ok(_) => {
+                    self.needs_object_update = false;
+                    Ok(())
+                }
+                err @ Err(_) => err,
+            }
         } else {
             Ok(())
         }

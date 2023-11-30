@@ -1,3 +1,4 @@
+mod object;
 mod position;
 mod texture;
 mod visual;
@@ -9,6 +10,7 @@ use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 use wgpu::Surface;
 
+pub use object::*;
 pub use position::*;
 pub use visual::*;
 

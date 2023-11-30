@@ -147,9 +147,6 @@ impl SketchState {
             ]);
         }
 
-        println!("vertices = {:#?}", vertices);
-        println!("vertices.len() = {}", vertices.len());
-
         let indices = (1..points.len())
             .flat_map(|i| {
                 let i = (i as u32 - 1) * 4;
@@ -165,9 +162,6 @@ impl SketchState {
                 ]
             })
             .collect::<Vec<_>>();
-
-        println!("indices = {:?}", indices);
-        println!("indices.len() = {}", indices.len());
 
         //let (vertices, indices) = line.to_verts(&Stroke::new(0.02, deg(15.0)));
 

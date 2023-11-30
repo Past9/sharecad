@@ -179,10 +179,12 @@ impl SceneSurfaceInstance for SurfaceInstance {
         let model = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
+        println!("id = {:?}", self.id);
         SurfaceInstanceRaw {
             model: model.transpose().into(),
             normal: Mat33::from(self.rotation).transpose().into(),
             tint: self.tint.as_f32s(),
+            id: self.id.0,
         }
     }
 }
@@ -193,9 +195,10 @@ pub struct SurfaceInstanceRaw {
     pub model: [[f32; 4]; 4],
     pub normal: [[f32; 3]; 3],
     pub tint: [f32; 4],
+    pub id: u32,
 }
 impl SurfaceInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 9] = wgpu::vertex_attr_array![
         6 => Float32x4,
         7 => Float32x4,
         8 => Float32x4,
@@ -205,7 +208,8 @@ impl SurfaceInstanceRaw {
         11 => Float32x3,
         12 => Float32x3,
 
-        13 => Float32x4
+        13 => Float32x4,
+        14 => Uint32
     ];
 }
 impl VertexBuffer for SurfaceInstanceRaw {

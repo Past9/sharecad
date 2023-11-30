@@ -124,9 +124,6 @@ impl CurveMesh {
             })
             .collect::<Vec<_>>();
 
-        println!("vertices {:?}", vertices);
-        println!("indices {:?}", indices);
-
         Self {
             vertices,
             indices,

@@ -1,39 +1,38 @@
-use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
+use std::cell::OnceCell;
+
 use crate::{
     camera::{Camera, CameraRaw},
     model::{SurfaceInstanceRaw, SurfaceVertex},
     scene::Scene,
 };
-use space::{vec3, Point3, Vec3};
-use std::cell::OnceCell;
-use wgpu::util::DeviceExt;
 
-pub struct PositionRenderer {
+use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
+use wgpu::{util::DeviceExt, BlendState};
+
+const PIXEL_BYTES: u32 = 4;
+
+pub struct ObjectRenderer {
     target: RenderTarget,
-
     depth_texture: OnceCell<TextureResources>,
-
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-
-    render_pipeline: wgpu::RenderPipeline,
-
+    surface_pipeline: wgpu::RenderPipeline,
     output_buffer: OnceCell<wgpu::Buffer>,
 }
-impl PositionRenderer {
+impl ObjectRenderer {
     pub fn new(target: RenderTarget) -> Self {
         let device = target.device();
 
         let (camera_bind_group_layout, camera_bind_group, camera_buffer) = {
             let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Camera Buffer"),
+                label: Some("camera-buffer"),
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<CameraRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
             let camera_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("camera_bind_group_layout"),
+                    label: Some("camera-bind-group-layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -47,7 +46,7 @@ impl PositionRenderer {
                 });
 
             let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("camera_bind_group"),
+                label: Some("camera-bind-group"),
                 layout: &camera_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
@@ -58,20 +57,20 @@ impl PositionRenderer {
             (camera_bind_group_layout, camera_bind_group, camera_buffer)
         };
 
-        let render_pipeline = {
+        let surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Mesh Render Pipeline Layout"),
+                label: Some("object-surface-pipeline-layout"),
                 bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Visual shader"),
+                label: Some("object-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-            let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render pipeline"),
+            let surface_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("object-surface-pipeline"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -111,21 +110,21 @@ impl PositionRenderer {
                 multiview: None,
             });
 
-            render_pipeline
+            surface_pipeline
         };
 
         Self {
             target,
-
             depth_texture: OnceCell::new(),
-
-            camera_bind_group,
             camera_buffer,
-
-            render_pipeline,
-
+            camera_bind_group,
+            surface_pipeline,
             output_buffer: OnceCell::new(),
         }
+    }
+
+    pub fn target(&self) -> &RenderTarget {
+        &self.target
     }
 
     pub fn size(&self) -> (u32, u32) {
@@ -182,7 +181,7 @@ impl PositionRenderer {
                 ..Default::default()
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.surface_pipeline);
 
             for object in scene.surfaces().iter() {
                 let mesh = object.mesh();
@@ -223,11 +222,7 @@ impl PositionRenderer {
 
     fn output_buffer(&self) -> &wgpu::Buffer {
         self.output_buffer.get_or_init(|| {
-            let bytes_per_row = pad_u32(
-                self.target.format().block_size(None).unwrap() * self.target.size().0,
-                256,
-            );
-            let buffer_size = (bytes_per_row * self.target.size().1) as wgpu::BufferAddress;
+            let buffer_size = (self.bytes_per_row() * self.target.size().1) as wgpu::BufferAddress;
 
             let buffer_desc = wgpu::BufferDescriptor {
                 size: buffer_size,
@@ -240,8 +235,22 @@ impl PositionRenderer {
         })
     }
 
-    pub async fn visit_pixels<T>(&self, visitor: impl FnOnce(&[[f32; 4]]) -> T) -> T {
-        let output: T;
+    fn bytes_per_row(&self) -> u32 {
+        pad_u32(self.target.size().0 * PIXEL_BYTES, 256)
+    }
+
+    pub async fn get_id_at(&self, coords: (u32, u32)) -> u32 {
+        let (x, y) = coords;
+
+        if x >= self.target.size().0 {
+            return 0;
+        }
+
+        if y >= self.target.size().1 {
+            return 0;
+        }
+
+        let output: u32;
         let output_buffer = self.output_buffer();
 
         {
@@ -256,7 +265,7 @@ impl PositionRenderer {
 
             let data = buffer_slice.get_mapped_range();
 
-            let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
+            let (prefix, pixels, suffix) = unsafe { data.align_to::<u32>() };
 
             if prefix.len() > 0 {
                 panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
@@ -266,64 +275,14 @@ impl PositionRenderer {
                 panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
             }
 
-            output = visitor(pixels);
+            let (x, y) = coords;
+            let index = y * (self.bytes_per_row() / PIXEL_BYTES) + x;
+
+            output = pixels[index as usize];
         }
 
         output_buffer.unmap();
 
         output
-    }
-
-    pub async fn get_avg_pos(&self) -> Point3 {
-        let mut avg_pos = Vec3::ZERO;
-
-        // We need to scope the mapping variables so that we can
-        // unmap the buffer
-        let output_buffer = self.output_buffer();
-
-        {
-            let buffer_slice = self.output_buffer().slice(..);
-
-            // NOTE: We have to create the mapping THEN device.poll() before await
-            // the future. Otherwise the application will freeze.
-            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
-            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-                tx.send(result).unwrap();
-            });
-            self.target.context.device.poll(wgpu::Maintain::Wait);
-            rx.receive().await.unwrap().unwrap();
-
-            let data = buffer_slice.get_mapped_range();
-
-            let (prefix, pixels, suffix) = unsafe { data.align_to::<[f32; 4]>() };
-
-            if prefix.len() > 0 {
-                panic!("data len = {}, prefix: {:?}", pixels.len(), prefix);
-            }
-
-            if prefix.len() > 0 {
-                panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
-            }
-
-            let mut total_weight: f64 = 0.0;
-            for pixel in pixels.iter() {
-                if pixel[3] == 0.0 {
-                    continue;
-                }
-
-                let weight = 1.0; // TODO: Weighting function
-
-                avg_pos += vec3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64) * weight;
-                total_weight += weight;
-            }
-
-            if total_weight > 0.0 {
-                avg_pos = avg_pos / total_weight;
-            }
-        }
-
-        output_buffer.unmap();
-
-        avg_pos.into_point()
     }
 }

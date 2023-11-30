@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex2;
 
-const RENDER_LABEL: Option<&'static str> = Some("EguiTransfer");
+//const RENDER_LABEL: Option<&'static str> = Some("egui-transfer");
 
 const QUAD_VERTS: [Vertex2; 6] = [
     Vertex2 {
@@ -47,7 +47,7 @@ impl EguiTransfer {
 
         let (texture_bind_group_layout, texture_sampler, texture_bind_group) = {
             let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: RENDER_LABEL,
+                label: Some("egui-transfer-texture-bind-group-layout"),
                 entries: &[
                     // Texture
                     wgpu::BindGroupLayoutEntry {
@@ -87,7 +87,7 @@ impl EguiTransfer {
 
         let quad_buffer = {
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: RENDER_LABEL,
+                label: Some("egui-transfer-quad-buffer"),
                 contents: bytemuck::cast_slice(&QUAD_VERTS),
                 usage: wgpu::BufferUsages::VERTEX,
             })
@@ -95,18 +95,18 @@ impl EguiTransfer {
 
         let pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: RENDER_LABEL,
+                label: Some("egui-transfer-pipeline-layout"),
                 bind_group_layouts: &[&texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: RENDER_LABEL,
+                label: Some("egui-transfer-shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("./shader.wgsl").into()),
             });
 
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: RENDER_LABEL,
+                label: Some("egui-transfer-render-pipeline"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -176,7 +176,7 @@ impl EguiTransfer {
         texture_view: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: RENDER_LABEL,
+            label: Some("egui-transfer-texture-bind-group"),
             layout: &layout,
             entries: &[
                 wgpu::BindGroupEntry {
