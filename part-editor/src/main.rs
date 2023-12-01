@@ -7,6 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
+use geometry::Curve3;
 use render::{
     color::rgb,
     input::InputEvent,
@@ -57,9 +58,12 @@ fn main() -> Result<(), eframe::Error> {
     })
 }
 
-struct PartModel {}
+// BREP model
+struct PartModel {
+    edges: Vec<Curve3>,
+}
 impl PartModel {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(edges: Vec<Curve3>) -> Self {
+        Self { edges }
     }
 }

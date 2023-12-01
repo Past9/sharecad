@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
-use crate::{rad, vec2, Angle, Quat, Vec2};
+use crate::{rad, vec2, Angle, Quat, Vec2, Point3};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);

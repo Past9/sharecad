@@ -1,69 +1,44 @@
-mod arc;
-mod offset;
-mod segment;
+mod helix;
 
-use space::{Point2, Vec2};
+pub use helix::*;
+use space::{Point3, Vec3};
 
-pub use arc::*;
-pub use offset::*;
-pub use segment::*;
-
-pub enum Curve2 {
-    Arc(Arc),
-    Segment(Segment),
-    Offset(Offset),
+pub enum Curve3 {
+    Helix(Helix),
 }
-impl Curve2 {
-    pub fn is_offset(&self) -> bool {
-        match self {
-            Curve2::Offset(_) => true,
-            _ => false,
-        }
-    }
-}
-impl Curve2Impl for Curve2 {
+impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {
         match self {
-            Curve2::Arc(arc) => arc.u_min(),
-            Curve2::Segment(segment) => segment.u_min(),
-            Curve2::Offset(offset) => offset.u_min(),
+            Curve3::Helix(helix) => helix.u_min(),
         }
     }
 
     fn u_max(&self) -> f64 {
         match self {
-            Curve2::Arc(arc) => arc.u_max(),
-            Curve2::Segment(segment) => segment.u_max(),
-            Curve2::Offset(offset) => offset.u_max(),
+            Curve3::Helix(helix) => helix.u_max(),
         }
     }
 
-    fn eval(&self, u: f64) -> Point2 {
+    fn eval(&self, u: f64) -> Point3 {
         match self {
-            Curve2::Arc(arc) => arc.eval(u),
-            Curve2::Segment(segment) => segment.eval(u),
-            Curve2::Offset(offset) => offset.eval(u),
+            Curve3::Helix(helix) => helix.eval(u),
         }
     }
 
-    fn der1(&self, u: f64) -> Vec2 {
+    fn der1(&self, u: f64) -> Vec3 {
         match self {
-            Curve2::Arc(arc) => arc.der1(u),
-            Curve2::Segment(segment) => segment.der1(u),
-            Curve2::Offset(offset) => offset.der1(u),
+            Curve3::Helix(helix) => helix.der1(u),
         }
     }
 
-    fn der2(&self, u: f64) -> Vec2 {
+    fn der2(&self, u: f64) -> Vec3 {
         match self {
-            Curve2::Arc(arc) => arc.der2(u),
-            Curve2::Segment(segment) => segment.der2(u),
-            Curve2::Offset(offset) => offset.der2(u),
+            Curve3::Helix(helix) => helix.der2(u),
         }
     }
 }
 
-pub trait Curve2Impl {
+pub trait Curve3Impl {
     fn u_min(&self) -> f64;
     fn u_max(&self) -> f64;
 
@@ -71,41 +46,49 @@ pub trait Curve2Impl {
         self.u_max() - self.u_min()
     }
 
-    fn eval(&self, u: f64) -> Point2;
-    fn der1(&self, u: f64) -> Vec2;
-    fn der2(&self, u: f64) -> Vec2;
+    fn eval(&self, u: f64) -> Point3;
+    fn der1(&self, u: f64) -> Vec3;
+    fn der2(&self, u: f64) -> Vec3;
 
-    fn tangent(&self, u: f64) -> Vec2 {
+    fn tangent(&self, u: f64) -> Vec3 {
         self.der1(u).normalize()
-    }
-
-    fn normal(&self, u: f64) -> Vec2 {
-        self.tangent(u).orthogonal()
-    }
-
-    fn local_axes(&self, u: f64) -> (Vec2, Vec2) {
-        let tangent = self.tangent(u);
-        (-tangent.orthogonal(), tangent)
     }
 
     fn curvature(&self, u: f64) -> f64 {
         let der1 = self.der1(u);
-        let der2 = self.der2(u);
+        let der2 = self.der1(u);
 
-        let num = (der1.x * der2.y) - (der1.y * der2.x);
-        let den = der1.dot(der1).powf(1.5);
+        let num = der1.cross(der2).magnitude();
+        let den = der1.magnitude().powi(3);
 
         num / den
+    }
+
+    fn eval_sections(&self, chords: u32) -> Vec<Point3> {
+        let u_min = self.u_min();
+        let u_max = self.u_max();
+        let param_interval = self.u_len() / chords as f64;
+
+        let mut points = Vec::with_capacity(chords as usize + 1);
+        for i in 0..=chords {
+            let u = match i {
+                0 => u_min,
+                i if i == chords => u_max,
+                i => u_min + param_interval * i as f64,
+            };
+
+            points.push(self.eval(u));
+        }
+
+        points
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use space::{deg, vec2, Mat33};
-
     use super::*;
 
-    pub fn validate_der1<C: Curve2Impl>(curve: &C, samples: usize, tolerance: f64) {
+    pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
         for i in 0..samples {
             // Parameter deviation that we start checking each sample with
             let mut deviation = curve.u_len() / 10.0;
@@ -118,6 +101,9 @@ mod tests {
 
             // Flag for whether the approximated first derivative below gets close enough to actual_der1
             let mut converged = false;
+
+            // Last approximate derivative that does not contain NaNs
+            let mut last_notnan_approx = Vec3::ZERO;
 
             // Iteratively approximate the derivative by getting the vector between two points on the curve
             // centered around u, decreasing their distance from u each time.
@@ -133,6 +119,10 @@ mod tests {
                 // Approximate the derivative by getting a vector between those two points
                 // and scaling it by the parameter distance between them
                 let approx_der1 = (hi_pos - lo_pos) / (u_hi - u_lo);
+
+                if !approx_der1.has_nan() {
+                    last_notnan_approx = approx_der1;
+                }
 
                 // Get the difference between the exact derivative vector and the approximated one
                 let dist = (actual_der1 - approx_der1).magnitude();
@@ -150,12 +140,15 @@ mod tests {
 
             // Panic if we never got close enough to the exact derivative calculation.
             if !converged {
-                panic!("First derivative failed to converge at u = {}, possible incorrect der1(...) function", u);
+                panic!(
+                    "Derivative 1 @ u = {} is {}, only converged to {}, outside tolerance {}",
+                    u, actual_der1, last_notnan_approx, tolerance
+                );
             }
         }
     }
 
-    pub fn validate_der2<C: Curve2Impl>(curve: &C, samples: usize, tolerance: f64) {
+    pub fn validate_der2<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
         for i in 0..samples {
             // Parameter deviation that we start checking each sample with
             let mut deviation = curve.u_len() / 10.0;
@@ -168,6 +161,9 @@ mod tests {
 
             // Flag for whether the approximated second derivative below gets close enough to actual_der2
             let mut converged = false;
+
+            // Last approximate derivative that does not contain NaNs
+            let mut last_notnan_approx = Vec3::ZERO;
 
             // Iteratively approximate the second derivative by getting the vector between two first derivative
             // vectors on the curve centered around u, decreasing their distance from u each time.
@@ -182,10 +178,14 @@ mod tests {
 
                 // Approximate the second derivative by getting a vector between those two vectors
                 // and scaling it by the parameter distance between them
-                let approx_der1 = (hi_der1 - lo_der1) / (u_hi - u_lo);
+                let approx_der2 = (hi_der1 - lo_der1) / (u_hi - u_lo);
+
+                if !approx_der2.has_nan() {
+                    last_notnan_approx = approx_der2;
+                }
 
                 // Get the difference between the exact derivative vector and the approximated one
-                let dist = (actual_der2 - approx_der1).magnitude();
+                let dist = (actual_der2 - approx_der2).magnitude();
 
                 // If the distance is within tolerance, we consider the exact derivative
                 // calculation to be valid and stop iteration for this sample.
@@ -200,7 +200,10 @@ mod tests {
 
             // Panic if we never got close enough to the exact derivative calculation.
             if !converged {
-                panic!("Second derivative failed to converge at u = {}, possible incorrect der2(...) function", u);
+                panic!(
+                    "Derivative 2 @ u = {} is {}, only converged to {}, outside tolerance {}",
+                    u, actual_der2, last_notnan_approx, tolerance
+                );
             }
         }
     }

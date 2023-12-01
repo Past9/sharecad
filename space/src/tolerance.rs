@@ -1,4 +1,4 @@
-use crate::{Angle, Mat33, Point2, Vec2};
+use crate::{Angle, Mat33, Point2, Point3, Vec2, Vec3};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 
@@ -87,10 +87,27 @@ impl Coincidence<Vec2> for Vec2 {
     }
 }
 
+impl Coincidence<Vec3> for Vec3 {
+    /// To be considered geometrically coincident,
+    /// vectors are treated as points and those points
+    /// must be separated by a distance near `0.0`
+    fn cc(&self, other: Vec3) -> bool {
+        self.into_point().cc(other.into_point())
+    }
+}
+
 impl Coincidence<Point2> for Point2 {
     /// To be considered geometrically coincident,
     /// points must be separated by a distance near `0.0`
     fn cc(&self, other: Point2) -> bool {
+        within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
+    }
+}
+
+impl Coincidence<Point3> for Point3 {
+    /// To be considered geometrically coincident,
+    /// points must be separated by a distance near `0.0`
+    fn cc(&self, other: Point3) -> bool {
         within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
     }
 }

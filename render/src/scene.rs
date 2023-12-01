@@ -3,9 +3,9 @@ use crate::{
     light::{AmbientLight, DirectionalLight},
     model::{
         CurveMaterial, CurveMaterialId, CurveMaterialSpec, PointMaterial, PointMaterialId,
-        PointMaterialSpec, SceneCurve, ScenePoint, SceneSurface, SceneSurfaceInstance,
-        SceneSurfaceObject, SurfaceMaterial, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh,
-        SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
+        PointMaterialSpec, PolySurface, SceneCurve, ScenePoint, SceneSurface, SceneSurfaceInstance,
+        SurfaceMaterial, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec,
+        SurfaceVec3Spec, SurfaceVertex,
     },
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
@@ -556,7 +556,7 @@ impl Scene {
                 None => missing_material_id,
             };
 
-            let object = SceneSurfaceObject::new(mesh, instances[0].clone(), material_id);
+            let object = PolySurface::new(mesh, instances[0].clone(), material_id);
 
             self.surfaces.push(Box::new(object));
         }

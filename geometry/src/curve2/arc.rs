@@ -47,6 +47,11 @@ impl Curve2Impl for Arc {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        f64::consts::FRAC_PI_2,
+        f64::consts::{PI, TAU},
+    };
+
     use space::{assert_cc, deg, vec2, Coincidence};
 
     use crate::curve2::tests::{validate_der1, validate_der2};
@@ -62,12 +67,12 @@ mod tests {
             let u = i as f64 / samples as f64;
 
             println!("\n");
-            println!("der1 {}", arc.der1_normalized(u));
-            println!("tangent {}", arc.tangent_normalized(u));
-            println!("der2 {}", arc.der2_normalized(u));
-            println!("normal {}", arc.normal_normalized(u));
-            println!("der1 orth {}", arc.der1_normalized(u).orthogonal());
-            println!("tangent orth {}", arc.tangent_normalized(u).orthogonal());
+            println!("der1 {}", arc.der1(u));
+            println!("tangent {}", arc.tangent(u));
+            println!("der2 {}", arc.der2(u));
+            println!("normal {}", arc.normal(u));
+            println!("der1 orth {}", arc.der1(u).orthogonal());
+            println!("tangent orth {}", arc.tangent(u).orthogonal());
         }
     }
 
@@ -85,7 +90,7 @@ mod tests {
         for i in 0..=samples {
             let u = i as f64 / samples as f64;
 
-            println!("{}", arc.eval_normalized(u));
+            println!("{}", arc.eval(u));
         }
     }
 
@@ -93,13 +98,11 @@ mod tests {
     fn curvature() {
         let arc = arc(Mat33::IDENTITY, 2.0, 1.0);
 
-        println!("{}", arc.curvature_normalized(0.125));
-
-        assert_cc!(2.0, arc.curvature_normalized(0.0));
-        assert_cc!(0.25, arc.curvature_normalized(0.25));
-        assert_cc!(2.0, arc.curvature_normalized(0.5));
-        assert_cc!(0.25, arc.curvature_normalized(0.75));
-        assert_cc!(2.0, arc.curvature_normalized(1.0));
+        assert_cc!(2.0, arc.curvature(0.0));
+        assert_cc!(0.25, arc.curvature(TAU * 0.25));
+        assert_cc!(2.0, arc.curvature(TAU * 0.5));
+        assert_cc!(0.25, arc.curvature(TAU * 0.75));
+        assert_cc!(2.0, arc.curvature(TAU));
     }
 
     #[test]

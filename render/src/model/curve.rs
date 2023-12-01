@@ -21,13 +21,13 @@ pub struct CurvePoint {
 }
 
 #[derive(Debug)]
-pub struct SceneCurveObject<T: SceneCurveInstance> {
+pub struct PolyCurve<T: SceneCurveInstance> {
     pub mesh: CurveMesh,
     pub instances: Vec<T>,
     pub material_id: CurveMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: SceneCurveInstance> SceneCurveObject<T> {
+impl<T: SceneCurveInstance> PolyCurve<T> {
     pub fn new(mesh: CurveMesh, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
         Self {
             mesh,
@@ -37,7 +37,7 @@ impl<T: SceneCurveInstance> SceneCurveObject<T> {
         }
     }
 }
-impl<T: SceneCurveInstance> SceneCurve for SceneCurveObject<T> {
+impl<T: SceneCurveInstance> SceneCurve for PolyCurve<T> {
     fn mesh(&self) -> &CurveMesh {
         &self.mesh
     }

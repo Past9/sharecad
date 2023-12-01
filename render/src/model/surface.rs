@@ -16,13 +16,13 @@ pub trait SceneSurface: std::fmt::Debug {
 }
 
 #[derive(Debug)]
-pub struct SceneSurfaceObject<T: SceneSurfaceInstance> {
+pub struct PolySurface<T: SceneSurfaceInstance> {
     pub mesh: SurfaceMesh,
     pub instances: Vec<T>,
     pub material_id: SurfaceMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: SceneSurfaceInstance> SceneSurfaceObject<T> {
+impl<T: SceneSurfaceInstance> PolySurface<T> {
     pub fn new(mesh: SurfaceMesh, instances: Vec<T>, material_id: SurfaceMaterialId) -> Self {
         Self {
             mesh,
@@ -32,7 +32,7 @@ impl<T: SceneSurfaceInstance> SceneSurfaceObject<T> {
         }
     }
 }
-impl<T: SceneSurfaceInstance> SceneSurface for SceneSurfaceObject<T> {
+impl<T: SceneSurfaceInstance> SceneSurface for PolySurface<T> {
     fn mesh(&self) -> &SurfaceMesh {
         &self.mesh
     }

@@ -17,7 +17,7 @@ impl Quat {
 
     pub fn from_axis_angle(axis: Vec3, angle: Angle) -> Self {
         let (sin, cos) = (angle * 0.5).sin_cos();
-        Self::from_sv(cos, axis * sin)
+        Self::from_sv(cos, axis.normalize() * sin)
     }
 
     pub fn to_mat33(&self) -> Mat33 {

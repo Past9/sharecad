@@ -54,7 +54,7 @@ mod tests {
         for i in 0..=samples {
             let u = i as f64 / samples as f64;
 
-            println!("{}", segment.eval_normalized(u));
+            println!("{}", segment.eval(u));
         }
     }
 
@@ -117,8 +117,8 @@ mod tests {
     fn zero_curvature() {
         let segment = segment(point2(2.0, 2.0), point2(7.0, 4.0));
 
-        assert_cc!(0.0, segment.curvature_normalized(0.0));
-        assert_cc!(0.0, segment.curvature_normalized(0.5));
-        assert_cc!(0.0, segment.curvature_normalized(1.0));
+        assert_cc!(0.0, segment.curvature(0.0));
+        assert_cc!(0.0, segment.curvature(0.5));
+        assert_cc!(0.0, segment.curvature(1.0));
     }
 }

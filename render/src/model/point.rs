@@ -20,13 +20,13 @@ pub struct PointPoint {
 }
 
 #[derive(Debug)]
-pub struct ScenePointObject<T: ScenePointInstance> {
+pub struct PolyPoints<T: ScenePointInstance> {
     pub mesh: PointMesh,
     pub instances: Vec<T>,
     pub material_id: PointMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: ScenePointInstance> ScenePointObject<T> {
+impl<T: ScenePointInstance> PolyPoints<T> {
     pub fn new(mesh: PointMesh, instances: Vec<T>, material_id: PointMaterialId) -> Self {
         Self {
             mesh,
@@ -36,7 +36,7 @@ impl<T: ScenePointInstance> ScenePointObject<T> {
         }
     }
 }
-impl<T: ScenePointInstance> ScenePoint for ScenePointObject<T> {
+impl<T: ScenePointInstance> ScenePoint for PolyPoints<T> {
     fn mesh(&self) -> &PointMesh {
         &self.mesh
     }

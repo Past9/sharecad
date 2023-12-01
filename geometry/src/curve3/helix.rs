@@ -1,0 +1,114 @@
+use std::f64::consts::{PI, TAU};
+
+use space::{point3, vec3, Mat33, Point3, Quat, Vec3};
+
+use crate::Curve3Impl;
+
+pub struct Helix {
+    /// Radius of the helix
+    r: f64,
+    /// Axial length (not length along the helical curve)
+    /// of one complete revolution of the helix multiplied by 2PI
+    h: f64,
+    /// Number of revolutions of the helix
+    n: f64,
+    /// Translation the helix's origin point from the global origin
+    translation: Vec3,
+    /// Orientation of the helix
+    orientation: Quat,
+}
+impl Helix {
+    pub fn new(r: f64, h: f64, n: f64, translation: Vec3, orientation: Quat) -> Self {
+        Self {
+            r,
+            h,
+            n,
+            translation,
+            orientation,
+        }
+    }
+}
+impl Curve3Impl for Helix {
+    fn u_min(&self) -> f64 {
+        0.0
+    }
+
+    fn u_max(&self) -> f64 {
+        self.n * TAU
+    }
+
+    fn eval(&self, u: f64) -> Point3 {
+        self.orientation
+            * point3(
+                self.r * u.cos(), //
+                self.r * u.sin(), //
+                self.h * u,       //
+            )
+            + self.translation
+    }
+
+    fn der1(&self, u: f64) -> Vec3 {
+        self.orientation
+            * vec3(
+                -self.r * u.sin(), //
+                self.r * u.cos(),  //
+                self.h,            //
+            )
+    }
+
+    fn der2(&self, u: f64) -> Vec3 {
+        self.orientation
+            * vec3(
+                -self.r * u.cos(), //
+                -self.r * u.sin(), //
+                0.0,               //
+            )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{f64::consts::TAU, os::windows::fs::FileTypeExt};
+
+    use space::{assert_cc, deg, point3, vec3, Quat};
+
+    use crate::{
+        curve3::tests::{validate_der1, validate_der2},
+        Curve3Impl, Helix,
+    };
+
+    fn test_helix() -> Helix {
+        Helix::new(
+            1.0,
+            1.0 / TAU,
+            2.0,
+            vec3(1.0, 2.0, 3.0),
+            Quat::from_axis_angle(vec3(1.0, 0.0, 0.0), deg(90.0)),
+        )
+    }
+
+    #[test]
+    fn helix_points() {
+        let points = test_helix().eval_sections(8);
+
+        assert_cc!(point3(2.0, 2.0, 3.0), points[0]);
+        assert_cc!(point3(1.0, 1.75, 4.0), points[1]);
+        assert_cc!(point3(0.0, 1.5, 3.0), points[2]);
+        assert_cc!(point3(1.0, 1.25, 2.0), points[3]);
+        assert_cc!(point3(2.0, 1.0, 3.0), points[4]);
+        assert_cc!(point3(1.0, 0.75, 4.0), points[5]);
+        assert_cc!(point3(0.0, 0.5, 3.0), points[6]);
+        assert_cc!(point3(1.0, 0.25, 2.0), points[7]);
+        assert_cc!(point3(2.0, 0.0, 3.0), points[8]);
+    }
+
+    #[test]
+    fn helix_validate_der1() {
+        validate_der1(&test_helix(), 100, 1e-7);
+    }
+
+    #[test]
+    fn helix_validate_der2() {
+        validate_der2(&test_helix(), 100, 1e-7);
+    }
+}

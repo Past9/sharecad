@@ -81,6 +81,10 @@ impl Vec3 {
     pub fn to_f32s(&self) -> [f32; 3] {
         [self.x as f32, self.y as f32, self.z as f32]
     }
+
+    pub fn has_nan(&self) -> bool {
+        self.x.is_nan() || self.y.is_nan() || self.z.is_nan()
+    }
 }
 impl From<Point3> for Vec3 {
     fn from(point: Point3) -> Self {
