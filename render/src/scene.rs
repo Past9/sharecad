@@ -301,7 +301,7 @@ impl Scene {
         self.directional_lights.push(light);
     }
 
-    pub fn ambient_light(&mut self, light: AmbientLight) {
+    pub fn set_ambient_light(&mut self, light: AmbientLight) {
         self.ambient_lights.push(light);
     }
 

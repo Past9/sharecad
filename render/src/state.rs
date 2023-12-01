@@ -64,6 +64,14 @@ impl ViewState {
         )
     }
 
+    pub fn scene(&self) -> &Scene {
+        &self.scene
+    }
+
+    pub fn scene_mut(&mut self) -> &mut Scene {
+        &mut self.scene
+    }
+
     #[cfg(feature = "winit")]
     pub async fn new_on_window(
         window: &winit::window::Window,
@@ -276,7 +284,7 @@ impl ViewState {
 
             scene.set_points(scene_points);
 
-            scene.ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
+            scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
             scene
         };
