@@ -243,7 +243,7 @@ fn vs_curve(
     return out;
 }
 
-const POINT_WIDTH: f32 = 40.0; 
+const POINT_WIDTH: f32 = 30.0; 
 
 @vertex
 fn vs_point(
