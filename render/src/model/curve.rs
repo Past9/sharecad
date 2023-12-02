@@ -1,12 +1,9 @@
-use std::cell::OnceCell;
-
-use bytemuck::{Pod, Zeroable};
-use space::{Mat33, Mat44, Point3, Quat, Vec3};
-use wgpu::util::DeviceExt;
-
-use crate::{color::Rgba, render::VertexBuffer};
-
 use super::CurveMaterialId;
+use crate::render::VertexBuffer;
+use bytemuck::{Pod, Zeroable};
+use space::{Point3, Vec3};
+use std::cell::OnceCell;
+use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct SceneCurve {
@@ -28,24 +25,6 @@ impl SceneCurve {
     pub fn mesh(&self) -> &CurveMesh {
         &self.mesh
     }
-
-    /*
-    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        self.instance_buffer.get_or_init(|| {
-            let instance_data = self
-                .instances
-                .iter()
-                .map(|inst| inst.to_raw())
-                .collect::<Vec<_>>();
-
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        })
-    }
-     */
 
     pub fn material_id(&self) -> CurveMaterialId {
         self.material_id

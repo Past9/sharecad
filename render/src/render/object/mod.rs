@@ -1,18 +1,12 @@
-use std::cell::OnceCell;
-
-use crate::{
-    camera::Camera,
-    model::{
-        CurveVertexRaw, ModelInstance, ModelInstanceRaw, PointInstanceRaw, PointVertex,
-        SurfaceVertexRaw,
-    },
-    scene::Scene,
-};
-
 use super::{
     pad_u32, texture::TextureResources, GlobalsRaw, MsaaSamples, RenderTarget, VertexBuffer,
 };
-use bytemuck::{Pod, Zeroable};
+use crate::{
+    camera::Camera,
+    model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
+    scene::Scene,
+};
+use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
 const PIXEL_BYTES: u32 = 4;
@@ -200,7 +194,7 @@ impl ObjectRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_point",
-                        buffers: &[PointVertex::desc(), PointInstanceRaw::desc()],
+                        buffers: &[PointVertexRaw::desc(), ModelInstanceRaw::point_desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -368,19 +362,24 @@ impl ObjectRenderer {
             {
                 render_pass.set_pipeline(&self.point_pipeline);
 
-                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
-                for object in scene.points().iter() {
-                    let mesh = object.mesh();
+                for model in scene.models().iter() {
+                    for point in model.points().iter() {
+                        render_pass.set_vertex_buffer(0, point.vertex_buffer(device).slice(..));
+                        render_pass
+                            .set_vertex_buffer(1, model.point_instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            point.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
 
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                    render_pass.set_index_buffer(
-                        mesh.index_buffer(device).slice(..),
-                        wgpu::IndexFormat::Uint32,
-                    );
-
-                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                        render_pass.draw_indexed(
+                            0..point.num_elements(),
+                            0,
+                            0..model.num_instances(),
+                        );
+                    }
                 }
             }
         }

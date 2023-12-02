@@ -2,12 +2,12 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveMaterialSpec, CurveMesh, MaterialLibrary, ModelInstance, SceneCurve, SceneModel,
-        ScenePoints, SceneSurface, SurfaceId, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh,
-        SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex, SurfaceVertexRaw,
+        CurveMaterialSpec, CurveMesh, MaterialLibrary, ModelInstance, PointMaterialSpec,
+        SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
+        SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
     },
 };
-use space::{point2_f32s, point3, point3_f32s, vec3, vec3_f32s, Vec2, Vec3};
+use space::{point2_f32s, point3, point3_f32s, vec3_f32s, Vec2, Vec3};
 use std::{
     collections::HashMap,
     io::{BufReader, Cursor},
@@ -37,13 +37,7 @@ impl<T: From<u32>> IdSeries<T> {
 #[derive(Debug)]
 pub struct Scene {
     models: Vec<SceneModel>,
-
-    //surfaces: Vec<SceneSurface>,
-    //curves: Vec<SceneCurve>,
-    points: Vec<ScenePoints>,
-
     materials: MaterialLibrary,
-
     directional_lights: Vec<DirectionalLight>,
     ambient_lights: Vec<AmbientLight>,
 }
@@ -52,13 +46,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             models: vec![],
-
-            //surfaces: vec![],
-            //curves: vec![],
-            points: vec![],
-
             materials: MaterialLibrary::new(),
-
             directional_lights: vec![],
             ambient_lights: vec![],
         }
@@ -66,30 +54,6 @@ impl Scene {
 
     pub fn models(&self) -> &[SceneModel] {
         &self.models
-    }
-
-    /*
-    pub fn surfaces(&self) -> &[SceneSurface] {
-        &self.surfaces
-    }
-     */
-
-    /*
-    pub fn curves(&self) -> &[SceneCurve] {
-        &self.curves
-    }
-
-    pub fn set_curves(&mut self, curves: Vec<SceneCurve>) {
-        self.curves = curves;
-    }
-      */
-
-    pub fn points(&self) -> &[ScenePoints] {
-        &self.points
-    }
-
-    pub fn set_points(&mut self, points: Vec<ScenePoints>) {
-        self.points = points;
     }
 
     pub fn directional_lights(&self) -> &[DirectionalLight] {
@@ -124,12 +88,7 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
-    pub fn load_wavefront_obj_file(
-        &mut self,
-        file_path: &str,
-        instances: Vec<ModelInstance>,
-        pixels_per_point: f32,
-    ) {
+    pub fn load_wavefront_obj_file(&mut self, file_path: &str, instances: Vec<ModelInstance>) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
         let obj_text = Self::load_string(file_path);
@@ -278,156 +237,188 @@ impl Scene {
             material_id_map.insert(index, id);
         }
 
-        let mut surfaces = vec![];
+        let surfaces = {
+            let mut surfaces = vec![];
 
-        for m in models.into_iter() {
-            let mut vertices = (0..m.mesh.positions.len() / 3)
-                .map(|i| SurfaceVertex {
-                    position: point3_f32s(
-                        -m.mesh.positions[i * 3],
-                        m.mesh.positions[i * 3 + 1],
-                        m.mesh.positions[i * 3 + 2],
-                    ),
-                    tex_coords: point2_f32s(
-                        m.mesh.texcoords[i * 2],
-                        1.0 - m.mesh.texcoords[i * 2 + 1],
-                    ),
-                    normal: vec3_f32s(
-                        -m.mesh.normals[i * 3],
-                        m.mesh.normals[i * 3 + 1],
-                        m.mesh.normals[i * 3 + 2],
-                    ),
-                    tangent: Vec3::ZERO,
-                    bitangent: Vec3::ZERO,
-                    param_coords: Vec2::ZERO,
+            let mut surface_ids = IdSeries::new();
+
+            for m in models.into_iter() {
+                let mut vertices = (0..m.mesh.positions.len() / 3)
+                    .map(|i| SurfaceVertex {
+                        position: point3_f32s(
+                            -m.mesh.positions[i * 3],
+                            m.mesh.positions[i * 3 + 1],
+                            m.mesh.positions[i * 3 + 2],
+                        ),
+                        tex_coords: point2_f32s(
+                            m.mesh.texcoords[i * 2],
+                            1.0 - m.mesh.texcoords[i * 2 + 1],
+                        ),
+                        normal: vec3_f32s(
+                            -m.mesh.normals[i * 3],
+                            m.mesh.normals[i * 3 + 1],
+                            m.mesh.normals[i * 3 + 2],
+                        ),
+                        tangent: Vec3::ZERO,
+                        bitangent: Vec3::ZERO,
+                        param_coords: Vec2::ZERO,
+                    })
+                    .collect::<Vec<_>>();
+
+                let indices = &m.mesh.indices;
+                let mut triangles_included = vec![0; vertices.len()];
+
+                // Calculate tangents and bitangets. We're going to
+                // use the triangles, so we need to loop through the
+                // indices in chunks of 3
+                for c in indices.chunks(3) {
+                    let v0 = &vertices[c[0] as usize];
+                    let v1 = &vertices[c[1] as usize];
+                    let v2 = &vertices[c[2] as usize];
+
+                    let pos0: Vec3 = v0.position.into();
+                    let pos1: Vec3 = v1.position.into();
+                    let pos2: Vec3 = v2.position.into();
+
+                    let uv0: Vec2 = v0.tex_coords.into();
+                    let uv1: Vec2 = v1.tex_coords.into();
+                    let uv2: Vec2 = v2.tex_coords.into();
+
+                    // Calculate the edges of the triangle
+                    let delta_pos1 = pos1 - pos0;
+                    let delta_pos2 = pos2 - pos0;
+
+                    // This will give us a direction to calculate the
+                    // tangent and bitangent
+                    let delta_uv1 = uv1 - uv0;
+                    let delta_uv2 = uv2 - uv0;
+
+                    // Solving the following system of equations will
+                    // give us the tangent and bitangent.
+                    //     delta_pos1 = delta_uv1.x * T + delta_u.y * B
+                    //     delta_pos2 = delta_uv2.x * T + delta_uv2.y * B
+                    // Luckily, the place I found this equation provided
+                    // the solution!
+                    let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+                    let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
+                    // We flip the bitangent to enable right-handed normal
+                    // maps with wgpu texture coordinate system
+                    let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * -r;
+
+                    // We'll use the same tangent/bitangent for each vertex in the triangle
+                    vertices[c[0] as usize].tangent =
+                        tangent + Vec3::from(vertices[c[0] as usize].tangent);
+                    vertices[c[1] as usize].tangent =
+                        tangent + Vec3::from(vertices[c[1] as usize].tangent);
+                    vertices[c[2] as usize].tangent =
+                        tangent + Vec3::from(vertices[c[2] as usize].tangent);
+                    vertices[c[0] as usize].bitangent =
+                        bitangent + Vec3::from(vertices[c[0] as usize].bitangent);
+                    vertices[c[1] as usize].bitangent =
+                        bitangent + Vec3::from(vertices[c[1] as usize].bitangent);
+                    vertices[c[2] as usize].bitangent =
+                        bitangent + Vec3::from(vertices[c[2] as usize].bitangent);
+
+                    // Used to average the tangents/bitangents
+                    triangles_included[c[0] as usize] += 1;
+                    triangles_included[c[1] as usize] += 1;
+                    triangles_included[c[2] as usize] += 1;
+                }
+
+                // Average the tangents/bitangents
+                for (i, n) in triangles_included.into_iter().enumerate() {
+                    let denom = 1.0 / n as f64;
+                    let v = &mut vertices[i];
+                    v.tangent = Vec3::from(v.tangent) * denom;
+                    v.bitangent = Vec3::from(v.bitangent) * denom;
+                }
+
+                let mesh = SurfaceMesh::new(vertices, m.mesh.indices);
+
+                let material_id = match m.mesh.material_id {
+                    Some(index) => match material_id_map.get(&index) {
+                        Some(id) => *id,
+                        None => missing_material_id,
+                    },
+                    None => missing_material_id,
+                };
+
+                surfaces.push(SceneSurface::new(surface_ids.next(), mesh, material_id));
+            }
+
+            surfaces
+        };
+
+        let curves = {
+            // Create custom curves
+            let d = 1.37237;
+
+            let curve_points = vec![
+                vec![
+                    point3(d, -d, -2.0),  //
+                    point3(d, d, -2.0),   //
+                    point3(-d, d, -2.0),  //
+                    point3(-d, -d, -2.0), //
+                    point3(d, -d, -2.0),  //
+                ],
+                vec![
+                    point3(d, 2.0, -d),  //
+                    point3(d, 2.0, d),   //
+                    point3(-d, 2.0, d),  //
+                    point3(-d, 2.0, -d), //
+                    point3(d, 2.0, -d),  //
+                ],
+                vec![point3(0.0, 0.0, -3.0), point3(1.0, 1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(-1.0, 1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(1.0, -1.0, -2.0)],
+                vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
+            ];
+
+            let curve_material = self
+                .materials
+                .insert_curve_material(CurveMaterialSpec::default());
+
+            let mut curve_ids = IdSeries::new();
+
+            let curves = curve_points
+                .into_iter()
+                .map(|points| {
+                    SceneCurve::new(
+                        curve_ids.next(),
+                        CurveMesh::new(points),
+                        curve_material,
+                        1.5,
+                    )
                 })
                 .collect::<Vec<_>>();
 
-            let indices = &m.mesh.indices;
-            let mut triangles_included = vec![0; vertices.len()];
+            curves
+        };
 
-            // Calculate tangents and bitangets. We're going to
-            // use the triangles, so we need to loop through the
-            // indices in chunks of 3
-            for c in indices.chunks(3) {
-                let v0 = &vertices[c[0] as usize];
-                let v1 = &vertices[c[1] as usize];
-                let v2 = &vertices[c[2] as usize];
+        let points = {
+            let positions = vec![
+                point3(0.0, 0.0, -3.0),
+                point3(1.0, 1.0, -2.0),
+                point3(-1.0, 1.0, -2.0),
+                point3(1.0, -1.0, -2.0),
+                point3(-1.0, -1.0, -2.0),
+            ];
 
-                let pos0: Vec3 = v0.position.into();
-                let pos1: Vec3 = v1.position.into();
-                let pos2: Vec3 = v2.position.into();
+            let point_material = self
+                .materials
+                .insert_point_material(PointMaterialSpec::default());
 
-                let uv0: Vec2 = v0.tex_coords.into();
-                let uv1: Vec2 = v1.tex_coords.into();
-                let uv2: Vec2 = v2.tex_coords.into();
+            let mut point_ids = IdSeries::new();
 
-                // Calculate the edges of the triangle
-                let delta_pos1 = pos1 - pos0;
-                let delta_pos2 = pos2 - pos0;
+            let points = positions
+                .into_iter()
+                .map(|point| ScenePoint::new(point_ids.next(), point, point_material, 8.0))
+                .collect::<Vec<_>>();
 
-                // This will give us a direction to calculate the
-                // tangent and bitangent
-                let delta_uv1 = uv1 - uv0;
-                let delta_uv2 = uv2 - uv0;
-
-                // Solving the following system of equations will
-                // give us the tangent and bitangent.
-                //     delta_pos1 = delta_uv1.x * T + delta_u.y * B
-                //     delta_pos2 = delta_uv2.x * T + delta_uv2.y * B
-                // Luckily, the place I found this equation provided
-                // the solution!
-                let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
-                let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
-                // We flip the bitangent to enable right-handed normal
-                // maps with wgpu texture coordinate system
-                let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * -r;
-
-                // We'll use the same tangent/bitangent for each vertex in the triangle
-                vertices[c[0] as usize].tangent =
-                    tangent + Vec3::from(vertices[c[0] as usize].tangent);
-                vertices[c[1] as usize].tangent =
-                    tangent + Vec3::from(vertices[c[1] as usize].tangent);
-                vertices[c[2] as usize].tangent =
-                    tangent + Vec3::from(vertices[c[2] as usize].tangent);
-                vertices[c[0] as usize].bitangent =
-                    bitangent + Vec3::from(vertices[c[0] as usize].bitangent);
-                vertices[c[1] as usize].bitangent =
-                    bitangent + Vec3::from(vertices[c[1] as usize].bitangent);
-                vertices[c[2] as usize].bitangent =
-                    bitangent + Vec3::from(vertices[c[2] as usize].bitangent);
-
-                // Used to average the tangents/bitangents
-                triangles_included[c[0] as usize] += 1;
-                triangles_included[c[1] as usize] += 1;
-                triangles_included[c[2] as usize] += 1;
-            }
-
-            // Average the tangents/bitangents
-            for (i, n) in triangles_included.into_iter().enumerate() {
-                let denom = 1.0 / n as f64;
-                let v = &mut vertices[i];
-                v.tangent = Vec3::from(v.tangent) * denom;
-                v.bitangent = Vec3::from(v.bitangent) * denom;
-            }
-
-            let mesh = SurfaceMesh::new(vertices, m.mesh.indices);
-
-            let material_id = match m.mesh.material_id {
-                Some(index) => match material_id_map.get(&index) {
-                    Some(id) => *id,
-                    None => missing_material_id,
-                },
-                None => missing_material_id,
-            };
-
-            surfaces.push(SceneSurface::new(SurfaceId(1), mesh, material_id));
-        }
-
-        // Create custom curves
-        let d = 1.37237;
-
-        let curve_points = vec![
-            vec![
-                point3(d, -d, -2.0),  //
-                point3(d, d, -2.0),   //
-                point3(-d, d, -2.0),  //
-                point3(-d, -d, -2.0), //
-                point3(d, -d, -2.0),  //
-            ],
-            vec![
-                point3(d, 2.0, -d),  //
-                point3(d, 2.0, d),   //
-                point3(-d, 2.0, d),  //
-                point3(-d, 2.0, -d), //
-                point3(d, 2.0, -d),  //
-            ],
-            vec![point3(0.0, 0.0, -3.0), point3(1.0, 1.0, -2.0)],
-            vec![point3(0.0, 0.0, -3.0), point3(-1.0, 1.0, -2.0)],
-            vec![point3(0.0, 0.0, -3.0), point3(1.0, -1.0, -2.0)],
-            vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
-        ];
-
-        let curve_material = self
-            .materials
-            .insert_curve_material(CurveMaterialSpec::default());
-
-        let mut curve_ids = IdSeries::new();
-
-        let curves = curve_points
-            .into_iter()
-            .enumerate()
-            .map(|(i, points)| {
-                SceneCurve::new(
-                    curve_ids.next(),
-                    CurveMesh::new(points),
-                    curve_material,
-                    1.5,
-                )
-            })
-            .collect::<Vec<_>>();
+            points
+        };
 
         self.models
-            .push(SceneModel::new(surfaces, curves, vec![], instances));
+            .push(SceneModel::new(surfaces, curves, points, instances));
     }
 }

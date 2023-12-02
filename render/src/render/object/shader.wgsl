@@ -70,18 +70,22 @@ struct CurveVertexOut {
 }
 
 struct PointVertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) width: f32,
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) width: f32,
 }
 
-struct PointInstanceIn {
-    @location(2) position_matrix_0: vec4<f32>,
-    @location(3) position_matrix_1: vec4<f32>,
-    @location(4) position_matrix_2: vec4<f32>,
-    @location(5) position_matrix_3: vec4<f32>,
-    @location(6) tint: vec4<f32>,
+struct PointModelInstance {
+    @location(3) id: u32,
 
-    @location(7) id: u32 
+    @location(4) position_matrix_0: vec4<f32>,
+    @location(5) position_matrix_1: vec4<f32>,
+    @location(6) position_matrix_2: vec4<f32>,
+    @location(7) position_matrix_3: vec4<f32>,
+
+    @location(8) direction_matrix_0: vec3<f32>,
+    @location(9) direction_matrix_1: vec3<f32>,
+    @location(10) direction_matrix_2: vec3<f32>,
 };
 
 struct PointVertexOut {
@@ -91,7 +95,8 @@ struct PointVertexOut {
     @location(1) ss_pixel_size: vec2<f32>,
     @location(2) uv: vec2<f32>,
     @location(3) width: f32,
-    @location(4) id: u32
+    @location(4) point_id: u32,
+    @location(5) model_id: u32,
 }
 
 @group(0) @binding(0)
@@ -251,8 +256,8 @@ const POINT_WIDTH: f32 = 30.0;
 @vertex
 fn vs_point(
     @builtin(vertex_index) v_idx: u32,
-    model: PointVertexIn,
-    instance: PointInstanceIn,
+    in: PointVertexIn,
+    model_instance: PointModelInstance,
 ) -> PointVertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
@@ -261,13 +266,13 @@ fn vs_point(
     var out: PointVertexOut;
 
     let position_matrix = mat4x4<f32>(
-        instance.position_matrix_0,
-        instance.position_matrix_1,
-        instance.position_matrix_2,
-        instance.position_matrix_3,
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
     );
 
-    let world_pos = position_matrix * vec4(model.position, 1.0);
+    let world_pos = position_matrix * vec4(in.position, 1.0);
 
     // Transform the start and end points into clip space
     let clip_pos = globals.camera.view_proj * world_pos;
@@ -305,8 +310,10 @@ fn vs_point(
     out.ss_half_width = ss_half_width;
     out.ss_pixel_size = ss_pixel_size;
     out.uv = uv;
-    out.width = model.width;
-    out.id = instance.id;
+    out.width = in.width;
+
+    out.point_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }
@@ -409,7 +416,7 @@ fn fs_point(
     out.depth = z / w;
 
     // Bitshift the ID left two places, then add the type identifier for surfaces (0b11)
-    out.id = (in.id << u32(2)) | u32(3);
+    out.id = (in.point_id << u32(2)) | u32(3);
 
     return out;
 }

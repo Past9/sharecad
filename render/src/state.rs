@@ -3,18 +3,14 @@ use crate::{
     color::{rgb, rgba, Rgba},
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
-    model::{
-        CurveId, CurveMaterialSpec, CurveMesh, GeometryId, ModelId, ModelInstance, PointId,
-        PointInstance, PointMaterialSpec, PointMesh, PointPoint, SceneCurve, ScenePoints,
-        SurfaceId,
-    },
+    model::{GeometryId, ModelId, ModelInstance},
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
     },
-    scene::{IdSeries, Scene},
+    scene::Scene,
 };
 use space::{deg, point3, vec3, Point2, Point3, Quat, Vec3};
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::path::Path;
 use wgpu::Surface;
 
 const NUM_X_INSTANCES: u32 = 3;
@@ -145,11 +141,6 @@ impl ViewState {
                                 SPACE_BETWEEN * (z as f64 - NUM_Z_INSTANCES as f64 / 2.0 + 0.5),
                             );
 
-                            let tint = match x % 2 == 1 || y % 2 == 1 || z % 2 == 1 {
-                                true => SELECTED_SURFACE_TINT,
-                                false => Rgba::TRANSPARENT,
-                            };
-
                             ModelInstance {
                                 id: ModelId(1),
                                 rotation,
@@ -165,117 +156,7 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file(path_str, instances, pixels_per_point);
-
-            let d = 1.37237;
-
-            let curve_points = vec![
-                vec![
-                    point3(d, -d, -2.0),  //
-                    point3(d, d, -2.0),   //
-                    point3(-d, d, -2.0),  //
-                    point3(-d, -d, -2.0), //
-                    point3(d, -d, -2.0),  //
-                ],
-                vec![
-                    point3(d, 2.0, -d),  //
-                    point3(d, 2.0, d),   //
-                    point3(-d, 2.0, d),  //
-                    point3(-d, 2.0, -d), //
-                    point3(d, 2.0, -d),  //
-                ],
-                vec![point3(0.0, 0.0, -3.0), point3(1.0, 1.0, -2.0)],
-                vec![point3(0.0, 0.0, -3.0), point3(-1.0, 1.0, -2.0)],
-                vec![point3(0.0, 0.0, -3.0), point3(1.0, -1.0, -2.0)],
-                vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
-            ];
-
-            /*
-            let curve_width = 1.0;
-
-            let curve_material = scene
-                .materials_mut()
-                .insert_curve_material(CurveMaterialSpec::default());
-
-            let mut curve_ids = IdSeries::new();
-
-            let scene_curves = curve_points
-                .into_iter()
-                .enumerate()
-                .map(|(i, points)| {
-                    SceneCurve::new(
-                        CurveMesh::new(
-                            points
-                                .into_iter()
-                                .map(|p| CurvePoint {
-                                    position: p,
-                                    width: curve_width * pixels_per_point,
-                                })
-                                .collect::<Vec<_>>(),
-                        ),
-                        vec![CurveInstance {
-                            id: curve_ids.next(),
-                            rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                            position: Vec3::ZERO,
-                            tint: match i % 2 == 1 {
-                                true => SELECTED_CURVE_TINT,
-                                false => Rgba::TRANSPARENT,
-                            },
-                        }],
-                        curve_material,
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            println!("scene_curves = {:#?}", scene_curves);
-
-            scene.set_curves(scene_curves);
-             */
-
-            let point_points = vec![
-                vec![point3(0.0, 0.0, -3.0)],   //
-                vec![point3(1.0, 1.0, -2.0)],   //
-                vec![point3(-1.0, 1.0, -2.0)],  //
-                vec![point3(1.0, -1.0, -2.0)],  //
-                vec![point3(-1.0, -1.0, -2.0)], //
-            ];
-
-            let point_width = 8.0;
-
-            let point_material = scene
-                .materials_mut()
-                .insert_point_material(PointMaterialSpec::default());
-
-            let mut point_ids = IdSeries::new();
-
-            let scene_points = point_points
-                .into_iter()
-                .enumerate()
-                .map(|(i, points)| {
-                    ScenePoints::new(
-                        PointMesh::new(
-                            points
-                                .into_iter()
-                                .map(|p| PointPoint {
-                                    position: p,
-                                    width: point_width * pixels_per_point,
-                                })
-                                .collect::<Vec<_>>(),
-                        ),
-                        vec![PointInstance {
-                            id: point_ids.next(),
-                            scale: vec3(1.0, 1.0, 1.0),
-                            rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                            position: Vec3::ZERO,
-                            tint: SELECTED_POINT_TINT,
-                        }],
-                        point_material,
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            scene.set_points(scene_points);
-
+            scene.load_wavefront_obj_file(path_str, instances);
             scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
             scene

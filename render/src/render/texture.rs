@@ -1,8 +1,6 @@
-use image::GenericImageView;
-
-use crate::texture::TextureImage;
-
 use super::MsaaSamples;
+use crate::texture::TextureImage;
+use image::GenericImageView;
 
 #[derive(Debug)]
 pub(super) struct TextureResources {

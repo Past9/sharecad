@@ -4,9 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use space::{Mat33, Mat44, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-use crate::render::VertexBuffer;
-
-use super::{SceneCurve, ScenePoints, SceneSurface};
+use super::{SceneCurve, ScenePoint, SceneSurface};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ModelId(pub u32);
@@ -20,16 +18,17 @@ impl From<u32> for ModelId {
 pub struct SceneModel {
     surfaces: Vec<SceneSurface>,
     curves: Vec<SceneCurve>,
-    points: Vec<ScenePoints>,
+    points: Vec<ScenePoint>,
     instances: Vec<ModelInstance>,
     surface_instance_buffer: OnceCell<wgpu::Buffer>,
     curve_instance_buffer: OnceCell<wgpu::Buffer>,
+    point_instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl SceneModel {
     pub fn new(
         surfaces: Vec<SceneSurface>,
         curves: Vec<SceneCurve>,
-        points: Vec<ScenePoints>,
+        points: Vec<ScenePoint>,
         instances: Vec<ModelInstance>,
     ) -> Self {
         Self {
@@ -39,6 +38,7 @@ impl SceneModel {
             instances,
             surface_instance_buffer: OnceCell::new(),
             curve_instance_buffer: OnceCell::new(),
+            point_instance_buffer: OnceCell::new(),
         }
     }
 
@@ -50,7 +50,7 @@ impl SceneModel {
         &self.curves
     }
 
-    pub fn points(&self) -> &[ScenePoints] {
+    pub fn points(&self) -> &[ScenePoint] {
         &self.points
     }
 
@@ -59,6 +59,7 @@ impl SceneModel {
     }
 
     pub fn surface_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        // TODO: Can these be consolidated?
         self.surface_instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
@@ -75,7 +76,25 @@ impl SceneModel {
     }
 
     pub fn curve_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        // TODO: Can these be consolidated?
         self.curve_instance_buffer.get_or_init(|| {
+            let instance_data = self
+                .instances
+                .iter()
+                .map(|inst| inst.to_raw())
+                .collect::<Vec<_>>();
+
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            })
+        })
+    }
+
+    pub fn point_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        // TODO: Can these be consolidated?
+        self.point_instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
                 .iter()
@@ -130,7 +149,7 @@ impl ModelInstanceRaw {
 
         12 => Float32x3,
         13 => Float32x3,
-        14=> Float32x3,
+        14 => Float32x3,
     ];
 
     const CURVE_ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
@@ -146,6 +165,19 @@ impl ModelInstanceRaw {
         11 => Float32x3,
     ];
 
+    const POINT_ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
+        3 => Uint32,
+
+        4 => Float32x4,
+        5 => Float32x4,
+        6 => Float32x4,
+        7 => Float32x4,
+
+        8 => Float32x3,
+        9 => Float32x3,
+        10 => Float32x3,
+    ];
+
     pub fn surface_desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<ModelInstanceRaw>() as wgpu::BufferAddress,
@@ -159,6 +191,14 @@ impl ModelInstanceRaw {
             array_stride: std::mem::size_of::<ModelInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::CURVE_ATTRIBS,
+        }
+    }
+
+    pub fn point_desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<ModelInstanceRaw>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::POINT_ATTRIBS,
         }
     }
 }

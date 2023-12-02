@@ -72,16 +72,22 @@ struct CurveVertexOut {
 }
 
 struct PointVertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) width: f32,
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) width: f32,
 }
 
-struct PointInstanceIn {
-    @location(2) position_matrix_0: vec4<f32>,
-    @location(3) position_matrix_1: vec4<f32>,
-    @location(4) position_matrix_2: vec4<f32>,
-    @location(5) position_matrix_3: vec4<f32>,
-    @location(6) tint: vec4<f32>
+struct PointModelInstance {
+    @location(3) id: u32,
+
+    @location(4) position_matrix_0: vec4<f32>,
+    @location(5) position_matrix_1: vec4<f32>,
+    @location(6) position_matrix_2: vec4<f32>,
+    @location(7) position_matrix_3: vec4<f32>,
+
+    @location(8) direction_matrix_0: vec3<f32>,
+    @location(9) direction_matrix_1: vec3<f32>,
+    @location(10) direction_matrix_2: vec3<f32>,
 };
 
 struct PointVertexOut {
@@ -91,7 +97,6 @@ struct PointVertexOut {
     @location(1) ss_pixel_size: vec2<f32>,
     @location(2) uv: vec2<f32>,
     @location(3) width: f32,
-    @location(4) tint: vec4<f32>
 }
 
 @group(1) @binding(0)
@@ -261,23 +266,23 @@ fn vs_curve(
 @vertex
 fn vs_point(
     @builtin(vertex_index) v_idx: u32,
-    model: PointVertexIn,
-    instance: PointInstanceIn,
+    in: PointVertexIn,
+    model_instance: PointModelInstance,
 ) -> PointVertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
-    let half_width = model.width / 2.0;
+    let half_width = in.width / 2.0;
 
     var out: PointVertexOut;
 
     let position_matrix = mat4x4<f32>(
-        instance.position_matrix_0,
-        instance.position_matrix_1,
-        instance.position_matrix_2,
-        instance.position_matrix_3,
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
     );
 
-    let world_pos = position_matrix * vec4(model.position, 1.0);
+    let world_pos = position_matrix * vec4(in.position, 1.0);
 
     // Transform the start and end points into clip space
     let clip_pos = globals.camera.view_proj * world_pos;
@@ -315,8 +320,7 @@ fn vs_point(
     out.ss_half_width = ss_half_width;
     out.ss_pixel_size = ss_pixel_size;
     out.uv = uv;
-    out.width = model.width;
-    out.tint = instance.tint;
+    out.width = in.width;
 
     return out;
 }
@@ -470,7 +474,8 @@ fn fs_opaque_point(
     var color = vec3(0.0, 0.0, 0.0);
 
     // Apply tint
-    color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);
+    let tint = vec4(0.0, 0.0, 0.0, 0.0);
+    color = (1.0 - tint.a) * color + (tint.rgb * tint.a);
 
     var out: FsOpaquePointOut;
 

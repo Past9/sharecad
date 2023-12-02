@@ -1,10 +1,10 @@
 use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
-use space::{Mat33, Mat44, Point2, Point3, Quat, Vec2, Vec3};
+use space::{Point2, Point3, Vec2, Vec3};
 use wgpu::util::DeviceExt;
 
-use crate::{color::Rgba, render::VertexBuffer};
+use crate::render::VertexBuffer;
 
 use super::SurfaceMaterialId;
 
@@ -163,56 +163,3 @@ impl VertexBuffer for SurfaceVertexRaw {
         }
     }
 }
-
-/*
-#[derive(Debug, Clone)]
-pub struct SurfaceInstance {
-    pub rotation: Quat,
-    pub position: Vec3,
-    pub tint: Rgba,
-}
-impl SurfaceInstance {
-    fn to_raw(&self) -> SurfaceInstanceRaw {
-        let model = Mat44::translation(self.position) * Mat44::from(self.rotation);
-        SurfaceInstanceRaw {
-            model: model.transpose().into(),
-            normal: Mat33::from(self.rotation).transpose().into(),
-            tint: self.tint.as_f32s(),
-        }
-    }
-}
- */
-
-/*
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-pub struct SurfaceInstanceRaw {
-    pub model: [[f32; 4]; 4],
-    pub normal: [[f32; 3]; 3],
-    pub tint: [f32; 4],
-}
-impl SurfaceInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
-        6 => Float32x4,
-        7 => Float32x4,
-        8 => Float32x4,
-        9 => Float32x4,
-
-        10 => Float32x3,
-        11 => Float32x3,
-        12 => Float32x3,
-
-        13 => Float32x4,
-    ];
-}
-impl VertexBuffer for SurfaceInstanceRaw {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<SurfaceInstanceRaw>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBS,
-        }
-    }
-}
- */

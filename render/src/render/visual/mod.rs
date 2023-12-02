@@ -3,19 +3,17 @@ use super::{
     MAX_AMBIENT_LIGHTS, MAX_DIRECTIONAL_LIGHTS,
 };
 use crate::{
-    camera::{Camera, CameraRaw},
+    camera::Camera,
     light::{AmbientLightRaw, DirectionalLightRaw},
     model::{
-        CurveMaterial, CurveMaterialId, CurveVertexRaw, ModelInstanceRaw, PointInstanceRaw,
-        PointMaterial, PointMaterialId, PointVertex, SurfaceMaterial, SurfaceMaterialId,
-        SurfaceVertexRaw,
+        CurveMaterial, CurveMaterialId, CurveVertexRaw, ModelInstanceRaw, PointMaterial,
+        PointMaterialId, PointVertexRaw, SurfaceMaterial, SurfaceMaterialId, SurfaceVertexRaw,
     },
     scene::Scene,
     texture::{Texture, TextureId},
     vertex::Vertex2,
 };
-use bytemuck::{Pod, Zeroable};
-use std::{cell::OnceCell, cmp::min, collections::HashMap};
+use std::{cell::OnceCell, collections::HashMap};
 use wgpu::util::DeviceExt;
 
 const DIRECTIONAL_LIGHT_UNIFORM_SIZE: u32 =
@@ -604,7 +602,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_point",
-                        buffers: &[PointVertex::desc(), PointInstanceRaw::desc()],
+                        buffers: &[PointVertexRaw::desc(), ModelInstanceRaw::point_desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -1168,29 +1166,32 @@ impl VisualRenderer {
 
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
 
-                    for object in scene.points().iter() {
-                        let mesh = object.mesh();
+                    for model in scene.models().iter() {
+                        for point in model.points().iter() {
+                            render_pass.set_vertex_buffer(0, point.vertex_buffer(device).slice(..));
+                            render_pass.set_vertex_buffer(
+                                1,
+                                model.point_instance_buffer(device).slice(..),
+                            );
+                            render_pass.set_index_buffer(
+                                point.index_buffer(device).slice(..),
+                                wgpu::IndexFormat::Uint32,
+                            );
 
-                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                        render_pass.set_index_buffer(
-                            mesh.index_buffer(device).slice(..),
-                            wgpu::IndexFormat::Uint32,
-                        );
+                            render_pass.set_bind_group(
+                                0,
+                                self.point_material_bind_groups
+                                    .get(&point.material_id())
+                                    .unwrap(),
+                                &[],
+                            );
 
-                        render_pass.set_bind_group(
-                            0,
-                            self.point_material_bind_groups
-                                .get(&object.material_id())
-                                .unwrap(),
-                            &[],
-                        );
-
-                        render_pass.draw_indexed(
-                            0..mesh.num_elements(),
-                            0,
-                            0..object.num_instances(),
-                        );
+                            render_pass.draw_indexed(
+                                0..point.num_elements(),
+                                0,
+                                0..model.num_instances(),
+                            );
+                        }
                     }
                 }
             }

@@ -8,7 +8,6 @@ pub use curve::*;
 pub use material::*;
 pub use model::*;
 pub use point::*;
-use space::{Quat, Vec3};
 pub use surface::*;
 
 #[derive(Debug, Copy, Clone)]
