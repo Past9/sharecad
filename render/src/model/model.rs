@@ -20,9 +20,7 @@ pub struct SceneModel {
     curves: Vec<SceneCurve>,
     points: Vec<ScenePoint>,
     instances: Vec<ModelInstance>,
-    surface_instance_buffer: OnceCell<wgpu::Buffer>,
-    curve_instance_buffer: OnceCell<wgpu::Buffer>,
-    point_instance_buffer: OnceCell<wgpu::Buffer>,
+    instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl SceneModel {
     pub fn new(
@@ -36,9 +34,7 @@ impl SceneModel {
             curves,
             points,
             instances,
-            surface_instance_buffer: OnceCell::new(),
-            curve_instance_buffer: OnceCell::new(),
-            point_instance_buffer: OnceCell::new(),
+            instance_buffer: OnceCell::new(),
         }
     }
 
@@ -57,44 +53,8 @@ impl SceneModel {
     pub fn instances(&self) -> &[ModelInstance] {
         &self.instances
     }
-
-    pub fn surface_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        // TODO: Can these be consolidated?
-        self.surface_instance_buffer.get_or_init(|| {
-            let instance_data = self
-                .instances
-                .iter()
-                .map(|inst| inst.to_raw())
-                .collect::<Vec<_>>();
-
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        })
-    }
-
-    pub fn curve_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        // TODO: Can these be consolidated?
-        self.curve_instance_buffer.get_or_init(|| {
-            let instance_data = self
-                .instances
-                .iter()
-                .map(|inst| inst.to_raw())
-                .collect::<Vec<_>>();
-
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        })
-    }
-
-    pub fn point_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        // TODO: Can these be consolidated?
-        self.point_instance_buffer.get_or_init(|| {
+    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
                 .iter()

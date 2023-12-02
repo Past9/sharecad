@@ -312,8 +312,7 @@ impl ObjectRenderer {
                 for model in scene.models().iter() {
                     for surface in model.surfaces().iter() {
                         render_pass.set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
-                        render_pass
-                            .set_vertex_buffer(1, model.surface_instance_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                         render_pass.set_index_buffer(
                             surface.index_buffer(device).slice(..),
                             wgpu::IndexFormat::Uint32,
@@ -342,8 +341,7 @@ impl ObjectRenderer {
                 for model in scene.models().iter() {
                     for curve in model.curves().iter() {
                         render_pass.set_vertex_buffer(0, curve.vertex_buffer(device).slice(..));
-                        render_pass
-                            .set_vertex_buffer(1, model.curve_instance_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                         render_pass.set_index_buffer(
                             curve.index_buffer(device).slice(..),
                             wgpu::IndexFormat::Uint32,
@@ -367,8 +365,7 @@ impl ObjectRenderer {
                 for model in scene.models().iter() {
                     for point in model.points().iter() {
                         render_pass.set_vertex_buffer(0, point.vertex_buffer(device).slice(..));
-                        render_pass
-                            .set_vertex_buffer(1, model.point_instance_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                         render_pass.set_index_buffer(
                             point.index_buffer(device).slice(..),
                             wgpu::IndexFormat::Uint32,
