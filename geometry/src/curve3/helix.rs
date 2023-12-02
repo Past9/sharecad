@@ -4,6 +4,7 @@ use space::{point3, vec3, Mat33, Point3, Quat, Vec3};
 
 use crate::Curve3Impl;
 
+#[derive(Debug)]
 pub struct Helix {
     /// Radius of the helix
     r: f64,

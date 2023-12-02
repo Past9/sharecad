@@ -199,7 +199,6 @@ pub trait SceneCurveInstance: std::fmt::Debug + Clone + 'static {
 #[derive(Debug, Clone)]
 pub struct CurveInstance {
     pub id: CurveInstanceId,
-    pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
     pub tint: Rgba,
@@ -212,9 +211,7 @@ impl SceneCurveInstance for CurveInstance {
     }
 
     fn to_raw(&self) -> Self::RawBuffer {
-        let position = Mat44::translation(self.position)
-            * Mat44::from(self.rotation)
-            * Mat44::scale(self.scale);
+        let position = Mat44::translation(self.position) * Mat44::from(self.rotation);
         CurveInstanceRaw {
             position: position.transpose().into(),
             direction: Mat33::from(self.rotation).transpose().into(),

@@ -7,15 +7,23 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::Curve3;
+use geometry::{Curve3, Curve3Impl};
 use render::{
-    color::rgb,
+    color::{rgb, Rgba},
     input::InputEvent,
     light::AmbientLight,
+    model::{
+        CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, PolyCurve,
+        SceneCurve,
+    },
     render::{EguiTransfer, MsaaSamples},
     state::ViewState,
 };
-use std::sync::{Arc, Mutex};
+use space::{deg, Point3, Quat, Vec3};
+use std::{
+    cell::OnceCell,
+    sync::{Arc, Mutex},
+};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -60,10 +68,81 @@ fn main() -> Result<(), eframe::Error> {
 
 // BREP model
 struct PartModel {
-    edges: Vec<Curve3>,
+    curves: Vec<Curve3>,
 }
 impl PartModel {
-    pub fn new(edges: Vec<Curve3>) -> Self {
-        Self { edges }
+    pub fn new(curves: Vec<Curve3>) -> Self {
+        Self { curves }
+    }
+}
+
+#[derive(Debug)]
+struct ModelCurve {
+    curve: Curve3,
+    translation: Vec3,
+    orientation: Quat,
+
+    poly_curve: OnceCell<PolyCurve<CurveInstance>>,
+}
+impl ModelCurve {
+    const NUM_SEGMENTS: u32 = 100;
+
+    fn u_min(&self) -> f64 {
+        self.curve.u_min()
+    }
+
+    fn u_max(&self) -> f64 {
+        self.curve.u_max()
+    }
+
+    fn u_len(&self) -> f64 {
+        self.curve.u_len()
+    }
+
+    pub fn eval(&self, u: f64) -> Point3 {
+        self.orientation * self.curve.eval(u) + self.translation
+    }
+
+    pub fn der1(&self, u: f64) -> Vec3 {
+        self.orientation * self.curve.der1(u)
+    }
+
+    pub fn der2(&self, u: f64) -> Vec3 {
+        self.orientation * self.curve.der2(u)
+    }
+
+    fn poly_curve(&self) -> &PolyCurve<CurveInstance> {
+        self.poly_curve.get_or_init(|| {
+            let u_min = self.u_min();
+            let u_max = self.u_max();
+            let param_interval = self.u_len() / Self::NUM_SEGMENTS as f64;
+
+            let mut points = Vec::with_capacity(Self::NUM_SEGMENTS as usize + 1);
+            for i in 0..=Self::NUM_SEGMENTS {
+                let u = match i {
+                    0 => u_min,
+                    i if i == Self::NUM_SEGMENTS => u_max,
+                    i => u_min + param_interval * i as f64,
+                };
+
+                points.push(CurvePoint {
+                    position: self.eval(u),
+                    width: 1.5,
+                });
+            }
+
+            let mesh = CurveMesh::new(points);
+
+            PolyCurve::new(
+                mesh,
+                vec![CurveInstance {
+                    id: CurveInstanceId(0),
+                    rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
+                    position: Vec3::ZERO,
+                    tint: Rgba::TRANSPARENT,
+                }],
+                CurveMaterialId(0),
+            )
+        })
     }
 }

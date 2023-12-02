@@ -3,6 +3,7 @@ mod helix;
 pub use helix::*;
 use space::{Point3, Vec3};
 
+#[derive(Debug)]
 pub enum Curve3 {
     Helix(Helix),
 }

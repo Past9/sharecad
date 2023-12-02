@@ -75,7 +75,7 @@ pub struct PointMesh {
 }
 impl PointMesh {
     pub fn new(points: Vec<PointPoint>) -> Self {
-        let mut vertices = Vec::with_capacity((points.len() * 4));
+        let mut vertices = Vec::with_capacity(points.len() * 4);
 
         for i in 0..points.len() {
             let p = &points[i];

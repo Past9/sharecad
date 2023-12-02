@@ -225,7 +225,6 @@ impl ViewState {
                         ),
                         vec![CurveInstance {
                             id: curve_ids.next(),
-                            scale: vec3(1.0, 1.0, 1.0),
                             rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                             position: Vec3::ZERO,
                             tint: match i % 2 == 1 {
