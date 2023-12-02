@@ -8,21 +8,14 @@ use crate::{color::Rgba, render::VertexBuffer};
 
 use super::SurfaceMaterialId;
 
-pub trait SceneSurface: std::fmt::Debug {
-    fn mesh(&self) -> &SurfaceMesh;
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer;
-    fn material_id(&self) -> SurfaceMaterialId;
-    fn num_instances(&self) -> u32;
-}
-
 #[derive(Debug)]
-pub struct PolySurface {
+pub struct SceneSurface {
     pub mesh: SurfaceMesh,
     pub instances: Vec<SurfaceInstance>,
     pub material_id: SurfaceMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl PolySurface {
+impl SceneSurface {
     pub fn new(
         mesh: SurfaceMesh,
         instances: Vec<SurfaceInstance>,
@@ -35,13 +28,12 @@ impl PolySurface {
             instance_buffer: OnceCell::new(),
         }
     }
-}
-impl SceneSurface for PolySurface {
-    fn mesh(&self) -> &SurfaceMesh {
+
+    pub fn mesh(&self) -> &SurfaceMesh {
         &self.mesh
     }
 
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
         self.instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
@@ -57,11 +49,11 @@ impl SceneSurface for PolySurface {
         })
     }
 
-    fn material_id(&self) -> SurfaceMaterialId {
+    pub fn material_id(&self) -> SurfaceMaterialId {
         self.material_id
     }
 
-    fn num_instances(&self) -> u32 {
+    pub fn num_instances(&self) -> u32 {
         self.instances.len() as u32
     }
 }

@@ -35,7 +35,7 @@ fn main() -> Result<(), eframe::Error> {
             device_descriptor: Arc::new(get_device_descriptor),
             ..Default::default()
         },
-        multisampling: 1, // msaa_samples.samples() as u16,
+        multisampling: 1,
         ..Default::default()
     };
 

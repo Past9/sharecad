@@ -2,9 +2,8 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        MaterialLibrary, PolySurface, SceneCurve, ScenePoint, SceneSurface, SurfaceInstance,
-        SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec,
-        SurfaceVertex,
+        MaterialLibrary, SceneCurve, ScenePoint, SceneSurface, SurfaceInstance, SurfaceMaterialId,
+        SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
     },
 };
 use space::{Vec2, Vec3};
@@ -36,7 +35,7 @@ impl<T: From<u32>> IdSeries<T> {
 
 #[derive(Debug)]
 pub struct Scene {
-    surfaces: Vec<Box<dyn SceneSurface>>,
+    surfaces: Vec<SceneSurface>,
     curves: Vec<Box<dyn SceneCurve>>,
     points: Vec<Box<dyn ScenePoint>>,
 
@@ -60,7 +59,7 @@ impl Scene {
         }
     }
 
-    pub fn surfaces(&self) -> &[Box<dyn SceneSurface>] {
+    pub fn surfaces(&self) -> &[SceneSurface] {
         &self.surfaces
     }
 
@@ -363,9 +362,9 @@ impl Scene {
                 None => missing_material_id,
             };
 
-            let object = PolySurface::new(mesh, instances[0].clone(), material_id);
+            let object = SceneSurface::new(mesh, instances[0].clone(), material_id);
 
-            self.surfaces.push(Box::new(object));
+            self.surfaces.push(object);
         }
     }
 }
