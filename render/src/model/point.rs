@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use egui::accesskit::Point;
 use space::{Mat44, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
@@ -20,14 +21,18 @@ pub struct PointPoint {
 }
 
 #[derive(Debug)]
-pub struct PolyPoints<T: ScenePointInstance> {
+pub struct PolyPoints {
     pub mesh: PointMesh,
-    pub instances: Vec<T>,
+    pub instances: Vec<PointInstance>,
     pub material_id: PointMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: ScenePointInstance> PolyPoints<T> {
-    pub fn new(mesh: PointMesh, instances: Vec<T>, material_id: PointMaterialId) -> Self {
+impl PolyPoints {
+    pub fn new(
+        mesh: PointMesh,
+        instances: Vec<PointInstance>,
+        material_id: PointMaterialId,
+    ) -> Self {
         Self {
             mesh,
             instances,
@@ -36,7 +41,7 @@ impl<T: ScenePointInstance> PolyPoints<T> {
         }
     }
 }
-impl<T: ScenePointInstance> ScenePoint for PolyPoints<T> {
+impl ScenePoint for PolyPoints {
     fn mesh(&self) -> &PointMesh {
         &self.mesh
     }
@@ -166,13 +171,6 @@ impl From<u32> for PointInstanceId {
     }
 }
 
-pub trait ScenePointInstance: std::fmt::Debug + Clone + 'static {
-    type RawBuffer: VertexBuffer;
-
-    fn id(&self) -> PointInstanceId;
-    fn to_raw(&self) -> Self::RawBuffer;
-}
-
 #[derive(Debug, Clone)]
 pub struct PointInstance {
     pub id: PointInstanceId,
@@ -181,14 +179,12 @@ pub struct PointInstance {
     pub position: Vec3,
     pub tint: Rgba,
 }
-impl ScenePointInstance for PointInstance {
-    type RawBuffer = PointInstanceRaw;
-
+impl PointInstance {
     fn id(&self) -> PointInstanceId {
         self.id
     }
 
-    fn to_raw(&self) -> Self::RawBuffer {
+    fn to_raw(&self) -> PointInstanceRaw {
         let position = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
