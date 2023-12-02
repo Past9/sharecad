@@ -178,7 +178,7 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file::<SurfaceInstance>(path_str, vec![instances]);
+            scene.load_wavefront_obj_file(path_str, vec![instances]);
 
             let d = 1.37237;
 

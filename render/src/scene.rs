@@ -2,7 +2,7 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        MaterialLibrary, PolySurface, SceneCurve, ScenePoint, SceneSurface, SceneSurfaceInstance,
+        MaterialLibrary, PolySurface, SceneCurve, ScenePoint, SceneSurface, SurfaceInstance,
         SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec,
         SurfaceVertex,
     },
@@ -112,10 +112,10 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
-    pub fn load_wavefront_obj_file<T: SceneSurfaceInstance>(
+    pub fn load_wavefront_obj_file(
         &mut self,
         file_path: &str,
-        instances: Vec<Vec<T>>,
+        instances: Vec<Vec<SurfaceInstance>>,
     ) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 

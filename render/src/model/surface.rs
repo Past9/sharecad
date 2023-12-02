@@ -16,14 +16,18 @@ pub trait SceneSurface: std::fmt::Debug {
 }
 
 #[derive(Debug)]
-pub struct PolySurface<T: SceneSurfaceInstance> {
+pub struct PolySurface {
     pub mesh: SurfaceMesh,
-    pub instances: Vec<T>,
+    pub instances: Vec<SurfaceInstance>,
     pub material_id: SurfaceMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: SceneSurfaceInstance> PolySurface<T> {
-    pub fn new(mesh: SurfaceMesh, instances: Vec<T>, material_id: SurfaceMaterialId) -> Self {
+impl PolySurface {
+    pub fn new(
+        mesh: SurfaceMesh,
+        instances: Vec<SurfaceInstance>,
+        material_id: SurfaceMaterialId,
+    ) -> Self {
         Self {
             mesh,
             instances,
@@ -32,7 +36,7 @@ impl<T: SceneSurfaceInstance> PolySurface<T> {
         }
     }
 }
-impl<T: SceneSurfaceInstance> SceneSurface for PolySurface<T> {
+impl SceneSurface for PolySurface {
     fn mesh(&self) -> &SurfaceMesh {
         &self.mesh
     }
@@ -153,13 +157,6 @@ impl From<u32> for SurfaceInstanceId {
     }
 }
 
-pub trait SceneSurfaceInstance: std::fmt::Debug + Clone + 'static {
-    type RawBuffer: VertexBuffer;
-
-    fn id(&self) -> SurfaceInstanceId;
-    fn to_raw(&self) -> Self::RawBuffer;
-}
-
 #[derive(Debug, Clone)]
 pub struct SurfaceInstance {
     pub id: SurfaceInstanceId,
@@ -168,14 +165,12 @@ pub struct SurfaceInstance {
     pub position: Vec3,
     pub tint: Rgba,
 }
-impl SceneSurfaceInstance for SurfaceInstance {
-    type RawBuffer = SurfaceInstanceRaw;
-
+impl SurfaceInstance {
     fn id(&self) -> SurfaceInstanceId {
         self.id
     }
 
-    fn to_raw(&self) -> Self::RawBuffer {
+    fn to_raw(&self) -> SurfaceInstanceRaw {
         let model = Mat44::translation(self.position)
             * Mat44::from(self.rotation)
             * Mat44::scale(self.scale);
