@@ -178,22 +178,22 @@ impl VertexBuffer for CurveVertex {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct CurveInstanceId(pub u32);
-impl From<u32> for CurveInstanceId {
+pub struct CurveId(pub u32);
+impl From<u32> for CurveId {
     fn from(id: u32) -> Self {
-        CurveInstanceId(id)
+        CurveId(id)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct CurveInstance {
-    pub id: CurveInstanceId,
+    pub id: CurveId,
     pub rotation: Quat,
     pub position: Vec3,
     pub tint: Rgba,
 }
 impl CurveInstance {
-    fn id(&self) -> CurveInstanceId {
+    fn id(&self) -> CurveId {
         self.id
     }
 

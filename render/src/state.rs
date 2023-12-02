@@ -4,9 +4,9 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveInstance, CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, InstanceId,
-        PointInstance, PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, PolyPoints,
-        SceneCurve, ScenePoint, SurfaceInstance, SurfaceInstanceId,
+        CurveId, CurveInstance, CurveMaterialSpec, CurveMesh, CurvePoint, GeometryId, ModelId,
+        ModelInstance, PointId, PointInstance, PointMaterialSpec, PointMesh, PointPoint,
+        SceneCurve, ScenePoints, SurfaceId,
     },
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
@@ -133,21 +133,10 @@ impl ViewState {
         let scene = {
             let mut scene = Scene::new();
 
-            let ids = Rc::new(RefCell::new(IdSeries::new()));
-
             let instances = (0..NUM_Z_INSTANCES)
                 .flat_map(|z| {
-                    let ids = ids.clone();
                     (0..NUM_Y_INSTANCES).flat_map(move |y| {
-                        let ids = ids.clone();
                         (0..NUM_X_INSTANCES).map(move |x| {
-                            let id = ids.borrow_mut().next();
-                            //let id = ids.next();
-
-                            println!("surface instance id = {:?}", id);
-
-                            let scale = vec3(1.0, 1.0, 1.0);
-
                             let rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
 
                             let position = vec3(
@@ -161,12 +150,10 @@ impl ViewState {
                                 false => Rgba::TRANSPARENT,
                             };
 
-                            SurfaceInstance {
-                                id,
-                                scale,
+                            ModelInstance {
+                                id: ModelId(1),
                                 rotation,
                                 position,
-                                tint,
                             }
                         })
                     })
@@ -178,7 +165,7 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file(path_str, vec![instances]);
+            scene.load_wavefront_obj_file(path_str, instances);
 
             let d = 1.37237;
 
@@ -263,7 +250,7 @@ impl ViewState {
                 .into_iter()
                 .enumerate()
                 .map(|(i, points)| {
-                    Box::new(PolyPoints::new(
+                    ScenePoints::new(
                         PointMesh::new(
                             points
                                 .into_iter()
@@ -281,9 +268,9 @@ impl ViewState {
                             tint: SELECTED_POINT_TINT,
                         }],
                         point_material,
-                    )) as Box<dyn ScenePoint>
+                    )
                 })
-                .collect::<Vec<Box<_>>>();
+                .collect::<Vec<_>>();
 
             scene.set_points(scene_points);
 
@@ -437,13 +424,13 @@ impl ViewState {
         }
     }
 
-    fn get_instance_id_at(&mut self, coords: &Point2) -> Option<InstanceId> {
+    fn get_instance_id_at(&mut self, coords: &Point2) -> Option<GeometryId> {
         self.render_object().unwrap();
 
         let coords = (coords.x as u32, coords.y as u32);
         let id = pollster::block_on(self.object_renderer.get_id_at(coords));
 
-        InstanceId::from_shader_value(id)
+        GeometryId::from_shader_value(id)
     }
 
     fn render_object(&mut self) -> Result<(), wgpu::SurfaceError> {

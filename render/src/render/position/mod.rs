@@ -1,7 +1,7 @@
 use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
-    model::{SurfaceInstanceRaw, SurfaceVertex},
+    model::{ModelInstanceRaw, SurfaceVertex},
     scene::Scene,
 };
 use space::{vec3, Point3, Vec3};
@@ -76,7 +76,7 @@ impl PositionRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
+                    buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -184,21 +184,24 @@ impl PositionRenderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            for object in scene.surfaces().iter() {
-                let mesh = object.mesh();
-                render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                render_pass.set_index_buffer(
-                    mesh.index_buffer(device).slice(..),
-                    wgpu::IndexFormat::Uint32,
-                );
+            for model in scene.models().iter() {
+                for surface in model.surfaces().iter() {
+                    let mesh = surface.mesh();
+                    render_pass
+                        .set_vertex_buffer(1, model.surface_instance_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_index_buffer(
+                        mesh.index_buffer(device).slice(..),
+                        wgpu::IndexFormat::Uint32,
+                    );
 
-                {
-                    // TODO: Move these out of the loop? Probably don't need to set these for
-                    // every object since they don't change.
-                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    {
+                        // TODO: Move these out of the loop? Probably don't need to set these for
+                        // every object since they don't change.
+                        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    }
+                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..model.num_instances());
                 }
-                render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
             }
         }
 

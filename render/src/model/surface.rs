@@ -8,24 +8,26 @@ use crate::{color::Rgba, render::VertexBuffer};
 
 use super::SurfaceMaterialId;
 
+#[derive(Copy, Clone, Debug)]
+pub struct SurfaceId(pub u32);
+impl From<u32> for SurfaceId {
+    fn from(id: u32) -> Self {
+        SurfaceId(id)
+    }
+}
+
 #[derive(Debug)]
 pub struct SceneSurface {
+    pub id: SurfaceId,
     pub mesh: SurfaceMesh,
-    pub instances: Vec<SurfaceInstance>,
     pub material_id: SurfaceMaterialId,
-    instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl SceneSurface {
-    pub fn new(
-        mesh: SurfaceMesh,
-        instances: Vec<SurfaceInstance>,
-        material_id: SurfaceMaterialId,
-    ) -> Self {
+    pub fn new(id: SurfaceId, mesh: SurfaceMesh, material_id: SurfaceMaterialId) -> Self {
         Self {
+            id,
             mesh,
-            instances,
             material_id,
-            instance_buffer: OnceCell::new(),
         }
     }
 
@@ -33,28 +35,8 @@ impl SceneSurface {
         &self.mesh
     }
 
-    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        self.instance_buffer.get_or_init(|| {
-            let instance_data = self
-                .instances
-                .iter()
-                .map(|inst| inst.to_raw())
-                .collect::<Vec<_>>();
-
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        })
-    }
-
     pub fn material_id(&self) -> SurfaceMaterialId {
         self.material_id
-    }
-
-    pub fn num_instances(&self) -> u32 {
-        self.instances.len() as u32
     }
 }
 
@@ -103,6 +85,9 @@ impl SurfaceMesh {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct SurfaceVertex {
+    /// ID of the surface
+    pub id: u32,
+
     /// Position in world space
     pub position: [f32; 3],
 
@@ -122,13 +107,14 @@ pub struct SurfaceVertex {
     pub param_coords: [f32; 2],
 }
 impl SurfaceVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
-        0 => Float32x3,
-        1 => Float32x2,
-        2 => Float32x3,
+    const ATTRIBS: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
+        0 => Uint32,
+        1 => Float32x3,
+        2 => Float32x2,
         3 => Float32x3,
         4 => Float32x3,
-        5 => Float32x2
+        5 => Float32x3,
+        6 => Float32x2
     ];
 }
 impl VertexBuffer for SurfaceVertex {
@@ -141,51 +127,35 @@ impl VertexBuffer for SurfaceVertex {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct SurfaceInstanceId(pub u32);
-impl From<u32> for SurfaceInstanceId {
-    fn from(id: u32) -> Self {
-        SurfaceInstanceId(id)
-    }
-}
-
+/*
 #[derive(Debug, Clone)]
 pub struct SurfaceInstance {
-    pub id: SurfaceInstanceId,
-    pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
     pub tint: Rgba,
 }
 impl SurfaceInstance {
-    fn id(&self) -> SurfaceInstanceId {
-        self.id
-    }
-
     fn to_raw(&self) -> SurfaceInstanceRaw {
-        let model = Mat44::translation(self.position)
-            * Mat44::from(self.rotation)
-            * Mat44::scale(self.scale);
-        println!("id = {:?}", self.id);
+        let model = Mat44::translation(self.position) * Mat44::from(self.rotation);
         SurfaceInstanceRaw {
             model: model.transpose().into(),
             normal: Mat33::from(self.rotation).transpose().into(),
             tint: self.tint.as_f32s(),
-            id: self.id.0,
         }
     }
 }
+ */
 
+/*
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct SurfaceInstanceRaw {
     pub model: [[f32; 4]; 4],
     pub normal: [[f32; 3]; 3],
     pub tint: [f32; 4],
-    pub id: u32,
 }
 impl SurfaceInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 9] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
         6 => Float32x4,
         7 => Float32x4,
         8 => Float32x4,
@@ -196,7 +166,6 @@ impl SurfaceInstanceRaw {
         12 => Float32x3,
 
         13 => Float32x4,
-        14 => Uint32
     ];
 }
 impl VertexBuffer for SurfaceInstanceRaw {
@@ -209,3 +178,4 @@ impl VertexBuffer for SurfaceInstanceRaw {
         }
     }
 }
+ */

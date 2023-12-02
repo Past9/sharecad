@@ -1,25 +1,28 @@
 mod curve;
 mod material;
+mod model;
 mod point;
 mod surface;
 
 pub use curve::*;
 pub use material::*;
+pub use model::*;
 pub use point::*;
+use space::{Quat, Vec3};
 pub use surface::*;
 
 #[derive(Debug, Copy, Clone)]
-pub enum InstanceId {
-    Surface(SurfaceInstanceId),
-    Curve(CurveInstanceId),
-    Point(PointInstanceId),
+pub enum GeometryId {
+    Surface(SurfaceId),
+    Curve(CurveId),
+    Point(PointId),
 }
-impl InstanceId {
+impl GeometryId {
     pub fn into_shader_value(&self) -> u32 {
         let (instance_id, type_id): (u32, u32) = match self {
-            InstanceId::Surface(id) => (id.0, 1),
-            InstanceId::Curve(id) => (id.0, 2),
-            InstanceId::Point(id) => (id.0, 3),
+            GeometryId::Surface(id) => (id.0, 1),
+            GeometryId::Curve(id) => (id.0, 2),
+            GeometryId::Point(id) => (id.0, 3),
         };
 
         (instance_id << 2) | type_id
@@ -31,9 +34,9 @@ impl InstanceId {
 
         if instance_id > 0 {
             match type_id {
-                1 => Some(SurfaceInstanceId(instance_id).into()),
-                2 => Some(CurveInstanceId(instance_id).into()),
-                3 => Some(PointInstanceId(instance_id).into()),
+                1 => Some(SurfaceId(instance_id).into()),
+                2 => Some(CurveId(instance_id).into()),
+                3 => Some(PointId(instance_id).into()),
                 _ => None,
             }
         } else {
@@ -43,24 +46,24 @@ impl InstanceId {
 
     pub fn value(&self) -> u32 {
         match self {
-            InstanceId::Surface(id) => id.0,
-            InstanceId::Curve(id) => id.0,
-            InstanceId::Point(id) => id.0,
+            GeometryId::Surface(id) => id.0,
+            GeometryId::Curve(id) => id.0,
+            GeometryId::Point(id) => id.0,
         }
     }
 }
-impl From<SurfaceInstanceId> for InstanceId {
-    fn from(id: SurfaceInstanceId) -> Self {
+impl From<SurfaceId> for GeometryId {
+    fn from(id: SurfaceId) -> Self {
         Self::Surface(id)
     }
 }
-impl From<CurveInstanceId> for InstanceId {
-    fn from(id: CurveInstanceId) -> Self {
+impl From<CurveId> for GeometryId {
+    fn from(id: CurveId) -> Self {
         Self::Curve(id)
     }
 }
-impl From<PointInstanceId> for InstanceId {
-    fn from(id: PointInstanceId) -> Self {
+impl From<PointId> for GeometryId {
+    fn from(id: PointId) -> Self {
         Self::Point(id)
     }
 }

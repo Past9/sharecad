@@ -7,26 +7,19 @@ use crate::{color::Rgba, render::VertexBuffer};
 
 use super::PointMaterialId;
 
-pub trait ScenePoint: std::fmt::Debug {
-    fn mesh(&self) -> &PointMesh;
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer;
-    fn material_id(&self) -> PointMaterialId;
-    fn num_instances(&self) -> u32;
-}
-
 pub struct PointPoint {
     pub position: Point3,
     pub width: f32,
 }
 
 #[derive(Debug)]
-pub struct PolyPoints {
+pub struct ScenePoints {
     pub mesh: PointMesh,
     pub instances: Vec<PointInstance>,
     pub material_id: PointMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl PolyPoints {
+impl ScenePoints {
     pub fn new(
         mesh: PointMesh,
         instances: Vec<PointInstance>,
@@ -39,13 +32,12 @@ impl PolyPoints {
             instance_buffer: OnceCell::new(),
         }
     }
-}
-impl ScenePoint for PolyPoints {
-    fn mesh(&self) -> &PointMesh {
+
+    pub fn mesh(&self) -> &PointMesh {
         &self.mesh
     }
 
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
         self.instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
@@ -61,11 +53,11 @@ impl ScenePoint for PolyPoints {
         })
     }
 
-    fn material_id(&self) -> PointMaterialId {
+    pub fn material_id(&self) -> PointMaterialId {
         self.material_id
     }
 
-    fn num_instances(&self) -> u32 {
+    pub fn num_instances(&self) -> u32 {
         self.instances.len() as u32
     }
 }
@@ -163,23 +155,23 @@ impl VertexBuffer for PointVertex {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct PointInstanceId(pub u32);
-impl From<u32> for PointInstanceId {
+pub struct PointId(pub u32);
+impl From<u32> for PointId {
     fn from(id: u32) -> Self {
-        PointInstanceId(id)
+        PointId(id)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct PointInstance {
-    pub id: PointInstanceId,
+    pub id: PointId,
     pub scale: Vec3,
     pub rotation: Quat,
     pub position: Vec3,
     pub tint: Rgba,
 }
 impl PointInstance {
-    fn id(&self) -> PointInstanceId {
+    fn id(&self) -> PointId {
         self.id
     }
 

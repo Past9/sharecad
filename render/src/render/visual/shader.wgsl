@@ -13,25 +13,26 @@ struct Camera {
 };
 
 struct SurfaceVertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) tex_coords: vec2<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) tangent: vec3<f32>,
-    @location(4) bitangent: vec3<f32>,
-    @location(5) param_coords: vec2<f32>,
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) tex_coords: vec2<f32>,
+    @location(3) normal: vec3<f32>,
+    @location(4) tangent: vec3<f32>,
+    @location(5) bitangent: vec3<f32>,
+    @location(6) param_coords: vec2<f32>,
 };
 
-struct SurfaceInstanceIn {
-    @location(6) model_matrix_0: vec4<f32>,
-    @location(7) model_matrix_1: vec4<f32>,
-    @location(8) model_matrix_2: vec4<f32>,
-    @location(9) model_matrix_3: vec4<f32>,
+struct SurfaceModelInstance {
+    @location(7) id: u32,
 
-    @location(10) normal_matrix_0: vec3<f32>,
-    @location(11) normal_matrix_1: vec3<f32>,
-    @location(12) normal_matrix_2: vec3<f32>,
+    @location(8) model_matrix_0: vec4<f32>,
+    @location(9) model_matrix_1: vec4<f32>,
+    @location(10) model_matrix_2: vec4<f32>,
+    @location(11) model_matrix_3: vec4<f32>,
 
-    @location(13) tint: vec4<f32>,
+    @location(12) normal_matrix_0: vec3<f32>,
+    @location(13) normal_matrix_1: vec3<f32>,
+    @location(14) normal_matrix_2: vec3<f32>,
 }
 
 struct SurfaceVertexOut {
@@ -41,7 +42,6 @@ struct SurfaceVertexOut {
     @location(2) world_normal: vec3<f32>,
     @location(3) world_tangent: vec3<f32>,
     @location(4) world_bitangent: vec3<f32>,
-    @location(5) tint: vec4<f32>,
 };
 
 struct CurveVertexIn {
@@ -101,43 +101,42 @@ const LOG_DEPTH_C = 1.0;
 
 @vertex
 fn vs_surface(
-    model: SurfaceVertexIn,
-    instance: SurfaceInstanceIn,
+    in: SurfaceVertexIn,
+    model_instance: SurfaceModelInstance,
 ) -> SurfaceVertexOut {
     var out: SurfaceVertexOut;
 
     let model_matrix = mat4x4<f32>(
-        instance.model_matrix_0,
-        instance.model_matrix_1,
-        instance.model_matrix_2,
-        instance.model_matrix_3,
+        model_instance.model_matrix_0,
+        model_instance.model_matrix_1,
+        model_instance.model_matrix_2,
+        model_instance.model_matrix_3,
     );
 
     let normal_matrix = mat3x3<f32>(
-        instance.normal_matrix_0,
-        instance.normal_matrix_1,
-        instance.normal_matrix_2,
+        model_instance.normal_matrix_0,
+        model_instance.normal_matrix_1,
+        model_instance.normal_matrix_2,
     );
 
     // Construct the tangent matrix
-    let world_normal = normalize(normal_matrix * model.normal);
-    let world_tangent = normalize(normal_matrix * model.tangent);
-    let world_bitangent = normalize(normal_matrix * model.bitangent);
+    let world_normal = normalize(normal_matrix * in.normal);
+    let world_tangent = normalize(normal_matrix * in.tangent);
+    let world_bitangent = normalize(normal_matrix * in.bitangent);
     let tangent_matrix = transpose(mat3x3<f32>(
         world_tangent,
         world_bitangent,
         world_normal,
     ));
 
-    let world_position = model_matrix * vec4<f32>(model.position, 1.0);
+    let world_position = model_matrix * vec4<f32>(in.position, 1.0);
 
     out.clip_position = globals.camera.view_proj * world_position;
-    out.tex_coords = model.tex_coords;
-    out.world_position = model.position.xyz;
+    out.tex_coords = in.tex_coords;
+    out.world_position = in.position.xyz;
     out.world_normal = normalize(normal_matrix * world_normal);
     out.world_tangent = world_tangent;
     out.world_bitangent = world_bitangent;
-    out.tint = instance.tint;
 
     // Apply logarithmic depth buffer 
     out.clip_position.z = log(LOG_DEPTH_C * out.clip_position.z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * out.clip_position.w;
@@ -373,8 +372,9 @@ fn fs_opaque_surface(
     // Calculate lighting
     var color = compute_reflected(front_facing, in, vec3(0.0));
 
-    // Apply tint
-    color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);
+    // Apply tint (TODO: use this for selection)
+    let tint = vec4(0.0, 0.0, 0.0, 0.0);
+    color = (1.0 - tint.a) * color + (tint.rgb * tint.a);
 
     return vec4<f32>(color, 1.0);
 }

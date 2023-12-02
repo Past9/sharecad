@@ -10,7 +10,7 @@ use eframe::{
 use geometry::{Curve3, Curve3Impl};
 use render::{
     color::Rgba,
-    model::{CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, SceneCurve},
+    model::{CurveId, CurveInstance, CurveMaterialId, CurveMesh, CurvePoint, SceneCurve},
     render::MsaaSamples,
 };
 use space::{deg, Point3, Quat, Vec3};
@@ -127,7 +127,7 @@ impl ModelCurve {
             SceneCurve::new(
                 mesh,
                 vec![CurveInstance {
-                    id: CurveInstanceId(0),
+                    id: CurveId(0),
                     rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
                     position: Vec3::ZERO,
                     tint: Rgba::TRANSPARENT,

@@ -1,21 +1,24 @@
 struct VertexInput {
-    @location(0) position: vec3<f32>,
-    @location(1) tex_coords: vec2<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) tangent: vec3<f32>,
-    @location(4) bitangent: vec3<f32>,
-    @location(5) param_coords: vec2<f32>,
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) tex_coords: vec2<f32>,
+    @location(3) normal: vec3<f32>,
+    @location(4) tangent: vec3<f32>,
+    @location(5) bitangent: vec3<f32>,
+    @location(6) param_coords: vec2<f32>,
 };
 
-struct InstanceInput {
-    @location(6) model_matrix_0: vec4<f32>,
-    @location(7) model_matrix_1: vec4<f32>,
-    @location(8) model_matrix_2: vec4<f32>,
-    @location(9) model_matrix_3: vec4<f32>,
+struct SurfaceModelInstance {
+    @location(7) id: u32,
 
-    @location(10) normal_matrix_0: vec3<f32>,
-    @location(11) normal_matrix_1: vec3<f32>,
-    @location(12) normal_matrix_2: vec3<f32>,
+    @location(8) model_matrix_0: vec4<f32>,
+    @location(9) model_matrix_1: vec4<f32>,
+    @location(10) model_matrix_2: vec4<f32>,
+    @location(11) model_matrix_3: vec4<f32>,
+
+    @location(12) normal_matrix_0: vec3<f32>,
+    @location(13) normal_matrix_1: vec3<f32>,
+    @location(14) normal_matrix_2: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -35,19 +38,19 @@ var<uniform> camera: Camera;
 
 @vertex
 fn vs_main(
-    model: VertexInput,
-    instance: InstanceInput,
+    in: VertexInput,
+    model_instance: SurfaceModelInstance,
 ) -> VertexOutput {
     var out: VertexOutput;
 
     let model_matrix = mat4x4<f32>(
-        instance.model_matrix_0,
-        instance.model_matrix_1,
-        instance.model_matrix_2,
-        instance.model_matrix_3,
+        model_instance.model_matrix_0,
+        model_instance.model_matrix_1,
+        model_instance.model_matrix_2,
+        model_instance.model_matrix_3,
     );
 
-    let world_position = model_matrix * vec4<f32>(model.position, 1.0);
+    let world_position = model_matrix * vec4<f32>(in.position, 1.0);
 
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;

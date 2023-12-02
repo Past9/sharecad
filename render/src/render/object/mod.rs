@@ -3,8 +3,8 @@ use std::cell::OnceCell;
 use crate::{
     camera::Camera,
     model::{
-        CurveInstanceRaw, CurveVertex, PointInstanceRaw, PointVertex, SurfaceInstanceRaw,
-        SurfaceVertex,
+        CurveInstanceRaw, CurveVertex, ModelInstance, ModelInstanceRaw, PointInstanceRaw,
+        PointVertex, SurfaceVertex,
     },
     scene::Scene,
 };
@@ -12,6 +12,7 @@ use crate::{
 use super::{
     pad_u32, texture::TextureResources, GlobalsRaw, MsaaSamples, RenderTarget, VertexBuffer,
 };
+use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
 const PIXEL_BYTES: u32 = 4;
@@ -86,7 +87,7 @@ impl ObjectRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_surface",
-                    buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
+                    buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -281,17 +282,16 @@ impl ObjectRenderer {
         queue.write_buffer(
             &self.globals_buffer,
             0,
-            //bytemuck::cast_slice(&[camera.to_raw(self.aspect())]),
             bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size())]),
         );
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Visual render encoder"),
+            label: Some("object-render-encoder"),
         });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("object-render-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -315,21 +315,28 @@ impl ObjectRenderer {
             {
                 render_pass.set_pipeline(&self.surface_pipeline);
 
-                for object in scene.surfaces().iter() {
-                    let mesh = object.mesh();
-                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                    render_pass.set_index_buffer(
-                        mesh.index_buffer(device).slice(..),
-                        wgpu::IndexFormat::Uint32,
-                    );
+                for model in scene.models().iter() {
+                    for surface in model.surfaces().iter() {
+                        let mesh = surface.mesh();
+                        render_pass
+                            .set_vertex_buffer(1, model.surface_instance_buffer(device).slice(..));
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
 
-                    {
-                        // TODO: Move these out of the loop? Probably don't need to set these for
-                        // every object since they don't change.
-                        render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
+                        {
+                            // TODO: Move these out of the loop? Probably don't need to set these for
+                            // every object since they don't change.
+                            render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
+                        }
+                        render_pass.draw_indexed(
+                            0..mesh.num_elements(),
+                            0,
+                            0..model.num_instances(),
+                        );
                     }
-                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
                 }
             }
 
@@ -337,7 +344,7 @@ impl ObjectRenderer {
             {
                 render_pass.set_pipeline(&self.curve_pipeline);
 
-                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
                 for object in scene.curves().iter() {
                     let mesh = object.mesh();

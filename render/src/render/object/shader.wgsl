@@ -13,30 +13,32 @@ struct Camera {
 };
 
 struct SurfaceVertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) tex_coords: vec2<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) tangent: vec3<f32>,
-    @location(4) bitangent: vec3<f32>,
-    @location(5) param_coords: vec2<f32>,
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) tex_coords: vec2<f32>,
+    @location(3) normal: vec3<f32>,
+    @location(4) tangent: vec3<f32>,
+    @location(5) bitangent: vec3<f32>,
+    @location(6) param_coords: vec2<f32>,
 };
 
-struct SurfaceInstanceIn {
-    @location(6) model_matrix_0: vec4<f32>,
-    @location(7) model_matrix_1: vec4<f32>,
-    @location(8) model_matrix_2: vec4<f32>,
-    @location(9) model_matrix_3: vec4<f32>,
+struct SurfaceModelInstance {
+    @location(7) id: u32,
 
-    @location(10) normal_matrix_0: vec3<f32>,
-    @location(11) normal_matrix_1: vec3<f32>,
-    @location(12) normal_matrix_2: vec3<f32>,
+    @location(8) model_matrix_0: vec4<f32>,
+    @location(9) model_matrix_1: vec4<f32>,
+    @location(10) model_matrix_2: vec4<f32>,
+    @location(11) model_matrix_3: vec4<f32>,
 
-    @location(14) id: u32,
+    @location(12) normal_matrix_0: vec3<f32>,
+    @location(13) normal_matrix_1: vec3<f32>,
+    @location(14) normal_matrix_2: vec3<f32>,
 }
 
 struct SurfaceVertexOut {
     @builtin(position) clip_position: vec4<f32>,
-    @location(14) id: u32,
+    @location(0) surface_id: u32,
+    @location(1) model_id: u32,
 };
 
 struct CurveVertexIn {
@@ -100,26 +102,27 @@ const LOG_DEPTH_C = 1.0;
 
 @vertex
 fn vs_surface(
-    model: SurfaceVertexIn,
-    instance: SurfaceInstanceIn,
+    in: SurfaceVertexIn,
+    model_instance: SurfaceModelInstance,
 ) -> SurfaceVertexOut {
     var out: SurfaceVertexOut;
 
     let model_matrix = mat4x4<f32>(
-        instance.model_matrix_0,
-        instance.model_matrix_1,
-        instance.model_matrix_2,
-        instance.model_matrix_3,
+        model_instance.model_matrix_0,
+        model_instance.model_matrix_1,
+        model_instance.model_matrix_2,
+        model_instance.model_matrix_3,
     );
 
-    let world_position = model_matrix * vec4<f32>(model.position, 1.0);
+    let world_position = model_matrix * vec4<f32>(in.position, 1.0);
 
     out.clip_position = globals.camera.view_proj * world_position;
 
     // Apply logarithmic depth buffer 
     out.clip_position.z = log(LOG_DEPTH_C * out.clip_position.z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * out.clip_position.w;
 
-    out.id = instance.id;
+    out.surface_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }
@@ -314,7 +317,7 @@ fn fs_surface(
     in: SurfaceVertexOut
 ) -> @location(0) u32 {
     // Bitshift the ID left two places, then add the type identifier for surfaces (0b01)
-    return (in.id << u32(2)) | u32(1);
+    return (in.surface_id << u32(2)) | u32(1);
 }
 
 struct FsCurveOut {

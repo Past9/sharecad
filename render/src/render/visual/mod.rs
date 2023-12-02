@@ -6,8 +6,8 @@ use crate::{
     camera::{Camera, CameraRaw},
     light::{AmbientLightRaw, DirectionalLightRaw},
     model::{
-        CurveInstanceRaw, CurveMaterial, CurveMaterialId, CurveVertex, PointInstanceRaw,
-        PointMaterial, PointMaterialId, PointVertex, SurfaceInstanceRaw, SurfaceMaterial,
+        CurveInstanceRaw, CurveMaterial, CurveMaterialId, CurveVertex, ModelInstanceRaw,
+        PointInstanceRaw, PointMaterial, PointMaterialId, PointVertex, SurfaceMaterial,
         SurfaceMaterialId, SurfaceVertex,
     },
     scene::Scene,
@@ -469,7 +469,7 @@ impl VisualRenderer {
 
         let opaque_surface_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("opauq-surface-pipeline"),
+                label: Some("opaque-surface-pipeline-layout"),
                 bind_group_layouts: &[
                     &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
@@ -490,7 +490,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -668,7 +668,7 @@ impl VisualRenderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_surface",
-                        buffers: &[SurfaceVertex::desc(), SurfaceInstanceRaw::desc()],
+                        buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -1088,38 +1088,43 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for object in scene.surfaces().iter() {
-                        let material = scene
-                            .materials()
-                            .surface()
-                            .get(&object.material_id())
-                            .unwrap();
-                        if material.is_translucent {
-                            continue;
+                    for model in scene.models().iter() {
+                        for surface in model.surfaces().iter() {
+                            let material = scene
+                                .materials()
+                                .surface()
+                                .get(&surface.material_id())
+                                .unwrap();
+                            if material.is_translucent {
+                                continue;
+                            }
+
+                            let mesh = surface.mesh();
+
+                            render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                            render_pass.set_vertex_buffer(
+                                1,
+                                model.surface_instance_buffer(device).slice(..),
+                            );
+                            render_pass.set_index_buffer(
+                                mesh.index_buffer(device).slice(..),
+                                wgpu::IndexFormat::Uint32,
+                            );
+
+                            render_pass.set_bind_group(
+                                0,
+                                self.surface_material_bind_groups
+                                    .get(&surface.material_id())
+                                    .unwrap(),
+                                &[],
+                            );
+
+                            render_pass.draw_indexed(
+                                0..mesh.num_elements(),
+                                0,
+                                0..model.num_instances(),
+                            );
                         }
-
-                        let mesh = object.mesh();
-
-                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                        render_pass.set_index_buffer(
-                            mesh.index_buffer(device).slice(..),
-                            wgpu::IndexFormat::Uint32,
-                        );
-
-                        render_pass.set_bind_group(
-                            0,
-                            self.surface_material_bind_groups
-                                .get(&object.material_id())
-                                .unwrap(),
-                            &[],
-                        );
-
-                        render_pass.draw_indexed(
-                            0..mesh.num_elements(),
-                            0,
-                            0..object.num_instances(),
-                        );
                     }
                 }
 
@@ -1248,38 +1253,43 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for object in scene.surfaces().iter() {
-                        let material = scene
-                            .materials()
-                            .surface()
-                            .get(&object.material_id())
-                            .unwrap();
-                        if !material.is_translucent {
-                            continue;
+                    for model in scene.models().iter() {
+                        for surface in model.surfaces().iter() {
+                            let material = scene
+                                .materials()
+                                .surface()
+                                .get(&surface.material_id())
+                                .unwrap();
+                            if !material.is_translucent {
+                                continue;
+                            }
+
+                            let mesh = surface.mesh();
+
+                            render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                            render_pass.set_vertex_buffer(
+                                1,
+                                model.surface_instance_buffer(device).slice(..),
+                            );
+                            render_pass.set_index_buffer(
+                                mesh.index_buffer(device).slice(..),
+                                wgpu::IndexFormat::Uint32,
+                            );
+
+                            render_pass.set_bind_group(
+                                0,
+                                self.surface_material_bind_groups
+                                    .get(&surface.material_id())
+                                    .unwrap(),
+                                &[],
+                            );
+
+                            render_pass.draw_indexed(
+                                0..mesh.num_elements(),
+                                0,
+                                0..model.num_instances(),
+                            );
                         }
-
-                        let mesh = object.mesh();
-
-                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                        render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                        render_pass.set_index_buffer(
-                            mesh.index_buffer(device).slice(..),
-                            wgpu::IndexFormat::Uint32,
-                        );
-
-                        render_pass.set_bind_group(
-                            0,
-                            self.surface_material_bind_groups
-                                .get(&object.material_id())
-                                .unwrap(),
-                            &[],
-                        );
-
-                        render_pass.draw_indexed(
-                            0..mesh.num_elements(),
-                            0,
-                            0..object.num_instances(),
-                        );
                     }
                 }
             }

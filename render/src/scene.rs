@@ -2,8 +2,9 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        MaterialLibrary, SceneCurve, ScenePoint, SceneSurface, SurfaceInstance, SurfaceMaterialId,
-        SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
+        MaterialLibrary, ModelInstance, SceneCurve, SceneModel, ScenePoints, SceneSurface,
+        SurfaceId, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec,
+        SurfaceVec3Spec, SurfaceVertex,
     },
 };
 use space::{Vec2, Vec3};
@@ -35,9 +36,11 @@ impl<T: From<u32>> IdSeries<T> {
 
 #[derive(Debug)]
 pub struct Scene {
-    surfaces: Vec<SceneSurface>,
+    models: Vec<SceneModel>,
+
+    //surfaces: Vec<SceneSurface>,
     curves: Vec<SceneCurve>,
-    points: Vec<Box<dyn ScenePoint>>,
+    points: Vec<ScenePoints>,
 
     materials: MaterialLibrary,
 
@@ -48,7 +51,9 @@ unsafe impl Send for Scene {}
 impl Scene {
     pub fn new() -> Self {
         Self {
-            surfaces: vec![],
+            models: vec![],
+
+            //surfaces: vec![],
             curves: vec![],
             points: vec![],
 
@@ -59,9 +64,15 @@ impl Scene {
         }
     }
 
+    pub fn models(&self) -> &[SceneModel] {
+        &self.models
+    }
+
+    /*
     pub fn surfaces(&self) -> &[SceneSurface] {
         &self.surfaces
     }
+     */
 
     pub fn curves(&self) -> &[SceneCurve] {
         &self.curves
@@ -71,11 +82,11 @@ impl Scene {
         self.curves = curves;
     }
 
-    pub fn points(&self) -> &[Box<dyn ScenePoint>] {
+    pub fn points(&self) -> &[ScenePoints] {
         &self.points
     }
 
-    pub fn set_points(&mut self, points: Vec<Box<dyn ScenePoint>>) {
+    pub fn set_points(&mut self, points: Vec<ScenePoints>) {
         self.points = points;
     }
 
@@ -111,11 +122,7 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
-    pub fn load_wavefront_obj_file(
-        &mut self,
-        file_path: &str,
-        instances: Vec<Vec<SurfaceInstance>>,
-    ) {
+    pub fn load_wavefront_obj_file(&mut self, file_path: &str, instances: Vec<ModelInstance>) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
         let obj_text = Self::load_string(file_path);
@@ -264,9 +271,12 @@ impl Scene {
             material_id_map.insert(index, id);
         }
 
+        let mut surfaces = vec![];
+
         for m in models.into_iter() {
             let mut vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| SurfaceVertex {
+                    id: 1,
                     position: [
                         -m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
@@ -362,9 +372,10 @@ impl Scene {
                 None => missing_material_id,
             };
 
-            let object = SceneSurface::new(mesh, instances[0].clone(), material_id);
-
-            self.surfaces.push(object);
+            surfaces.push(SceneSurface::new(SurfaceId(1), mesh, material_id));
         }
+
+        self.models
+            .push(SceneModel::new(surfaces, vec![], vec![], instances));
     }
 }
