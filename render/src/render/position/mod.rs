@@ -1,7 +1,7 @@
 use super::{pad_u32, texture::TextureResources, MsaaSamples, RenderTarget, VertexBuffer};
 use crate::{
     camera::{Camera, CameraRaw},
-    model::{ModelInstanceRaw, SurfaceVertex},
+    model::{ModelInstanceRaw, SurfaceVertexRaw},
     scene::Scene,
 };
 use space::{vec3, Point3, Vec3};
@@ -76,7 +76,7 @@ impl PositionRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
+                    buffers: &[SurfaceVertexRaw::desc(), ModelInstanceRaw::surface_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -157,12 +157,12 @@ impl PositionRenderer {
         );
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Visual render encoder"),
+            label: Some("visual-render-encoder"),
         });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("visual-render-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -186,12 +186,11 @@ impl PositionRenderer {
 
             for model in scene.models().iter() {
                 for surface in model.surfaces().iter() {
-                    let mesh = surface.mesh();
                     render_pass
                         .set_vertex_buffer(1, model.surface_instance_buffer(device).slice(..));
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
+                    render_pass.set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
                     render_pass.set_index_buffer(
-                        mesh.index_buffer(device).slice(..),
+                        surface.index_buffer(device).slice(..),
                         wgpu::IndexFormat::Uint32,
                     );
 
@@ -200,7 +199,11 @@ impl PositionRenderer {
                         // every object since they don't change.
                         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
                     }
-                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..model.num_instances());
+                    render_pass.draw_indexed(
+                        0..surface.num_elements(),
+                        0,
+                        0..model.num_instances(),
+                    );
                 }
             }
         }

@@ -5,6 +5,10 @@ pub fn vec3(x: f64, y: f64, z: f64) -> Vec3 {
     Vec3::new(x, y, z)
 }
 
+pub fn vec3_f32s(x: f32, y: f32, z: f32) -> Vec3 {
+    Vec3::new(x as f64, y as f64, z as f64)
+}
+
 #[derive(Copy, Clone)]
 pub struct Vec3 {
     pub x: f64,

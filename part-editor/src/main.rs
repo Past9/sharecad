@@ -9,11 +9,10 @@ use eframe::{
 };
 use geometry::{Curve3, Curve3Impl};
 use render::{
-    color::Rgba,
-    model::{CurveId, CurveInstance, CurveMaterialId, CurveMesh, CurvePoint, SceneCurve},
+    model::{CurveId, CurveMaterialId, CurveMesh, SceneCurve},
     render::MsaaSamples,
 };
-use space::{deg, Point3, Quat, Vec3};
+use space::{Point3, Quat, Vec3};
 use std::{cell::OnceCell, sync::Arc};
 
 fn main() -> Result<(), eframe::Error> {
@@ -116,24 +115,12 @@ impl ModelCurve {
                     i => u_min + param_interval * i as f64,
                 };
 
-                points.push(CurvePoint {
-                    position: self.eval(u),
-                    width: 1.5,
-                });
+                points.push(self.eval(u));
             }
 
             let mesh = CurveMesh::new(points);
 
-            SceneCurve::new(
-                mesh,
-                vec![CurveInstance {
-                    id: CurveId(0),
-                    rotation: Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0)),
-                    position: Vec3::ZERO,
-                    tint: Rgba::TRANSPARENT,
-                }],
-                CurveMaterialId(0),
-            )
+            SceneCurve::new(CurveId(1), mesh, CurveMaterialId(0), 1.5)
         })
     }
 }

@@ -5,6 +5,10 @@ pub fn point3(x: f64, y: f64, z: f64) -> Point3 {
     Point3::new(x, y, z)
 }
 
+pub fn point3_f32s(x: f32, y: f32, z: f32) -> Point3 {
+    Point3::new(x as f64, y as f64, z as f64)
+}
+
 #[derive(Copy, Clone, PartialEq)]
 pub struct Point3 {
     pub x: f64,

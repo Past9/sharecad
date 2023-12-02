@@ -2,12 +2,12 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        MaterialLibrary, ModelInstance, SceneCurve, SceneModel, ScenePoints, SceneSurface,
-        SurfaceId, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh, SurfaceRgbSpec,
-        SurfaceVec3Spec, SurfaceVertex,
+        CurveMaterialSpec, CurveMesh, MaterialLibrary, ModelInstance, SceneCurve, SceneModel,
+        ScenePoints, SceneSurface, SurfaceId, SurfaceMaterialId, SurfaceMaterialSpec, SurfaceMesh,
+        SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex, SurfaceVertexRaw,
     },
 };
-use space::{Vec2, Vec3};
+use space::{point2_f32s, point3, point3_f32s, vec3, vec3_f32s, Vec2, Vec3};
 use std::{
     collections::HashMap,
     io::{BufReader, Cursor},
@@ -39,7 +39,7 @@ pub struct Scene {
     models: Vec<SceneModel>,
 
     //surfaces: Vec<SceneSurface>,
-    curves: Vec<SceneCurve>,
+    //curves: Vec<SceneCurve>,
     points: Vec<ScenePoints>,
 
     materials: MaterialLibrary,
@@ -54,7 +54,7 @@ impl Scene {
             models: vec![],
 
             //surfaces: vec![],
-            curves: vec![],
+            //curves: vec![],
             points: vec![],
 
             materials: MaterialLibrary::new(),
@@ -74,6 +74,7 @@ impl Scene {
     }
      */
 
+    /*
     pub fn curves(&self) -> &[SceneCurve] {
         &self.curves
     }
@@ -81,6 +82,7 @@ impl Scene {
     pub fn set_curves(&mut self, curves: Vec<SceneCurve>) {
         self.curves = curves;
     }
+      */
 
     pub fn points(&self) -> &[ScenePoints] {
         &self.points
@@ -122,7 +124,12 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
-    pub fn load_wavefront_obj_file(&mut self, file_path: &str, instances: Vec<ModelInstance>) {
+    pub fn load_wavefront_obj_file(
+        &mut self,
+        file_path: &str,
+        instances: Vec<ModelInstance>,
+        pixels_per_point: f32,
+    ) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
         let obj_text = Self::load_string(file_path);
@@ -276,21 +283,23 @@ impl Scene {
         for m in models.into_iter() {
             let mut vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| SurfaceVertex {
-                    id: 1,
-                    position: [
+                    position: point3_f32s(
                         -m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
                         m.mesh.positions[i * 3 + 2],
-                    ],
-                    tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
-                    normal: [
+                    ),
+                    tex_coords: point2_f32s(
+                        m.mesh.texcoords[i * 2],
+                        1.0 - m.mesh.texcoords[i * 2 + 1],
+                    ),
+                    normal: vec3_f32s(
                         -m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
                         m.mesh.normals[i * 3 + 2],
-                    ],
-                    tangent: [0.0; 3],
-                    bitangent: [0.0; 3],
-                    param_coords: [0.0, 0.0],
+                    ),
+                    tangent: Vec3::ZERO,
+                    bitangent: Vec3::ZERO,
+                    param_coords: Vec2::ZERO,
                 })
                 .collect::<Vec<_>>();
 
@@ -301,9 +310,9 @@ impl Scene {
             // use the triangles, so we need to loop through the
             // indices in chunks of 3
             for c in indices.chunks(3) {
-                let v0 = vertices[c[0] as usize];
-                let v1 = vertices[c[1] as usize];
-                let v2 = vertices[c[2] as usize];
+                let v0 = &vertices[c[0] as usize];
+                let v1 = &vertices[c[1] as usize];
+                let v2 = &vertices[c[2] as usize];
 
                 let pos0: Vec3 = v0.position.into();
                 let pos1: Vec3 = v1.position.into();
@@ -336,17 +345,17 @@ impl Scene {
 
                 // We'll use the same tangent/bitangent for each vertex in the triangle
                 vertices[c[0] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).to_f32s();
+                    tangent + Vec3::from(vertices[c[0] as usize].tangent);
                 vertices[c[1] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).to_f32s();
+                    tangent + Vec3::from(vertices[c[1] as usize].tangent);
                 vertices[c[2] as usize].tangent =
-                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).to_f32s();
+                    tangent + Vec3::from(vertices[c[2] as usize].tangent);
                 vertices[c[0] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).to_f32s();
+                    bitangent + Vec3::from(vertices[c[0] as usize].bitangent);
                 vertices[c[1] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).to_f32s();
+                    bitangent + Vec3::from(vertices[c[1] as usize].bitangent);
                 vertices[c[2] as usize].bitangent =
-                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).to_f32s();
+                    bitangent + Vec3::from(vertices[c[2] as usize].bitangent);
 
                 // Used to average the tangents/bitangents
                 triangles_included[c[0] as usize] += 1;
@@ -358,8 +367,8 @@ impl Scene {
             for (i, n) in triangles_included.into_iter().enumerate() {
                 let denom = 1.0 / n as f64;
                 let v = &mut vertices[i];
-                v.tangent = (Vec3::from(v.tangent) * denom).to_f32s();
-                v.bitangent = (Vec3::from(v.bitangent) * denom).to_f32s();
+                v.tangent = Vec3::from(v.tangent) * denom;
+                v.bitangent = Vec3::from(v.bitangent) * denom;
             }
 
             let mesh = SurfaceMesh::new(vertices, m.mesh.indices);
@@ -375,7 +384,50 @@ impl Scene {
             surfaces.push(SceneSurface::new(SurfaceId(1), mesh, material_id));
         }
 
+        // Create custom curves
+        let d = 1.37237;
+
+        let curve_points = vec![
+            vec![
+                point3(d, -d, -2.0),  //
+                point3(d, d, -2.0),   //
+                point3(-d, d, -2.0),  //
+                point3(-d, -d, -2.0), //
+                point3(d, -d, -2.0),  //
+            ],
+            vec![
+                point3(d, 2.0, -d),  //
+                point3(d, 2.0, d),   //
+                point3(-d, 2.0, d),  //
+                point3(-d, 2.0, -d), //
+                point3(d, 2.0, -d),  //
+            ],
+            vec![point3(0.0, 0.0, -3.0), point3(1.0, 1.0, -2.0)],
+            vec![point3(0.0, 0.0, -3.0), point3(-1.0, 1.0, -2.0)],
+            vec![point3(0.0, 0.0, -3.0), point3(1.0, -1.0, -2.0)],
+            vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
+        ];
+
+        let curve_material = self
+            .materials
+            .insert_curve_material(CurveMaterialSpec::default());
+
+        let mut curve_ids = IdSeries::new();
+
+        let curves = curve_points
+            .into_iter()
+            .enumerate()
+            .map(|(i, points)| {
+                SceneCurve::new(
+                    curve_ids.next(),
+                    CurveMesh::new(points),
+                    curve_material,
+                    1.5,
+                )
+            })
+            .collect::<Vec<_>>();
+
         self.models
-            .push(SceneModel::new(surfaces, vec![], vec![], instances));
+            .push(SceneModel::new(surfaces, curves, vec![], instances));
     }
 }

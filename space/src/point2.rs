@@ -5,6 +5,10 @@ pub fn point2(x: f64, y: f64) -> Point2 {
     Point2::new(x, y)
 }
 
+pub fn point2_f32s(x: f32, y: f32) -> Point2 {
+    Point2::new(x as f64, y as f64)
+}
+
 #[derive(Copy, Clone)]
 pub struct Point2 {
     pub x: f64,

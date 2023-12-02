@@ -3,8 +3,8 @@ use std::cell::OnceCell;
 use crate::{
     camera::Camera,
     model::{
-        CurveInstanceRaw, CurveVertex, ModelInstance, ModelInstanceRaw, PointInstanceRaw,
-        PointVertex, SurfaceVertex,
+        CurveVertexRaw, ModelInstance, ModelInstanceRaw, PointInstanceRaw, PointVertex,
+        SurfaceVertexRaw,
     },
     scene::Scene,
 };
@@ -87,7 +87,7 @@ impl ObjectRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_surface",
-                    buffers: &[SurfaceVertex::desc(), ModelInstanceRaw::surface_desc()],
+                    buffers: &[SurfaceVertexRaw::desc(), ModelInstanceRaw::surface_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -143,7 +143,7 @@ impl ObjectRenderer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_curve",
-                    buffers: &[CurveVertex::desc(), CurveInstanceRaw::desc()],
+                    buffers: &[CurveVertexRaw::desc(), ModelInstanceRaw::curve_desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -317,12 +317,11 @@ impl ObjectRenderer {
 
                 for model in scene.models().iter() {
                     for surface in model.surfaces().iter() {
-                        let mesh = surface.mesh();
+                        render_pass.set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
                         render_pass
                             .set_vertex_buffer(1, model.surface_instance_buffer(device).slice(..));
-                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
                         render_pass.set_index_buffer(
-                            mesh.index_buffer(device).slice(..),
+                            surface.index_buffer(device).slice(..),
                             wgpu::IndexFormat::Uint32,
                         );
 
@@ -332,7 +331,7 @@ impl ObjectRenderer {
                             render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
                         }
                         render_pass.draw_indexed(
-                            0..mesh.num_elements(),
+                            0..surface.num_elements(),
                             0,
                             0..model.num_instances(),
                         );
@@ -346,17 +345,22 @@ impl ObjectRenderer {
 
                 render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
-                for object in scene.curves().iter() {
-                    let mesh = object.mesh();
+                for model in scene.models().iter() {
+                    for curve in model.curves().iter() {
+                        render_pass.set_vertex_buffer(0, curve.vertex_buffer(device).slice(..));
+                        render_pass
+                            .set_vertex_buffer(1, model.curve_instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            curve.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
 
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buffer(device).slice(..));
-                    render_pass.set_vertex_buffer(1, object.instance_buffer(device).slice(..));
-                    render_pass.set_index_buffer(
-                        mesh.index_buffer(device).slice(..),
-                        wgpu::IndexFormat::Uint32,
-                    );
-
-                    render_pass.draw_indexed(0..mesh.num_elements(), 0, 0..object.num_instances());
+                        render_pass.draw_indexed(
+                            0..curve.num_elements(),
+                            0,
+                            0..model.num_instances(),
+                        );
+                    }
                 }
             }
 

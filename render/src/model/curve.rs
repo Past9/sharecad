@@ -8,29 +8,20 @@ use crate::{color::Rgba, render::VertexBuffer};
 
 use super::CurveMaterialId;
 
-pub struct CurvePoint {
-    pub position: Point3,
-    pub width: f32,
-}
-
 #[derive(Debug)]
 pub struct SceneCurve {
+    pub id: CurveId,
     pub mesh: CurveMesh,
-    pub instances: Vec<CurveInstance>,
     pub material_id: CurveMaterialId,
-    instance_buffer: OnceCell<wgpu::Buffer>,
+    pub width: f32,
 }
 impl SceneCurve {
-    pub fn new(
-        mesh: CurveMesh,
-        instances: Vec<CurveInstance>,
-        material_id: CurveMaterialId,
-    ) -> Self {
+    pub fn new(id: CurveId, mesh: CurveMesh, material_id: CurveMaterialId, width: f32) -> Self {
         Self {
+            id,
             mesh,
-            instances,
             material_id,
-            instance_buffer: OnceCell::new(),
+            width,
         }
     }
 
@@ -38,6 +29,7 @@ impl SceneCurve {
         &self.mesh
     }
 
+    /*
     pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
         self.instance_buffer.get_or_init(|| {
             let instance_data = self
@@ -53,13 +45,22 @@ impl SceneCurve {
             })
         })
     }
+     */
 
     pub fn material_id(&self) -> CurveMaterialId {
         self.material_id
     }
 
-    pub fn num_instances(&self) -> u32 {
-        self.instances.len() as u32
+    pub fn vertex_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.mesh.vertex_buffer(self.id, self.width, device)
+    }
+
+    pub fn index_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.mesh.index_buffer(device)
+    }
+
+    pub fn num_elements(&self) -> u32 {
+        self.mesh.num_elements()
     }
 }
 
@@ -71,35 +72,29 @@ pub struct CurveMesh {
     index_buffer: OnceCell<wgpu::Buffer>,
 }
 impl CurveMesh {
-    pub fn new(points: Vec<CurvePoint>) -> Self {
+    pub fn new(points: Vec<Point3>) -> Self {
         let mut vertices = Vec::with_capacity((points.len() - 1) * 4);
 
         for i in 1..points.len() {
-            let p0 = &points[i - 1];
-            let p1 = &points[i];
-            let line_dir = (p1.position - p0.position).to_f32s();
-            let p0_pos = p0.position.to_f32s();
-            let p1_pos = p1.position.to_f32s();
+            let p0 = points[i - 1];
+            let p1 = points[i];
+            let line_dir = p1 - p0;
             vertices.extend([
                 CurveVertex {
-                    position: p0_pos,
+                    position: p0,
                     direction: line_dir,
-                    width: p0.width,
                 },
                 CurveVertex {
-                    position: p0_pos,
+                    position: p0,
                     direction: line_dir,
-                    width: p0.width,
                 },
                 CurveVertex {
-                    position: p1_pos,
+                    position: p1,
                     direction: line_dir,
-                    width: p1.width,
                 },
                 CurveVertex {
-                    position: p1_pos,
+                    position: p1,
                     direction: line_dir,
-                    width: p1.width,
                 },
             ]);
         }
@@ -128,11 +123,17 @@ impl CurveMesh {
         }
     }
 
-    pub fn vertex_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+    fn vertex_buffer(&self, id: CurveId, width: f32, device: &wgpu::Device) -> &wgpu::Buffer {
         self.vertex_buffer.get_or_init(|| {
+            let vertex_data = self
+                .vertices
+                .iter()
+                .map(|vertex| vertex.to_raw(id, width))
+                .collect::<Vec<_>>();
+
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(&self.vertices),
+                contents: bytemuck::cast_slice(&vertex_data),
                 usage: wgpu::BufferUsages::VERTEX,
             })
         })
@@ -153,24 +154,42 @@ impl CurveMesh {
     }
 }
 
+#[derive(Debug)]
+pub struct CurveVertex {
+    pub position: Point3,
+    pub direction: Vec3,
+}
+impl CurveVertex {
+    pub fn to_raw(&self, id: CurveId, width: f32) -> CurveVertexRaw {
+        CurveVertexRaw {
+            id: id.0,
+            position: self.position.to_f32s(),
+            direction: self.direction.to_f32s(),
+            width,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
-pub struct CurveVertex {
+pub struct CurveVertexRaw {
+    pub id: u32,
     pub position: [f32; 3],
     pub direction: [f32; 3],
     pub width: f32,
 }
-impl CurveVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
-        0 => Float32x3,
+impl CurveVertexRaw {
+    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        0 => Uint32,
         1 => Float32x3,
-        2 => Float32
+        2 => Float32x3,
+        3 => Float32
     ];
 }
-impl VertexBuffer for CurveVertex {
+impl VertexBuffer for CurveVertexRaw {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<CurveVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<CurveVertexRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }
@@ -182,63 +201,5 @@ pub struct CurveId(pub u32);
 impl From<u32> for CurveId {
     fn from(id: u32) -> Self {
         CurveId(id)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CurveInstance {
-    pub id: CurveId,
-    pub rotation: Quat,
-    pub position: Vec3,
-    pub tint: Rgba,
-}
-impl CurveInstance {
-    fn id(&self) -> CurveId {
-        self.id
-    }
-
-    fn to_raw(&self) -> CurveInstanceRaw {
-        let position = Mat44::translation(self.position) * Mat44::from(self.rotation);
-        CurveInstanceRaw {
-            position: position.transpose().into(),
-            direction: Mat33::from(self.rotation).transpose().into(),
-            tint: self.tint.as_f32s(),
-            id: self.id.0,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-pub struct CurveInstanceRaw {
-    pub position: [[f32; 4]; 4],
-    pub direction: [[f32; 3]; 3],
-    pub tint: [f32; 4],
-    pub id: u32,
-}
-impl CurveInstanceRaw {
-    const ATTRIBS: [wgpu::VertexAttribute; 9] = wgpu::vertex_attr_array![
-        3 => Float32x4,
-        4 => Float32x4,
-        5 => Float32x4,
-        6 => Float32x4,
-
-        7 => Float32x3,
-        8 => Float32x3,
-        9 => Float32x3,
-
-        10 => Float32x4,
-
-        11 => Uint32,
-    ];
-}
-impl VertexBuffer for CurveInstanceRaw {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<CurveInstanceRaw>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBS,
-        }
     }
 }

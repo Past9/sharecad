@@ -5,6 +5,10 @@ pub fn vec2(x: f64, y: f64) -> Vec2 {
     Vec2::new(x, y)
 }
 
+pub fn vec2_f32s(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x as f64, y as f64)
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TurnDir {
     Cw,

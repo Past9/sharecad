@@ -4,9 +4,9 @@ use crate::{
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveId, CurveInstance, CurveMaterialSpec, CurveMesh, CurvePoint, GeometryId, ModelId,
-        ModelInstance, PointId, PointInstance, PointMaterialSpec, PointMesh, PointPoint,
-        SceneCurve, ScenePoints, SurfaceId,
+        CurveId, CurveMaterialSpec, CurveMesh, GeometryId, ModelId, ModelInstance, PointId,
+        PointInstance, PointMaterialSpec, PointMesh, PointPoint, SceneCurve, ScenePoints,
+        SurfaceId,
     },
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
@@ -165,7 +165,7 @@ impl ViewState {
 
             let path_str = path.to_str().unwrap();
 
-            scene.load_wavefront_obj_file(path_str, instances);
+            scene.load_wavefront_obj_file(path_str, instances, pixels_per_point);
 
             let d = 1.37237;
 
@@ -190,6 +190,7 @@ impl ViewState {
                 vec![point3(0.0, 0.0, -3.0), point3(-1.0, -1.0, -2.0)],
             ];
 
+            /*
             let curve_width = 1.0;
 
             let curve_material = scene
@@ -229,6 +230,7 @@ impl ViewState {
             println!("scene_curves = {:#?}", scene_curves);
 
             scene.set_curves(scene_curves);
+             */
 
             let point_points = vec![
                 vec![point3(0.0, 0.0, -3.0)],   //

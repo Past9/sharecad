@@ -11,14 +11,14 @@ struct VertexInput {
 struct SurfaceModelInstance {
     @location(7) id: u32,
 
-    @location(8) model_matrix_0: vec4<f32>,
-    @location(9) model_matrix_1: vec4<f32>,
-    @location(10) model_matrix_2: vec4<f32>,
-    @location(11) model_matrix_3: vec4<f32>,
+    @location(8) position_matrix_0: vec4<f32>,
+    @location(9) position_matrix_1: vec4<f32>,
+    @location(10) position_matrix_2: vec4<f32>,
+    @location(11) position_matrix_3: vec4<f32>,
 
-    @location(12) normal_matrix_0: vec3<f32>,
-    @location(13) normal_matrix_1: vec3<f32>,
-    @location(14) normal_matrix_2: vec3<f32>,
+    @location(12) direction_matrix_0: vec3<f32>,
+    @location(13) direction_matrix_1: vec3<f32>,
+    @location(14) direction_matrix_2: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -44,10 +44,10 @@ fn vs_main(
     var out: VertexOutput;
 
     let model_matrix = mat4x4<f32>(
-        model_instance.model_matrix_0,
-        model_instance.model_matrix_1,
-        model_instance.model_matrix_2,
-        model_instance.model_matrix_3,
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
     );
 
     let world_position = model_matrix * vec4<f32>(in.position, 1.0);

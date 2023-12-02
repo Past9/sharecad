@@ -25,14 +25,14 @@ struct SurfaceVertexIn {
 struct SurfaceModelInstance {
     @location(7) id: u32,
 
-    @location(8) model_matrix_0: vec4<f32>,
-    @location(9) model_matrix_1: vec4<f32>,
-    @location(10) model_matrix_2: vec4<f32>,
-    @location(11) model_matrix_3: vec4<f32>,
+    @location(8) position_matrix_0: vec4<f32>,
+    @location(9) position_matrix_1: vec4<f32>,
+    @location(10) position_matrix_2: vec4<f32>,
+    @location(11) position_matrix_3: vec4<f32>,
 
-    @location(12) normal_matrix_0: vec3<f32>,
-    @location(13) normal_matrix_1: vec3<f32>,
-    @location(14) normal_matrix_2: vec3<f32>,
+    @location(12) direction_matrix_0: vec3<f32>,
+    @location(13) direction_matrix_1: vec3<f32>,
+    @location(14) direction_matrix_2: vec3<f32>,
 }
 
 struct SurfaceVertexOut {
@@ -42,32 +42,31 @@ struct SurfaceVertexOut {
 };
 
 struct CurveVertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) direction: vec3<f32>,
-    @location(2) width: f32,
-    
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) direction: vec3<f32>,
+    @location(3) width: f32,
 };
 
-struct CurveInstanceIn {
-    @location(3) position_matrix_0: vec4<f32>,
-    @location(4) position_matrix_1: vec4<f32>,
-    @location(5) position_matrix_2: vec4<f32>,
-    @location(6) position_matrix_3: vec4<f32>,
+struct CurveModelInstance {
+    @location(4) id: u32,
 
-    @location(7) direction_matrix_0: vec3<f32>,
-    @location(8) direction_matrix_1: vec3<f32>,
-    @location(9) direction_matrix_2: vec3<f32>,
-    
-    @location(10) tint: vec4<f32>,
+    @location(5) position_matrix_0: vec4<f32>,
+    @location(6) position_matrix_1: vec4<f32>,
+    @location(7) position_matrix_2: vec4<f32>,
+    @location(8) position_matrix_3: vec4<f32>,
 
-    @location(11) id: u32,
-};
+    @location(9) direction_matrix_0: vec3<f32>,
+    @location(10) direction_matrix_1: vec3<f32>,
+    @location(11) direction_matrix_2: vec3<f32>,
+}
 
 struct CurveVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the line in screen space
     @location(0) ss_half_width: f32,
-    @location(1) id: u32,
+    @location(1) curve_id: u32,
+    @location(2) model_id: u32,
 }
 
 struct PointVertexIn {
@@ -108,10 +107,10 @@ fn vs_surface(
     var out: SurfaceVertexOut;
 
     let model_matrix = mat4x4<f32>(
-        model_instance.model_matrix_0,
-        model_instance.model_matrix_1,
-        model_instance.model_matrix_2,
-        model_instance.model_matrix_3,
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
     );
 
     let world_position = model_matrix * vec4<f32>(in.position, 1.0);
@@ -132,8 +131,8 @@ const CURVE_WIDTH: f32 = 20.0;
 @vertex
 fn vs_curve(
     @builtin(vertex_index) v_idx: u32,
-    model: CurveVertexIn,
-    instance: CurveInstanceIn,
+    in: CurveVertexIn,
+    model_instance: CurveModelInstance,
 ) -> CurveVertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
@@ -147,16 +146,16 @@ fn vs_curve(
     var out: CurveVertexOut;
 
     let position_matrix = mat4x4<f32>(
-        instance.position_matrix_0,
-        instance.position_matrix_1,
-        instance.position_matrix_2,
-        instance.position_matrix_3,
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
     );
 
     let direction_matrix = mat3x3<f32>(
-        instance.direction_matrix_0,
-        instance.direction_matrix_1,
-        instance.direction_matrix_2,
+        model_instance.direction_matrix_0,
+        model_instance.direction_matrix_1,
+        model_instance.direction_matrix_2,
     );
 
     // Depending on the index, the current vertex is either at the start 
@@ -166,11 +165,11 @@ fn vs_curve(
     var start = vec3(0.0);
     var end = vec3(0.0);
     if is_start {
-        start = model.position;
-        end = model.position + model.direction;
+        start = in.position;
+        end = in.position + in.direction;
     } else {
-        start = model.position - model.direction;
-        end = model.position;
+        start = in.position - in.direction;
+        end = in.position;
     }
 
     let start_world_pos = position_matrix * vec4(start, 1.0);
@@ -241,7 +240,8 @@ fn vs_curve(
     // allow the fragment shader to account for it.
     out.ss_half_width = length(orth);
 
-    out.id = instance.id;
+    out.curve_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }
@@ -352,7 +352,7 @@ fn fs_curve(
     out.depth = z / w;
 
     // Bitshift the ID left two places, then add the type identifier for surfaces (0b10)
-    out.id = (in.id << u32(2)) | u32(2);
+    out.id = (in.curve_id << u32(2)) | u32(2);
 
     return out;
 }

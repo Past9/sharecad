@@ -23,6 +23,7 @@ pub struct SceneModel {
     points: Vec<ScenePoints>,
     instances: Vec<ModelInstance>,
     surface_instance_buffer: OnceCell<wgpu::Buffer>,
+    curve_instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl SceneModel {
     pub fn new(
@@ -37,6 +38,7 @@ impl SceneModel {
             points,
             instances,
             surface_instance_buffer: OnceCell::new(),
+            curve_instance_buffer: OnceCell::new(),
         }
     }
 
@@ -58,6 +60,22 @@ impl SceneModel {
 
     pub fn surface_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
         self.surface_instance_buffer.get_or_init(|| {
+            let instance_data = self
+                .instances
+                .iter()
+                .map(|inst| inst.to_raw())
+                .collect::<Vec<_>>();
+
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            })
+        })
+    }
+
+    pub fn curve_instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.curve_instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
                 .iter()
@@ -115,11 +133,32 @@ impl ModelInstanceRaw {
         14=> Float32x3,
     ];
 
+    const CURVE_ATTRIBS: [wgpu::VertexAttribute; 8] = wgpu::vertex_attr_array![
+        4 => Uint32,
+
+        5 => Float32x4,
+        6 => Float32x4,
+        7 => Float32x4,
+        8 => Float32x4,
+
+        9 => Float32x3,
+        10 => Float32x3,
+        11 => Float32x3,
+    ];
+
     pub fn surface_desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<ModelInstanceRaw>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::SURFACE_ATTRIBS,
+        }
+    }
+
+    pub fn curve_desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<ModelInstanceRaw>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::CURVE_ATTRIBS,
         }
     }
 }
