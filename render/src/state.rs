@@ -205,7 +205,9 @@ impl ViewState {
 
             let curve_width = 1.0;
 
-            let curve_material = scene.insert_curve_material(CurveMaterialSpec::default());
+            let curve_material = scene
+                .materials_mut()
+                .insert_curve_material(CurveMaterialSpec::default());
 
             let mut curve_ids = IdSeries::new();
 
@@ -251,7 +253,9 @@ impl ViewState {
 
             let point_width = 8.0;
 
-            let point_material = scene.insert_point_material(PointMaterialSpec::default());
+            let point_material = scene
+                .materials_mut()
+                .insert_point_material(PointMaterialSpec::default());
 
             let mut point_ids = IdSeries::new();
 

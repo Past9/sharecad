@@ -1090,7 +1090,8 @@ impl VisualRenderer {
 
                     for object in scene.surfaces().iter() {
                         let material = scene
-                            .surface_materials()
+                            .materials()
+                            .surface()
                             .get(&object.material_id())
                             .unwrap();
                         if material.is_translucent {
@@ -1249,7 +1250,8 @@ impl VisualRenderer {
 
                     for object in scene.surfaces().iter() {
                         let material = scene
-                            .surface_materials()
+                            .materials()
+                            .surface()
                             .get(&object.material_id())
                             .unwrap();
                         if !material.is_translucent {
@@ -1331,7 +1333,7 @@ impl VisualRenderer {
     }
 
     fn build_image_texture_resources(&mut self, scene: &Scene) {
-        for (_, texture) in scene.textures() {
+        for (_, texture) in scene.materials().textures() {
             self.create_image_texture_resources(texture);
         }
     }
@@ -1348,15 +1350,15 @@ impl VisualRenderer {
     }
 
     fn build_material_bind_groups(&mut self, scene: &Scene) {
-        for material in scene.surface_materials().values() {
+        for material in scene.materials().surface().values() {
             self.create_surface_material_bind_groups(material);
         }
 
-        for material in scene.curve_materials().values() {
+        for material in scene.materials().curve().values() {
             self.create_curve_material_bind_groups(material);
         }
 
-        for material in scene.point_materials().values() {
+        for material in scene.materials().point().values() {
             self.create_point_material_bind_groups(material);
         }
     }

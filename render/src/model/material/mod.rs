@@ -13,6 +13,7 @@ use crate::{
     texture::{ImageTextureKind, Texture, TextureId, TextureImage},
 };
 
+#[derive(Debug)]
 pub struct MaterialLibrary {
     texture_ids: IdSeries<TextureId>,
     textures: HashMap<TextureId, Texture>,
@@ -39,6 +40,22 @@ impl MaterialLibrary {
             point_material_ids: IdSeries::new(),
             point_materials: HashMap::new(),
         }
+    }
+
+    pub fn surface(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
+        &self.surface_materials
+    }
+
+    pub fn curve(&self) -> &HashMap<CurveMaterialId, CurveMaterial> {
+        &self.curve_materials
+    }
+
+    pub fn point(&self) -> &HashMap<PointMaterialId, PointMaterial> {
+        &self.point_materials
+    }
+
+    pub fn textures(&self) -> &HashMap<TextureId, Texture> {
+        &self.textures
     }
 
     pub fn insert_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId {
