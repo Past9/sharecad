@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use egui::accesskit::Point;
 use space::{Mat44, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;

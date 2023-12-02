@@ -3,27 +3,18 @@ mod editor;
 use editor::{EditorState, EditorUi};
 use eframe::{
     egui,
-    egui_wgpu::{self, RenderState, WgpuConfiguration},
+    egui_wgpu::WgpuConfiguration,
     wgpu::{self, Features},
     Renderer,
 };
 use geometry::{Curve3, Curve3Impl};
 use render::{
-    color::{rgb, Rgba},
-    input::InputEvent,
-    light::AmbientLight,
-    model::{
-        CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, PolyCurve,
-        SceneCurve,
-    },
-    render::{EguiTransfer, MsaaSamples},
-    state::ViewState,
+    color::Rgba,
+    model::{CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, PolyCurve},
+    render::MsaaSamples,
 };
 use space::{deg, Point3, Quat, Vec3};
-use std::{
-    cell::OnceCell,
-    sync::{Arc, Mutex},
-};
+use std::{cell::OnceCell, sync::Arc};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
