@@ -82,7 +82,7 @@ struct ModelCurve {
     translation: Vec3,
     orientation: Quat,
 
-    poly_curve: OnceCell<PolyCurve<CurveInstance>>,
+    poly_curve: OnceCell<PolyCurve>,
 }
 impl ModelCurve {
     const NUM_SEGMENTS: u32 = 100;
@@ -111,7 +111,7 @@ impl ModelCurve {
         self.orientation * self.curve.der2(u)
     }
 
-    fn poly_curve(&self) -> &PolyCurve<CurveInstance> {
+    fn poly_curve(&self) -> &PolyCurve {
         self.poly_curve.get_or_init(|| {
             let u_min = self.u_min();
             let u_max = self.u_max();

@@ -21,14 +21,18 @@ pub struct CurvePoint {
 }
 
 #[derive(Debug)]
-pub struct PolyCurve<T: SceneCurveInstance> {
+pub struct PolyCurve {
     pub mesh: CurveMesh,
-    pub instances: Vec<T>,
+    pub instances: Vec<CurveInstance>,
     pub material_id: CurveMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl<T: SceneCurveInstance> PolyCurve<T> {
-    pub fn new(mesh: CurveMesh, instances: Vec<T>, material_id: CurveMaterialId) -> Self {
+impl PolyCurve {
+    pub fn new(
+        mesh: CurveMesh,
+        instances: Vec<CurveInstance>,
+        material_id: CurveMaterialId,
+    ) -> Self {
         Self {
             mesh,
             instances,
@@ -37,7 +41,7 @@ impl<T: SceneCurveInstance> PolyCurve<T> {
         }
     }
 }
-impl<T: SceneCurveInstance> SceneCurve for PolyCurve<T> {
+impl SceneCurve for PolyCurve {
     fn mesh(&self) -> &CurveMesh {
         &self.mesh
     }
@@ -189,13 +193,6 @@ impl From<u32> for CurveInstanceId {
     }
 }
 
-pub trait SceneCurveInstance: std::fmt::Debug + Clone + 'static {
-    type RawBuffer: VertexBuffer;
-
-    fn id(&self) -> CurveInstanceId;
-    fn to_raw(&self) -> Self::RawBuffer;
-}
-
 #[derive(Debug, Clone)]
 pub struct CurveInstance {
     pub id: CurveInstanceId,
@@ -203,14 +200,12 @@ pub struct CurveInstance {
     pub position: Vec3,
     pub tint: Rgba,
 }
-impl SceneCurveInstance for CurveInstance {
-    type RawBuffer = CurveInstanceRaw;
-
+impl CurveInstance {
     fn id(&self) -> CurveInstanceId {
         self.id
     }
 
-    fn to_raw(&self) -> Self::RawBuffer {
+    fn to_raw(&self) -> CurveInstanceRaw {
         let position = Mat44::translation(self.position) * Mat44::from(self.rotation);
         CurveInstanceRaw {
             position: position.transpose().into(),
