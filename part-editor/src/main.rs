@@ -10,7 +10,7 @@ use eframe::{
 use geometry::{Curve3, Curve3Impl};
 use render::{
     color::Rgba,
-    model::{CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, PolyCurve},
+    model::{CurveInstance, CurveInstanceId, CurveMaterialId, CurveMesh, CurvePoint, SceneCurve},
     render::MsaaSamples,
 };
 use space::{deg, Point3, Quat, Vec3};
@@ -73,7 +73,7 @@ struct ModelCurve {
     translation: Vec3,
     orientation: Quat,
 
-    poly_curve: OnceCell<PolyCurve>,
+    poly_curve: OnceCell<SceneCurve>,
 }
 impl ModelCurve {
     const NUM_SEGMENTS: u32 = 100;
@@ -102,7 +102,7 @@ impl ModelCurve {
         self.orientation * self.curve.der2(u)
     }
 
-    fn poly_curve(&self) -> &PolyCurve {
+    fn poly_curve(&self) -> &SceneCurve {
         self.poly_curve.get_or_init(|| {
             let u_min = self.u_min();
             let u_max = self.u_max();
@@ -124,7 +124,7 @@ impl ModelCurve {
 
             let mesh = CurveMesh::new(points);
 
-            PolyCurve::new(
+            SceneCurve::new(
                 mesh,
                 vec![CurveInstance {
                     id: CurveInstanceId(0),

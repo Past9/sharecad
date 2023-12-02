@@ -36,7 +36,7 @@ impl<T: From<u32>> IdSeries<T> {
 #[derive(Debug)]
 pub struct Scene {
     surfaces: Vec<SceneSurface>,
-    curves: Vec<Box<dyn SceneCurve>>,
+    curves: Vec<SceneCurve>,
     points: Vec<Box<dyn ScenePoint>>,
 
     materials: MaterialLibrary,
@@ -63,11 +63,11 @@ impl Scene {
         &self.surfaces
     }
 
-    pub fn curves(&self) -> &[Box<dyn SceneCurve>] {
+    pub fn curves(&self) -> &[SceneCurve] {
         &self.curves
     }
 
-    pub fn set_curves(&mut self, curves: Vec<Box<dyn SceneCurve>>) {
+    pub fn set_curves(&mut self, curves: Vec<SceneCurve>) {
         self.curves = curves;
     }
 

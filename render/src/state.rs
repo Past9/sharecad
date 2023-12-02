@@ -5,8 +5,8 @@ use crate::{
     light::{AmbientLight, DirectionalLight},
     model::{
         CurveInstance, CurveInstanceId, CurveMaterialSpec, CurveMesh, CurvePoint, InstanceId,
-        PointInstance, PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, PolyCurve,
-        PolyPoints, SceneCurve, ScenePoint, SurfaceInstance, SurfaceInstanceId,
+        PointInstance, PointInstanceId, PointMaterialSpec, PointMesh, PointPoint, PolyPoints,
+        SceneCurve, ScenePoint, SurfaceInstance, SurfaceInstanceId,
     },
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
@@ -215,7 +215,7 @@ impl ViewState {
                 .into_iter()
                 .enumerate()
                 .map(|(i, points)| {
-                    Box::new(PolyCurve::new(
+                    SceneCurve::new(
                         CurveMesh::new(
                             points
                                 .into_iter()
@@ -235,9 +235,9 @@ impl ViewState {
                             },
                         }],
                         curve_material,
-                    )) as Box<dyn SceneCurve>
+                    )
                 })
-                .collect::<Vec<Box<_>>>();
+                .collect::<Vec<_>>();
 
             println!("scene_curves = {:#?}", scene_curves);
 

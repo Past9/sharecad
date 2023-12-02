@@ -8,26 +8,19 @@ use crate::{color::Rgba, render::VertexBuffer};
 
 use super::CurveMaterialId;
 
-pub trait SceneCurve: std::fmt::Debug {
-    fn mesh(&self) -> &CurveMesh;
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer;
-    fn material_id(&self) -> CurveMaterialId;
-    fn num_instances(&self) -> u32;
-}
-
 pub struct CurvePoint {
     pub position: Point3,
     pub width: f32,
 }
 
 #[derive(Debug)]
-pub struct PolyCurve {
+pub struct SceneCurve {
     pub mesh: CurveMesh,
     pub instances: Vec<CurveInstance>,
     pub material_id: CurveMaterialId,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
-impl PolyCurve {
+impl SceneCurve {
     pub fn new(
         mesh: CurveMesh,
         instances: Vec<CurveInstance>,
@@ -40,13 +33,12 @@ impl PolyCurve {
             instance_buffer: OnceCell::new(),
         }
     }
-}
-impl SceneCurve for PolyCurve {
-    fn mesh(&self) -> &CurveMesh {
+
+    pub fn mesh(&self) -> &CurveMesh {
         &self.mesh
     }
 
-    fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
+    pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
         self.instance_buffer.get_or_init(|| {
             let instance_data = self
                 .instances
@@ -62,11 +54,11 @@ impl SceneCurve for PolyCurve {
         })
     }
 
-    fn material_id(&self) -> CurveMaterialId {
+    pub fn material_id(&self) -> CurveMaterialId {
         self.material_id
     }
 
-    fn num_instances(&self) -> u32 {
+    pub fn num_instances(&self) -> u32 {
         self.instances.len() as u32
     }
 }
