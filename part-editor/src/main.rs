@@ -102,25 +102,25 @@ impl PartModel {
         }
     }
 
-    pub fn scene_model(&self, material: CurveMaterialId) -> &SceneModel {
-        self.scene_model.get_or_init(|| {
-            let mut scene_model = SceneModel::new();
+    pub fn scene_model(&self, material: CurveMaterialId) -> SceneModel {
+        let mut scene_model = SceneModel::new();
 
-            // TODO Surfaces
+        // TODO Surfaces
 
-            for curve in self.curves.iter() {
-                scene_model.add_curve(SceneCurve::new(tessellate_curve(&curve), material, 1.5));
-            }
+        for curve in self.curves.iter() {
+            scene_model.add_curve(SceneCurve::new(tessellate_curve(&curve), material, 1.5));
+        }
 
-            // TODO Points
+        // TODO Points
 
-            scene_model
-        })
+        println!("scene_model {:#?}", scene_model);
+
+        scene_model
     }
 }
 
 fn tessellate_curve(curve: &ModelCurve) -> CurveMesh {
-    const NUM_SEGMENTS: u32 = 100;
+    const NUM_SEGMENTS: u32 = 20;
 
     let u_min = curve.u_min();
     let u_max = curve.u_max();
@@ -149,8 +149,6 @@ struct ModelCurve {
     orientation: Quat,
 }
 impl ModelCurve {
-    const NUM_SEGMENTS: u32 = 100;
-
     fn u_min(&self) -> f64 {
         self.curve.u_min()
     }

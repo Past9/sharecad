@@ -105,6 +105,7 @@ impl Scene {
         self.ambient_lights.push(light);
     }
 
+    /*
     pub fn load_wavefront_obj_file(&mut self, file_path: &str, instances: Vec<ModelInstance>) {
         let parent_path = Path::new(file_path).parent().unwrap().to_path_buf();
 
@@ -434,4 +435,5 @@ impl Scene {
 
         self.models.insert(self.model_ids.next(), model);
     }
+    */
 }

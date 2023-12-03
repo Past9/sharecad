@@ -184,8 +184,8 @@ impl PositionRenderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            for (model_id, model) in scene.models().iter() {
-                for (surface_id, surface) in model.surfaces().iter() {
+            for (_model_id, model) in scene.models().iter() {
+                for (_surface_id, surface) in model.surfaces().iter() {
                     render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                     render_pass.set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
                     render_pass.set_index_buffer(
