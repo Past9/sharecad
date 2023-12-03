@@ -2,6 +2,7 @@ struct Globals {
     @align(16) num_directional_lights: u32,
     @align(16) num_ambient_lights: u32,
     @align(16) viewport_dims: vec2<f32>,
+    @align(16) pixels_per_point: f32,
     @align(16) camera: Camera
 }
 
@@ -159,7 +160,7 @@ fn vs_curve(
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
     let is_start = index <= 1;
-    let half_width = in.width / 2.0;
+    let half_width = globals.pixels_per_point * in.width / 2.0;
 
     var out: CurveVertexOut;
 
@@ -271,7 +272,7 @@ fn vs_point(
 ) -> PointVertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
-    let half_width = in.width / 2.0;
+    let half_width = globals.pixels_per_point * in.width / 2.0;
 
     var out: PointVertexOut;
 

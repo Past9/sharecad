@@ -42,10 +42,18 @@ struct GlobalsRaw {
     _padding2: [u32; 3],
     viewport_dims: [f32; 2],
     _padding3: [u32; 2],
+    pixels_per_point: f32,
+    _padding4: [u32; 3],
     camera: CameraRaw,
 }
 impl GlobalsRaw {
-    fn build(scene: &Scene, camera: &Camera, aspect: f64, size: (u32, u32)) -> GlobalsRaw {
+    fn build(
+        scene: &Scene,
+        camera: &Camera,
+        aspect: f64,
+        size: (u32, u32),
+        pixels_per_point: f32,
+    ) -> GlobalsRaw {
         GlobalsRaw {
             num_directional_lights: min(
                 scene.directional_lights().len() as u32,
@@ -56,6 +64,8 @@ impl GlobalsRaw {
             _padding2: [0; 3],
             viewport_dims: [size.0 as f32, size.1 as f32],
             _padding3: [0; 2],
+            pixels_per_point,
+            _padding4: [0; 3],
             camera: camera.to_raw(aspect),
         }
     }

@@ -2,6 +2,7 @@ struct Globals {
     @align(16) num_directional_lights: u32,
     @align(16) num_ambient_lights: u32,
     @align(16) viewport_dims: vec2<f32>,
+    @align(16) pixels_per_point: f32,
     @align(16) camera: Camera
 }
 
@@ -104,6 +105,10 @@ var<uniform> globals: Globals;
 
 const LOG_DEPTH_C = 1.0;
 
+// How many logical pixels to "spread" small objects (curves and points)
+// to make them easier to target with a mouse pointer.
+const SELECTION_SPREAD: f32 = 5.0;
+
 @vertex
 fn vs_surface(
     in: SurfaceVertexIn,
@@ -131,8 +136,6 @@ fn vs_surface(
     return out;
 }
 
-const CURVE_WIDTH: f32 = 20.0;
-
 @vertex
 fn vs_curve(
     @builtin(vertex_index) v_idx: u32,
@@ -146,7 +149,7 @@ fn vs_curve(
     // We override the visual curve width with CURVE_WIDTH so that the 
     // mouse pointer doesn't have to be exactly on top of it, which would 
     // be difficult for users since curves are only a few pixels wide.
-    let half_width = CURVE_WIDTH / 2.0;
+    let half_width = globals.pixels_per_point * (SELECTION_SPREAD + in.width / 2.0);
 
     var out: CurveVertexOut;
 
@@ -251,7 +254,6 @@ fn vs_curve(
     return out;
 }
 
-const POINT_WIDTH: f32 = 30.0; 
 
 @vertex
 fn vs_point(
@@ -261,7 +263,7 @@ fn vs_point(
 ) -> PointVertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
-    let half_width = POINT_WIDTH / 2.0;
+    let half_width = globals.pixels_per_point * (SELECTION_SPREAD + in.width / 2.0);
 
     var out: PointVertexOut;
 

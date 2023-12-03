@@ -12,6 +12,7 @@ use wgpu::util::DeviceExt;
 const PIXEL_BYTES: u32 = 4;
 
 pub struct ObjectRenderer {
+    pixels_per_point: f32,
     target: RenderTarget,
     depth_texture: OnceCell<TextureResources>,
     globals_buffer: wgpu::Buffer,
@@ -22,7 +23,7 @@ pub struct ObjectRenderer {
     output_buffer: OnceCell<wgpu::Buffer>,
 }
 impl ObjectRenderer {
-    pub fn new(target: RenderTarget) -> Self {
+    pub fn new(target: RenderTarget, pixels_per_point: f32) -> Self {
         let device = target.device();
 
         let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
@@ -236,6 +237,7 @@ impl ObjectRenderer {
         };
 
         Self {
+            pixels_per_point,
             target,
             depth_texture: OnceCell::new(),
             globals_buffer,
@@ -276,7 +278,13 @@ impl ObjectRenderer {
         queue.write_buffer(
             &self.globals_buffer,
             0,
-            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size())]),
+            bytemuck::cast_slice(&[GlobalsRaw::build(
+                scene,
+                camera,
+                self.aspect(),
+                self.size(),
+                self.pixels_per_point,
+            )]),
         );
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {

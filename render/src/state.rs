@@ -29,7 +29,6 @@ pub struct ViewState {
     camera_controller: CameraController,
     scene: Scene,
     directional_lights: Vec<DirectionalLight>,
-    pixels_per_point: f32,
     needs_position_update: bool,
     needs_object_update: bool,
 }
@@ -100,14 +99,21 @@ impl ViewState {
         msaa_samples: MsaaSamples,
         pixels_per_point: f32,
     ) -> ViewState {
-        let visual_renderer =
-            VisualRenderer::new(&render_context, visual_render_target, msaa_samples);
-        let object_renderer = ObjectRenderer::new(render_context.render_into_memory(
-            visual_renderer.size(),
-            wgpu::TextureFormat::R32Uint,
-            None,
-            MsaaSamples::Samples1,
-        ));
+        let visual_renderer = VisualRenderer::new(
+            &render_context,
+            visual_render_target,
+            msaa_samples,
+            pixels_per_point,
+        );
+        let object_renderer = ObjectRenderer::new(
+            render_context.render_into_memory(
+                visual_renderer.size(),
+                wgpu::TextureFormat::R32Uint,
+                None,
+                MsaaSamples::Samples1,
+            ),
+            pixels_per_point,
+        );
         let position_renderer = PositionRenderer::new(render_context.render_into_memory(
             visual_renderer.size(),
             wgpu::TextureFormat::Rgba32Float,
@@ -175,7 +181,6 @@ impl ViewState {
             camera_controller,
             scene,
             directional_lights,
-            pixels_per_point,
             needs_position_update: true,
             needs_object_update: true,
         }

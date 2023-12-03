@@ -102,6 +102,7 @@ impl Ord for MsaaSamples {
 
 #[derive(Debug)]
 pub struct VisualRenderer {
+    pixels_per_point: f32,
     output_target: RenderTarget,
 
     opaque_target: RenderTarget,
@@ -147,6 +148,7 @@ impl VisualRenderer {
         context: &RenderContext,
         output_target: RenderTarget,
         msaa_samples: MsaaSamples,
+        pixels_per_point: f32,
     ) -> Self {
         let device = output_target.device();
 
@@ -932,6 +934,7 @@ impl VisualRenderer {
         };
 
         Self {
+            pixels_per_point,
             output_target,
 
             opaque_target,
@@ -1012,7 +1015,7 @@ impl VisualRenderer {
             &self.globals_buffer,
             0,
             //bytemuck::cast_slice(&[self.globals_raw(scene, camera)]),
-            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size())]),
+            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size(), self.pixels_per_point)]),
         );
 
         for (i, light) in scene.directional_lights().iter().enumerate() {

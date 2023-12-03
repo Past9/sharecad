@@ -15,6 +15,9 @@ use std::{
     path::Path,
 };
 
+const LINE_WIDTH: f32 = 1.0;
+const POINT_WIDTH: f32 = 6.0;
+
 #[derive(Debug)]
 pub(crate) struct IdSeries<T: From<u32>> {
     last_id: u32,
@@ -387,7 +390,7 @@ impl Scene {
                         curve_ids.next(),
                         CurveMesh::new(points),
                         curve_material,
-                        1.5,
+                        LINE_WIDTH,
                     )
                 })
                 .collect::<Vec<_>>();
@@ -412,7 +415,7 @@ impl Scene {
 
             let points = positions
                 .into_iter()
-                .map(|point| ScenePoint::new(point_ids.next(), point, point_material, 8.0))
+                .map(|point| ScenePoint::new(point_ids.next(), point, point_material, POINT_WIDTH))
                 .collect::<Vec<_>>();
 
             points
