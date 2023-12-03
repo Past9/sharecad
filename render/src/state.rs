@@ -119,12 +119,15 @@ impl ViewState {
             ),
             pixels_per_point,
         );
-        let position_renderer = PositionRenderer::new(render_context.render_into_memory(
-            visual_renderer.size(),
-            wgpu::TextureFormat::Rgba32Float,
-            None,
-            MsaaSamples::Samples1,
-        ));
+        let position_renderer = PositionRenderer::new(
+            render_context.render_into_memory(
+                visual_renderer.size(),
+                wgpu::TextureFormat::Rgba32Float,
+                None,
+                MsaaSamples::Samples1,
+            ),
+            pixels_per_point,
+        );
 
         let camera = Camera::new(
             point3(0.0, 0.0, 0.0),
@@ -136,43 +139,6 @@ impl ViewState {
         );
 
         let camera_controller = CameraController::new(camera);
-
-        /*
-        let scene = {
-            let mut scene = Scene::new();
-
-            let instances = (0..NUM_Z_INSTANCES)
-                .flat_map(|z| {
-                    (0..NUM_Y_INSTANCES).flat_map(move |y| {
-                        (0..NUM_X_INSTANCES).map(move |x| {
-                            let rotation = Quat::from_axis_angle(Vec3::UNIT_Y, deg(0.0));
-
-                            let position = vec3(
-                                SPACE_BETWEEN * (x as f64 - NUM_X_INSTANCES as f64 / 2.0 + 0.5),
-                                SPACE_BETWEEN * (y as f64 - NUM_Y_INSTANCES as f64 / 2.0 + 0.5),
-                                SPACE_BETWEEN * (z as f64 - NUM_Z_INSTANCES as f64 / 2.0 + 0.5),
-                            );
-
-                            ModelInstance {
-                                id: ModelId(1),
-                                rotation,
-                                position,
-                            }
-                        })
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            let path =
-                Path::new("C:\\Users\\ross\\Projects\\sharecad\\resources\\gizmo\\gizmo2.obj");
-
-            let path_str = path.to_str().unwrap();
-
-            scene.load_wavefront_obj_file(path_str, instances);
-
-            scene
-        };
-        */
 
         Self {
             visual_renderer,
@@ -241,6 +207,7 @@ impl ViewState {
 
         self.visual_renderer.render(&self.scene, camera).unwrap();
         self.object_renderer.render(&self.scene, camera).unwrap();
+        self.position_renderer.render(&self.scene, camera).unwrap();
 
         self.needs_position_update = true;
         self.needs_object_update = true;

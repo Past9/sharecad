@@ -28,14 +28,14 @@ impl ObjectRenderer {
 
         let (globals_bind_group_layout, globals_bind_group, globals_buffer) = {
             let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("globals-buffer"),
+                label: Some("object-globals-buffer"),
                 contents: bytemuck::cast_slice(&[0u8; std::mem::size_of::<GlobalsRaw>()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
             let globals_bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("globals-bind-group-layout"),
+                    label: Some("object-globals-bind-group-layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -49,7 +49,7 @@ impl ObjectRenderer {
                 });
 
             let globals_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("globals-bind-group"),
+                label: Some("object-globals-bind-group"),
                 layout: &globals_bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,

@@ -79,7 +79,7 @@ fn build_scene() -> Scene {
 
     let helix = ModelCurve {
         curve: Curve3::helix(1.0, 1.0 / TAU, 10.0),
-        translation: vec3(10.0, 0.0, 0.0),
+        translation: vec3(3.0, 0.0, 0.0),
         orientation: Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(45.0)),
     };
 
