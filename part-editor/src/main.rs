@@ -113,14 +113,12 @@ impl PartModel {
 
         // TODO Points
 
-        println!("scene_model {:#?}", scene_model);
-
         scene_model
     }
 }
 
 fn tessellate_curve(curve: &ModelCurve) -> CurveMesh {
-    const NUM_SEGMENTS: u32 = 20;
+    const NUM_SEGMENTS: u32 = 100;
 
     let u_min = curve.u_min();
     let u_max = curve.u_max();

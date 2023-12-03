@@ -56,6 +56,8 @@ impl SceneModel {
             instance_buffer: OnceCell::new(),
         };
 
+        model.add_instance(ModelInstance::default());
+
         model
     }
 

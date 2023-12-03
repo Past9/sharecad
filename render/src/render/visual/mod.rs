@@ -1158,6 +1158,8 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
 
                     for (_model_id, model) in scene.models().iter() {
+                        println!("curves.len() = {}", model.curves().len());
+                        println!("model.num_instances() = {}", model.num_instances());
                         for (curve_id, curve) in model.curves().iter() {
                             render_pass.set_vertex_buffer(
                                 0,
