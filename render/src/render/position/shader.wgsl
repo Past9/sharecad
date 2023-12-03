@@ -36,11 +36,6 @@ struct SurfaceModelInstance {
     @location(14) direction_matrix_2: vec3<f32>,
 }
 
-struct SurfaceVertexOut {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) world_position: vec3<f32>,
-};
-
 struct CurveVertexIn {
     @location(0) id: u32,
     @location(1) position: vec3<f32>,
@@ -61,7 +56,26 @@ struct CurveModelInstance {
     @location(11) direction_matrix_2: vec3<f32>,
 }
 
-struct CurveVertexOut {
+struct PointVertexIn {
+    @location(0) id: u32,
+    @location(1) position: vec3<f32>,
+    @location(2) width: f32,
+}
+
+struct PointModelInstance {
+    @location(3) id: u32,
+
+    @location(4) position_matrix_0: vec4<f32>,
+    @location(5) position_matrix_1: vec4<f32>,
+    @location(6) position_matrix_2: vec4<f32>,
+    @location(7) position_matrix_3: vec4<f32>,
+
+    @location(8) direction_matrix_0: vec3<f32>,
+    @location(9) direction_matrix_1: vec3<f32>,
+    @location(10) direction_matrix_2: vec3<f32>,
+};
+
+struct VertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_position: vec3<f32>,
 }
@@ -76,8 +90,8 @@ const LOG_DEPTH_C = 1.0;
 fn vs_surface(
     in: SurfaceVertexIn,
     model_instance: SurfaceModelInstance,
-) -> SurfaceVertexOut {
-    var out: SurfaceVertexOut;
+) -> VertexOut {
+    var out: VertexOut;
 
     let model_matrix = mat4x4<f32>(
         model_instance.position_matrix_0,
@@ -103,13 +117,13 @@ fn vs_curve(
     @builtin(vertex_index) v_idx: u32,
     in: CurveVertexIn,
     model_instance: CurveModelInstance,
-) -> CurveVertexOut {
+) -> VertexOut {
     let v_idx_i = i32(v_idx);
     let index = v_idx_i % 4;
     let is_start = index <= 1;
-    let half_width = globals.pixels_per_point * in.width / 2.0;
+    let half_width = 0.5;
 
-    var out: CurveVertexOut;
+    var out: VertexOut;
 
     let position_matrix = mat4x4<f32>(
         model_instance.position_matrix_0,
@@ -199,27 +213,70 @@ fn vs_curve(
 
     // Set the output clip position for the current point
     out.clip_position = vec4(final_pos * clip_w, clip_z, clip_w);
+
     out.world_position = world_pos;
+
+    return out;
+}
+
+@vertex
+fn vs_point(
+    @builtin(vertex_index) v_idx: u32,
+    in: PointVertexIn,
+    model_instance: PointModelInstance,
+) -> VertexOut {
+    let v_idx_i = i32(v_idx);
+    let index = v_idx_i % 4;
+    let half_width = 0.5;
+
+    var out: VertexOut;
+
+    let position_matrix = mat4x4<f32>(
+        model_instance.position_matrix_0,
+        model_instance.position_matrix_1,
+        model_instance.position_matrix_2,
+        model_instance.position_matrix_3,
+    );
+
+    let world_pos = position_matrix * vec4(in.position, 1.0);
+
+    // Transform the start and end points into clip space
+    let clip_pos = globals.camera.view_proj * world_pos;
+
+    // Transform the start and end points into screen space
+    let screen_pos = clip_pos.xy / clip_pos.w;
+
+    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
+
+    let ss_pixel_size = vec2(2.0, 2.0) / globals.viewport_dims;
+    let ss_half_width = ss_pixel_size * half_width;
+
+    var u = 1.0;
+    var v = 1.0;
+
+    if index == 0 || index == 1 {
+        u *= -1.0;
+    }
+
+    if index == 1 || index == 3 {
+        v *= -1.0;
+    }
+
+    let uv = vec2(u, v);
+    let final_pos = screen_pos.xy + ss_half_width * uv;
+
+    // Set the output clip position for the current point
+    out.clip_position = vec4(final_pos * clip_pos.w, clip_pos.z, clip_pos.w);
+
+    out.world_position = world_pos.xyz;
 
     return out;
 }
 
 
 @fragment
-fn fs_surface(
-    in: SurfaceVertexOut
-) -> @location(0) vec4<f32> {
-    return vec4<f32>(
-        in.world_position.x,
-        in.world_position.y,
-        in.world_position.z,
-        1.0
-    );
-}
-
-@fragment
-fn fs_curve(
-    in: CurveVertexOut,
+fn fs_main(
+    in: VertexOut
 ) -> @location(0) vec4<f32> {
     return vec4<f32>(
         in.world_position.x,

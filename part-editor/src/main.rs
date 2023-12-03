@@ -18,7 +18,7 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, vec3, Point3, Quat, Vec3};
+use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use std::{cell::OnceCell, f64::consts::TAU, sync::Arc};
 
 fn main() -> Result<(), eframe::Error> {
@@ -89,11 +89,12 @@ fn build_scene() -> Scene {
         .insert_point_material(PointMaterialSpec::default());
 
     let origin = Point3::ZERO;
+    let upper = point3(0.0, 3.0, 0.0);
     let helix_start = helix.eval(helix.u_min());
     let helix_end = helix.eval(helix.u_max());
 
     // Build part
-    let part = PartModel::new(vec![helix], vec![origin, helix_start, helix_end]);
+    let part = PartModel::new(vec![helix], vec![origin, upper, helix_start, helix_end]);
 
     scene.add_model(part.scene_model(curve_material, point_material));
 

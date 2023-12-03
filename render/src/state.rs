@@ -121,7 +121,7 @@ impl ViewState {
         );
         let position_renderer = PositionRenderer::new(
             render_context.render_into_memory(
-                visual_renderer.size(),
+                Self::downsize(visual_renderer.size()),
                 wgpu::TextureFormat::Rgba32Float,
                 None,
                 MsaaSamples::Samples1,
@@ -152,6 +152,10 @@ impl ViewState {
         }
     }
 
+    fn downsize(size: (u32, u32)) -> (u32, u32) {
+        ((size.0 / 10).max(1), (size.1 / 10).max(1))
+    }
+
     pub fn visual_target(&self) -> &RenderTarget {
         self.visual_renderer.target()
     }
@@ -163,8 +167,7 @@ impl ViewState {
     pub fn resize(&mut self, new_size: (u32, u32)) -> bool {
         if new_size != self.visual_renderer.size() {
             self.visual_renderer.resize(new_size);
-            self.position_renderer
-                .resize((new_size.0 / 10, new_size.1 / 10));
+            self.position_renderer.resize(Self::downsize(new_size));
             self.object_renderer.resize(new_size);
             self.camera_controller.resize(new_size);
             true
@@ -207,7 +210,6 @@ impl ViewState {
 
         self.visual_renderer.render(&self.scene, camera).unwrap();
         self.object_renderer.render(&self.scene, camera).unwrap();
-        self.position_renderer.render(&self.scene, camera).unwrap();
 
         self.needs_position_update = true;
         self.needs_object_update = true;
@@ -225,6 +227,8 @@ impl ViewState {
             let mut total_weight: f64 = 0.0;
             for pixel in pixels.iter() {
                 if pixel[3] == 0.0 {
+                    // Pixels that are background (not geometry) are not counted.
+                    // They are identified by having an Alpha of 0.0.
                     continue;
                 }
 

@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{
     camera::{Camera, CameraRaw},
-    model::{CurveVertexRaw, ModelInstanceRaw, SurfaceVertexRaw},
+    model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
 use space::{vec3, Point3, Vec3};
@@ -21,6 +21,7 @@ pub struct PositionRenderer {
 
     surface_pipeline: wgpu::RenderPipeline,
     curve_pipeline: wgpu::RenderPipeline,
+    point_pipeline: wgpu::RenderPipeline,
 
     output_buffer: OnceCell<wgpu::Buffer>,
 }
@@ -88,7 +89,7 @@ impl PositionRenderer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_surface",
+                    entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
                         blend: None,
@@ -144,7 +145,7 @@ impl PositionRenderer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_curve",
+                    entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
                         blend: None,
@@ -178,6 +179,125 @@ impl PositionRenderer {
             curve_pipeline
         };
 
+        let point_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("position-point-pipeline-layout"),
+                bind_group_layouts: &[&globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("position-point-shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let opaque_point_pipeline =
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("position-point-pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_point",
+                        buffers: &[PointVertexRaw::desc(), ModelInstanceRaw::point_desc()],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_main",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: target.format(),
+                            // Unlike the other opaque pipelines, this one uses
+                            // alpha blending so we can feather the edges for cheap
+                            // anti-aliasing.
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: TextureResources::DEPTH_FORMAT,
+                        depth_write_enabled: false,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
+
+            opaque_point_pipeline
+        };
+
+        let point_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("object-point-pipeline-layout"),
+                bind_group_layouts: &[&globals_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("object-point-shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            });
+
+            let _point_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("position-point-pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_point",
+                    buffers: &[PointVertexRaw::desc(), ModelInstanceRaw::point_desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: target.format(),
+                        // Unlike the other opaque pipelines, this one uses
+                        // alpha blending so we can feather the edges for cheap
+                        // anti-aliasing.
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: None,
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: TextureResources::DEPTH_FORMAT,
+                    depth_write_enabled: false,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+
+            point_pipeline
+        };
+
         Self {
             pixels_per_point,
             target,
@@ -189,6 +309,7 @@ impl PositionRenderer {
 
             surface_pipeline,
             curve_pipeline,
+            point_pipeline,
 
             output_buffer: OnceCell::new(),
         }
@@ -299,6 +420,31 @@ impl PositionRenderer {
 
                         render_pass.draw_indexed(
                             0..curve.num_elements(),
+                            0,
+                            0..model.num_instances(),
+                        );
+                    }
+                }
+            }
+
+            // Render points
+            {
+                render_pass.set_pipeline(&self.point_pipeline);
+
+                render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
+
+                for (_model_id, model) in scene.models().iter() {
+                    for (point_id, point) in model.points().iter() {
+                        render_pass
+                            .set_vertex_buffer(0, point.vertex_buffer(point_id, device).slice(..));
+                        render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
+                        render_pass.set_index_buffer(
+                            point.index_buffer(device).slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+
+                        render_pass.draw_indexed(
+                            0..point.num_elements(),
                             0,
                             0..model.num_instances(),
                         );
