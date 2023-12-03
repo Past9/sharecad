@@ -69,9 +69,13 @@ impl SceneModel {
 
     pub fn add_curve(&mut self, curve: SceneCurve) -> CurveId {
         let id = self.curve_ids.next();
-
         self.curves.insert(id, curve);
+        id
+    }
 
+    pub fn add_point(&mut self, point: ScenePoint) -> PointId {
+        let id = self.point_ids.next();
+        self.points.insert(id, point);
         id
     }
 

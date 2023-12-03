@@ -15,15 +15,13 @@ impl From<u32> for PointId {
 
 #[derive(Debug)]
 pub struct ScenePoint {
-    pub id: PointId,
     pub mesh: PointMesh,
     pub material_id: PointMaterialId,
     pub width: f32,
 }
 impl ScenePoint {
-    pub fn new(id: PointId, position: Point3, material_id: PointMaterialId, width: f32) -> Self {
+    pub fn new(position: Point3, material_id: PointMaterialId, width: f32) -> Self {
         Self {
-            id,
             mesh: PointMesh::new(position),
             material_id,
             width,
@@ -38,8 +36,8 @@ impl ScenePoint {
         self.material_id
     }
 
-    pub fn vertex_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        self.mesh.vertex_buffer(self.id, self.width, device)
+    pub fn vertex_buffer(&self, id: &PointId, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.mesh.vertex_buffer(id, self.width, device)
     }
 
     pub fn index_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
@@ -68,7 +66,7 @@ impl PointMesh {
         }
     }
 
-    pub fn vertex_buffer(&self, id: PointId, width: f32, device: &wgpu::Device) -> &wgpu::Buffer {
+    pub fn vertex_buffer(&self, id: &PointId, width: f32, device: &wgpu::Device) -> &wgpu::Buffer {
         self.vertex_buffer.get_or_init(|| {
             let vertex_data = self
                 .vertices
@@ -104,16 +102,12 @@ pub struct PointVertex {
     pub position: Point3,
 }
 impl PointVertex {
-    pub fn to_raw(&self, id: PointId, width: f32) -> PointVertexRaw {
-        println!("point: {:?}", self);
-        let raw = PointVertexRaw {
+    pub fn to_raw(&self, id: &PointId, width: f32) -> PointVertexRaw {
+        PointVertexRaw {
             id: id.0,
             position: self.position.to_f32s(),
             width,
-        };
-
-        println!("raw: {:?}", raw);
-        raw
+        }
     }
 }
 

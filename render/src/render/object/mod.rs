@@ -372,8 +372,9 @@ impl ObjectRenderer {
                 render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
                 for (_model_id, model) in scene.models().iter() {
-                    for (_point_id, point) in model.points().iter() {
-                        render_pass.set_vertex_buffer(0, point.vertex_buffer(device).slice(..));
+                    for (point_id, point) in model.points().iter() {
+                        render_pass
+                            .set_vertex_buffer(0, point.vertex_buffer(point_id, device).slice(..));
                         render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                         render_pass.set_index_buffer(
                             point.index_buffer(device).slice(..),

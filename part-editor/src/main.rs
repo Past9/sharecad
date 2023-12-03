@@ -12,8 +12,8 @@ use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveId, CurveMaterialId, CurveMaterialSpec, CurveMesh, ModelInstance, SceneCurve,
-        SceneModel,
+        CurveId, CurveMaterialId, CurveMaterialSpec, CurveMesh, ModelInstance, PointMaterialId,
+        PointMaterialSpec, SceneCurve, SceneModel, ScenePoint,
     },
     render::MsaaSamples,
     scene::Scene,
@@ -72,19 +72,30 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
     ]);
 
+    // Define curves
     let curve_material = scene
         .materials_mut()
         .insert_curve_material(CurveMaterialSpec::default());
 
-    let model_curve = ModelCurve {
-        curve: Curve3::helix(1.0, 1.0 / TAU, 2.0),
-        translation: vec3(1.0, 2.0, 3.0),
-        orientation: Quat::from_axis_angle(vec3(1.0, 0.0, 0.0), deg(90.0)),
+    let helix = ModelCurve {
+        curve: Curve3::helix(1.0, 1.0 / TAU, 10.0),
+        translation: vec3(10.0, 0.0, 0.0),
+        orientation: Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(45.0)),
     };
 
-    let part = PartModel::new(vec![model_curve]);
+    // Define points
+    let point_material = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default());
 
-    scene.add_model(part.scene_model(curve_material));
+    let origin = Point3::ZERO;
+    let helix_start = helix.eval(helix.u_min());
+    let helix_end = helix.eval(helix.u_max());
+
+    // Build part
+    let part = PartModel::new(vec![helix], vec![origin, helix_start, helix_end]);
+
+    scene.add_model(part.scene_model(curve_material, point_material));
 
     scene
 }
@@ -92,33 +103,40 @@ fn build_scene() -> Scene {
 // BREP model
 struct PartModel {
     curves: Vec<ModelCurve>,
-    scene_model: OnceCell<SceneModel>,
+    points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(curves: Vec<ModelCurve>) -> Self {
-        Self {
-            curves,
-            scene_model: OnceCell::new(),
-        }
+    pub fn new(curves: Vec<ModelCurve>, points: Vec<Point3>) -> Self {
+        Self { curves, points }
     }
 
-    pub fn scene_model(&self, material: CurveMaterialId) -> SceneModel {
+    pub fn scene_model(
+        &self,
+        curve_material: CurveMaterialId,
+        point_material: PointMaterialId,
+    ) -> SceneModel {
         let mut scene_model = SceneModel::new();
 
         // TODO Surfaces
 
         for curve in self.curves.iter() {
-            scene_model.add_curve(SceneCurve::new(tessellate_curve(&curve), material, 1.5));
+            scene_model.add_curve(SceneCurve::new(
+                tessellate_curve(&curve),
+                curve_material,
+                1.5,
+            ));
         }
 
-        // TODO Points
+        for point in self.points.iter() {
+            scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
+        }
 
         scene_model
     }
 }
 
 fn tessellate_curve(curve: &ModelCurve) -> CurveMesh {
-    const NUM_SEGMENTS: u32 = 100;
+    const NUM_SEGMENTS: u32 = 500;
 
     let u_min = curve.u_min();
     let u_max = curve.u_max();
