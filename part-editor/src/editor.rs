@@ -6,10 +6,14 @@ use eframe::{
     wgpu,
 };
 use render::{
+    color::rgb,
     input::InputEvent,
+    light::{AmbientLight, DirectionalLight},
     render::{EguiTransfer, MsaaSamples},
+    scene::Scene,
     state::ViewState,
 };
+use space::vec3;
 
 struct RenderResources {
     transfer: EguiTransfer,
@@ -20,8 +24,13 @@ pub struct EditorState {
     inner: Arc<Mutex<StateInner>>,
 }
 impl EditorState {
-    pub fn new(ctx: &egui::Context, frame: &eframe::Frame, msaa_samples: MsaaSamples) -> Self {
-        let inner = Arc::new(Mutex::new(StateInner::new(ctx, frame, msaa_samples)));
+    pub fn new(
+        ctx: &egui::Context,
+        frame: &eframe::Frame,
+        msaa_samples: MsaaSamples,
+        scene: Scene,
+    ) -> Self {
+        let inner = Arc::new(Mutex::new(StateInner::new(ctx, frame, msaa_samples, scene)));
         Self { inner }
     }
 }
@@ -71,15 +80,30 @@ struct StateInner {
     view_state: ViewState,
 }
 impl StateInner {
-    pub fn new(ctx: &egui::Context, frame: &eframe::Frame, msaa_samples: MsaaSamples) -> Self {
+    pub fn new(
+        ctx: &egui::Context,
+        frame: &eframe::Frame,
+        msaa_samples: MsaaSamples,
+        scene: Scene,
+    ) -> Self {
         let render_state = frame.wgpu_render_state().unwrap();
 
-        let view_state = ViewState::new_from_resources(
+        let mut view_state = ViewState::new_from_resources(
             render_state,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
             ctx.pixels_per_point(),
+            scene,
         );
+
+        let scene = view_state.scene_mut();
+
+        scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
+        scene.set_camera_directional_lights(vec![
+            DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
+            DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
+            DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
+        ]);
 
         init_transfer(
             render_state,

@@ -13,20 +13,10 @@ pub struct Helix {
     h: f64,
     /// Number of revolutions of the helix
     n: f64,
-    /// Translation the helix's origin point from the global origin
-    translation: Vec3,
-    /// Orientation of the helix
-    orientation: Quat,
 }
 impl Helix {
-    pub fn new(r: f64, h: f64, n: f64, translation: Vec3, orientation: Quat) -> Self {
-        Self {
-            r,
-            h,
-            n,
-            translation,
-            orientation,
-        }
+    pub fn new(r: f64, h: f64, n: f64) -> Self {
+        Self { r, h, n }
     }
 }
 impl Curve3Impl for Helix {
@@ -39,31 +29,27 @@ impl Curve3Impl for Helix {
     }
 
     fn eval(&self, u: f64) -> Point3 {
-        self.orientation
-            * point3(
-                self.r * u.cos(), //
-                self.r * u.sin(), //
-                self.h * u,       //
-            )
-            + self.translation
+        point3(
+            self.r * u.cos(), //
+            self.r * u.sin(), //
+            self.h * u,       //
+        )
     }
 
     fn der1(&self, u: f64) -> Vec3 {
-        self.orientation
-            * vec3(
-                -self.r * u.sin(), //
-                self.r * u.cos(),  //
-                self.h,            //
-            )
+        vec3(
+            -self.r * u.sin(), //
+            self.r * u.cos(),  //
+            self.h,            //
+        )
     }
 
     fn der2(&self, u: f64) -> Vec3 {
-        self.orientation
-            * vec3(
-                -self.r * u.cos(), //
-                -self.r * u.sin(), //
-                0.0,               //
-            )
+        vec3(
+            -self.r * u.cos(), //
+            -self.r * u.sin(), //
+            0.0,               //
+        )
     }
 }
 
@@ -79,13 +65,7 @@ mod tests {
     };
 
     fn test_helix() -> Helix {
-        Helix::new(
-            1.0,
-            1.0 / TAU,
-            2.0,
-            vec3(1.0, 2.0, 3.0),
-            Quat::from_axis_angle(vec3(1.0, 0.0, 0.0), deg(90.0)),
-        )
+        Helix::new(1.0, 1.0 / TAU, 2.0)
     }
 
     #[test]

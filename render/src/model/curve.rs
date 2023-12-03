@@ -7,15 +7,13 @@ use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct SceneCurve {
-    pub id: CurveId,
     pub mesh: CurveMesh,
     pub material_id: CurveMaterialId,
     pub width: f32,
 }
 impl SceneCurve {
-    pub fn new(id: CurveId, mesh: CurveMesh, material_id: CurveMaterialId, width: f32) -> Self {
+    pub fn new(mesh: CurveMesh, material_id: CurveMaterialId, width: f32) -> Self {
         Self {
-            id,
             mesh,
             material_id,
             width,
@@ -30,8 +28,8 @@ impl SceneCurve {
         self.material_id
     }
 
-    pub fn vertex_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        self.mesh.vertex_buffer(self.id, self.width, device)
+    pub fn vertex_buffer(&self, id: &CurveId, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.mesh.vertex_buffer(id, self.width, device)
     }
 
     pub fn index_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
@@ -102,7 +100,7 @@ impl CurveMesh {
         }
     }
 
-    fn vertex_buffer(&self, id: CurveId, width: f32, device: &wgpu::Device) -> &wgpu::Buffer {
+    fn vertex_buffer(&self, id: &CurveId, width: f32, device: &wgpu::Device) -> &wgpu::Buffer {
         self.vertex_buffer.get_or_init(|| {
             let vertex_data = self
                 .vertices
@@ -139,7 +137,7 @@ pub struct CurveVertex {
     pub direction: Vec3,
 }
 impl CurveVertex {
-    pub fn to_raw(&self, id: CurveId, width: f32) -> CurveVertexRaw {
+    pub fn to_raw(&self, id: &CurveId, width: f32) -> CurveVertexRaw {
         CurveVertexRaw {
             id: id.0,
             position: self.position.to_f32s(),
@@ -175,7 +173,7 @@ impl VertexBuffer for CurveVertexRaw {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CurveId(pub u32);
 impl From<u32> for CurveId {
     fn from(id: u32) -> Self {

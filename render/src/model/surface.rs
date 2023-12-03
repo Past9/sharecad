@@ -8,7 +8,7 @@ use crate::render::VertexBuffer;
 
 use super::SurfaceMaterialId;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SurfaceId(pub u32);
 impl From<u32> for SurfaceId {
     fn from(id: u32) -> Self {

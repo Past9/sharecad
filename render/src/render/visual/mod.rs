@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     camera::Camera,
-    light::{AmbientLightRaw, DirectionalLightRaw},
+    light::{AmbientLightRaw, DirectionalLight, DirectionalLightRaw},
     model::{
         CurveMaterial, CurveMaterialId, CurveVertexRaw, ModelInstanceRaw, PointMaterial,
         PointMaterialId, PointVertexRaw, SurfaceMaterial, SurfaceMaterialId, SurfaceVertexRaw,
@@ -1015,14 +1015,39 @@ impl VisualRenderer {
             &self.globals_buffer,
             0,
             //bytemuck::cast_slice(&[self.globals_raw(scene, camera)]),
-            bytemuck::cast_slice(&[GlobalsRaw::build(scene, camera, self.aspect(), self.size(), self.pixels_per_point)]),
+            bytemuck::cast_slice(&[GlobalsRaw::build(
+                scene,
+                camera,
+                self.aspect(),
+                self.size(),
+                self.pixels_per_point,
+            )]),
         );
 
-        for (i, light) in scene.directional_lights().iter().enumerate() {
+        let view_matrix = camera.view_rotation_matrix().transpose();
+
+        for (i, (light, is_camera)) in scene
+            .world_directional_lights()
+            .iter()
+            .map(|l| (l, false))
+            .chain(scene.camera_directional_lights().iter().map(|l| (l, true)))
+            .enumerate()
+        {
             queue.write_buffer(
                 &self.directional_light_buffer,
                 (i * std::mem::size_of::<DirectionalLightRaw>()) as wgpu::BufferAddress,
-                bytemuck::bytes_of(&light.to_raw()),
+                bytemuck::bytes_of(&match is_camera {
+                    true => DirectionalLight {
+                        direction: light
+                            .direction
+                            .into_point()
+                            .transform(view_matrix)
+                            .into_vec(),
+                        color: light.color.clone(),
+                    }
+                    .to_raw(),
+                    false => light.to_raw(),
+                }),
             )
         }
 
@@ -1089,8 +1114,8 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for model in scene.models().iter() {
-                        for surface in model.surfaces().iter() {
+                    for (model_id, model) in scene.models().iter() {
+                        for (surface_id, surface) in model.surfaces().iter() {
                             let material = scene
                                 .materials()
                                 .surface()
@@ -1132,9 +1157,12 @@ impl VisualRenderer {
 
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
 
-                    for model in scene.models().iter() {
-                        for curve in model.curves().iter() {
-                            render_pass.set_vertex_buffer(0, curve.vertex_buffer(device).slice(..));
+                    for (model_id, model) in scene.models().iter() {
+                        for (curve_id, curve) in model.curves().iter() {
+                            render_pass.set_vertex_buffer(
+                                0,
+                                curve.vertex_buffer(curve_id, device).slice(..),
+                            );
                             render_pass
                                 .set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                             render_pass.set_index_buffer(
@@ -1165,8 +1193,8 @@ impl VisualRenderer {
 
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
 
-                    for model in scene.models().iter() {
-                        for point in model.points().iter() {
+                    for (model_id, model) in scene.models().iter() {
+                        for (point_id, point) in model.points().iter() {
                             render_pass.set_vertex_buffer(0, point.vertex_buffer(device).slice(..));
                             render_pass
                                 .set_vertex_buffer(1, model.instance_buffer(device).slice(..));
@@ -1253,8 +1281,8 @@ impl VisualRenderer {
                     render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
-                    for model in scene.models().iter() {
-                        for surface in model.surfaces().iter() {
+                    for (model_id, model) in scene.models().iter() {
+                        for (surface_id, surface) in model.surfaces().iter() {
                             let material = scene
                                 .materials()
                                 .surface()

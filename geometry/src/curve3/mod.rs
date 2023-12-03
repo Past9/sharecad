@@ -7,6 +7,11 @@ use space::{Point3, Vec3};
 pub enum Curve3 {
     Helix(Helix),
 }
+impl Curve3 {
+    pub fn helix(r: f64, h: f64, n: f64) -> Self {
+        Self::Helix(Helix::new(r, h, n))
+    }
+}
 impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {
         match self {

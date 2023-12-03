@@ -2,7 +2,7 @@ use crate::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveMaterialSpec, CurveMesh, MaterialLibrary, ModelInstance, PointMaterialSpec,
+        CurveMaterialSpec, CurveMesh, MaterialLibrary, ModelId, ModelInstance, PointMaterialSpec,
         SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
         SurfaceMesh, SurfaceRgbSpec, SurfaceVec3Spec, SurfaceVertex,
     },
@@ -39,28 +39,34 @@ impl<T: From<u32>> IdSeries<T> {
 
 #[derive(Debug)]
 pub struct Scene {
-    models: Vec<SceneModel>,
+    models: HashMap<ModelId, SceneModel>,
+    model_ids: IdSeries<ModelId>,
     materials: MaterialLibrary,
-    directional_lights: Vec<DirectionalLight>,
+    world_directional_lights: Vec<DirectionalLight>,
+    camera_directional_lights: Vec<DirectionalLight>,
     ambient_lights: Vec<AmbientLight>,
 }
 unsafe impl Send for Scene {}
 impl Scene {
     pub fn new() -> Self {
         Self {
-            models: vec![],
+            models: HashMap::new(),
+            model_ids: IdSeries::new(),
             materials: MaterialLibrary::new(),
-            directional_lights: vec![],
+            world_directional_lights: vec![],
+            camera_directional_lights: vec![],
             ambient_lights: vec![],
         }
     }
 
-    pub fn models(&self) -> &[SceneModel] {
+    pub fn models(&self) -> &HashMap<ModelId, SceneModel> {
         &self.models
     }
 
-    pub fn directional_lights(&self) -> &[DirectionalLight] {
-        &self.directional_lights
+    pub fn add_model(&mut self, model: SceneModel) -> ModelId {
+        let id = self.model_ids.next();
+        self.models.insert(id, model);
+        id
     }
 
     pub fn ambient_lights(&self) -> &[AmbientLight] {
@@ -79,12 +85,20 @@ impl Scene {
         &mut self.materials
     }
 
-    pub fn set_directional_lights(&mut self, lights: Vec<DirectionalLight>) {
-        self.directional_lights = lights;
+    pub fn world_directional_lights(&self) -> &[DirectionalLight] {
+        &self.world_directional_lights
     }
 
-    pub fn directional_light(&mut self, light: DirectionalLight) {
-        self.directional_lights.push(light);
+    pub fn set_world_directional_lights(&mut self, lights: Vec<DirectionalLight>) {
+        self.world_directional_lights = lights;
+    }
+
+    pub fn camera_directional_lights(&self) -> &[DirectionalLight] {
+        &self.camera_directional_lights
+    }
+
+    pub fn set_camera_directional_lights(&mut self, lights: Vec<DirectionalLight>) {
+        self.camera_directional_lights = lights;
     }
 
     pub fn set_ambient_light(&mut self, light: AmbientLight) {
@@ -381,18 +395,9 @@ impl Scene {
                 .materials
                 .insert_curve_material(CurveMaterialSpec::default());
 
-            let mut curve_ids = IdSeries::new();
-
             let curves = curve_points
                 .into_iter()
-                .map(|points| {
-                    SceneCurve::new(
-                        curve_ids.next(),
-                        CurveMesh::new(points),
-                        curve_material,
-                        LINE_WIDTH,
-                    )
-                })
+                .map(|points| SceneCurve::new(CurveMesh::new(points), curve_material, LINE_WIDTH))
                 .collect::<Vec<_>>();
 
             curves
@@ -421,7 +426,12 @@ impl Scene {
             points
         };
 
-        self.models
-            .push(SceneModel::new(surfaces, curves, points, instances));
+        let mut model = SceneModel::new();
+
+        for curve in curves.into_iter() {
+            model.add_curve(curve);
+        }
+
+        self.models.insert(self.model_ids.next(), model);
     }
 }

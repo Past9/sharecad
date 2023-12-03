@@ -5,7 +5,7 @@ use space::Point3;
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PointId(pub u32);
 impl From<u32> for PointId {
     fn from(id: u32) -> Self {

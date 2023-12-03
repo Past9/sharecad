@@ -1,12 +1,16 @@
-use std::cell::OnceCell;
+use std::{cell::OnceCell, collections::HashMap};
 
 use bytemuck::{Pod, Zeroable};
-use space::{Mat33, Mat44, Quat, Vec3};
+use space::{rad, Mat33, Mat44, Point3, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-use super::{SceneCurve, ScenePoint, SceneSurface};
+use crate::scene::IdSeries;
 
-#[derive(Copy, Clone, Debug)]
+use super::{
+    CurveId, CurveMaterialId, CurveMesh, PointId, SceneCurve, ScenePoint, SceneSurface, SurfaceId,
+};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ModelId(pub u32);
 impl From<u32> for ModelId {
     fn from(id: u32) -> Self {
@@ -14,43 +18,74 @@ impl From<u32> for ModelId {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct InstanceId(pub u32);
+impl From<u32> for InstanceId {
+    fn from(id: u32) -> Self {
+        InstanceId(id)
+    }
+}
+
 #[derive(Debug)]
 pub struct SceneModel {
-    surfaces: Vec<SceneSurface>,
-    curves: Vec<SceneCurve>,
-    points: Vec<ScenePoint>,
-    instances: Vec<ModelInstance>,
+    surfaces: HashMap<SurfaceId, SceneSurface>,
+    curves: HashMap<CurveId, SceneCurve>,
+    points: HashMap<PointId, ScenePoint>,
+
+    surface_ids: IdSeries<SurfaceId>,
+    curve_ids: IdSeries<CurveId>,
+    point_ids: IdSeries<PointId>,
+
+    instances: HashMap<InstanceId, ModelInstance>,
+    instance_ids: IdSeries<InstanceId>,
     instance_buffer: OnceCell<wgpu::Buffer>,
 }
 impl SceneModel {
-    pub fn new(
-        surfaces: Vec<SceneSurface>,
-        curves: Vec<SceneCurve>,
-        points: Vec<ScenePoint>,
-        instances: Vec<ModelInstance>,
-    ) -> Self {
-        Self {
-            surfaces,
-            curves,
-            points,
-            instances,
+    pub fn new() -> Self {
+        let mut model = Self {
+            surfaces: HashMap::new(),
+            curves: HashMap::new(),
+            points: HashMap::new(),
+
+            surface_ids: IdSeries::new(),
+            curve_ids: IdSeries::new(),
+            point_ids: IdSeries::new(),
+
+            instances: HashMap::new(),
+            instance_ids: IdSeries::new(),
             instance_buffer: OnceCell::new(),
-        }
+        };
+
+        model
     }
 
-    pub fn surfaces(&self) -> &[SceneSurface] {
+    pub fn add_instance(&mut self, instance: ModelInstance) -> InstanceId {
+        let id = self.instance_ids.next();
+        self.instances.insert(id, instance);
+        id
+    }
+
+    pub fn add_curve(&mut self, curve: SceneCurve) -> CurveId {
+        let id = self.curve_ids.next();
+
+        self.curves.insert(id, curve);
+
+        id
+    }
+
+    pub fn surfaces(&self) -> &HashMap<SurfaceId, SceneSurface> {
         &self.surfaces
     }
 
-    pub fn curves(&self) -> &[SceneCurve] {
+    pub fn curves(&self) -> &HashMap<CurveId, SceneCurve> {
         &self.curves
     }
 
-    pub fn points(&self) -> &[ScenePoint] {
+    pub fn points(&self) -> &HashMap<PointId, ScenePoint> {
         &self.points
     }
 
-    pub fn instances(&self) -> &[ModelInstance] {
+    pub fn instances(&self) -> &HashMap<InstanceId, ModelInstance> {
         &self.instances
     }
     pub fn instance_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
@@ -58,7 +93,7 @@ impl SceneModel {
             let instance_data = self
                 .instances
                 .iter()
-                .map(|inst| inst.to_raw())
+                .map(|(id, inst)| inst.to_raw(id))
                 .collect::<Vec<_>>();
 
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -76,17 +111,24 @@ impl SceneModel {
 
 #[derive(Debug, Clone)]
 pub struct ModelInstance {
-    pub id: ModelId,
-    pub rotation: Quat,
-    pub position: Vec3,
+    pub orientation: Quat,
+    pub translation: Vec3,
 }
 impl ModelInstance {
-    fn to_raw(&self) -> ModelInstanceRaw {
-        let model = Mat44::translation(self.position) * Mat44::from(self.rotation);
+    fn to_raw(&self, id: &InstanceId) -> ModelInstanceRaw {
+        let model = Mat44::translation(self.translation) * Mat44::from(self.orientation);
         ModelInstanceRaw {
-            id: self.id.0,
+            id: id.0,
             model: model.transpose().into(),
-            normal: Mat33::from(self.rotation).transpose().into(),
+            normal: Mat33::from(self.orientation).transpose().into(),
+        }
+    }
+}
+impl Default for ModelInstance {
+    fn default() -> Self {
+        Self {
+            orientation: Quat::from_axis_angle(Vec3::UNIT_Y, rad(0.0)),
+            translation: Vec3::ZERO,
         }
     }
 }

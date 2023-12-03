@@ -56,7 +56,8 @@ impl GlobalsRaw {
     ) -> GlobalsRaw {
         GlobalsRaw {
             num_directional_lights: min(
-                scene.directional_lights().len() as u32,
+                (scene.world_directional_lights().len() + scene.camera_directional_lights().len())
+                    as u32,
                 MAX_DIRECTIONAL_LIGHTS,
             ),
             _padding1: [0; 3],

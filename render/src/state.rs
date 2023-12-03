@@ -3,7 +3,7 @@ use crate::{
     color::{rgb, rgba, Rgba},
     input::InputEvent,
     light::{AmbientLight, DirectionalLight},
-    model::{GeometryId, ModelId, ModelInstance},
+    model::{GeometryId, InstanceId, ModelInstance},
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
     },
@@ -39,6 +39,7 @@ impl ViewState {
         visual_texture_usage: Option<wgpu::TextureUsages>,
         msaa_samples: MsaaSamples,
         pixels_per_point: f32,
+        scene: Scene,
     ) -> ViewState {
         let render_context = RenderContext::from_resources(
             render_state.adapter.clone(),
@@ -56,6 +57,7 @@ impl ViewState {
             visual_render_target,
             msaa_samples,
             pixels_per_point,
+            scene,
         )
     }
 
@@ -82,6 +84,7 @@ impl ViewState {
         surface: Surface,
         size: (u32, u32),
         pixels_per_point: f32,
+        scene: Scene,
     ) -> ViewState {
         let render_context = RenderContext::new().await;
         let visual_render_target = render_context.render_on_surface(surface, size);
@@ -90,6 +93,7 @@ impl ViewState {
             visual_render_target,
             MsaaSamples::Samples1,
             pixels_per_point,
+            scene,
         )
     }
 
@@ -98,6 +102,7 @@ impl ViewState {
         visual_render_target: RenderTarget,
         msaa_samples: MsaaSamples,
         pixels_per_point: f32,
+        scene: Scene,
     ) -> ViewState {
         let visual_renderer = VisualRenderer::new(
             &render_context,
@@ -132,6 +137,7 @@ impl ViewState {
 
         let camera_controller = CameraController::new(camera);
 
+        /*
         let scene = {
             let mut scene = Scene::new();
 
@@ -163,16 +169,10 @@ impl ViewState {
             let path_str = path.to_str().unwrap();
 
             scene.load_wavefront_obj_file(path_str, instances);
-            scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
 
             scene
         };
-
-        let directional_lights = vec![
-            DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
-            DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
-            DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
-        ];
+        */
 
         Self {
             visual_renderer,
@@ -180,7 +180,7 @@ impl ViewState {
             position_renderer,
             camera_controller,
             scene,
-            directional_lights,
+            directional_lights: vec![],
             needs_position_update: true,
             needs_object_update: true,
         }
@@ -233,25 +233,7 @@ impl ViewState {
     }
 
     pub fn update(&mut self) {
-        // Change the direction of the directional lights so they stay the
-        // same relative to the camera.
-        {
-            let view_matrix = self
-                .camera_controller
-                .camera()
-                .view_rotation_matrix()
-                .transpose();
-
-            self.scene.set_directional_lights(
-                self.directional_lights
-                    .iter()
-                    .map(|l| DirectionalLight {
-                        direction: l.direction.into_point().transform(view_matrix).into_vec(),
-                        color: l.color.clone(),
-                    })
-                    .collect(),
-            );
-        }
+        //
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
