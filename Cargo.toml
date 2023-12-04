@@ -10,4 +10,5 @@ members = [
     "lines",
     "render",
     "part-editor",
+    "tessellate",
 ]

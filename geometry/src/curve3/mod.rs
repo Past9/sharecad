@@ -1,45 +1,57 @@
 mod helix;
+mod line;
 
 pub use helix::*;
-use space::{Point3, Vec3};
+pub use line::*;
+use space::{Point3, Quat, Vec3};
 
 #[derive(Debug)]
 pub enum Curve3 {
     Helix(Helix),
+    Line(Line),
 }
 impl Curve3 {
-    pub fn helix(r: f64, h: f64, n: f64) -> Self {
-        Self::Helix(Helix::new(r, h, n))
+    pub fn helix(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
+        Self::Helix(Helix::new(r, h, n, orientation, translation))
+    }
+
+    pub fn line(start: Point3, end: Point3) -> Self {
+        Self::Line(Line::new(start, end))
     }
 }
 impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {
         match self {
             Curve3::Helix(helix) => helix.u_min(),
+            Curve3::Line(line) => line.u_min(),
         }
     }
 
     fn u_max(&self) -> f64 {
         match self {
             Curve3::Helix(helix) => helix.u_max(),
+            Curve3::Line(line) => line.u_max(),
         }
     }
 
     fn eval(&self, u: f64) -> Point3 {
         match self {
             Curve3::Helix(helix) => helix.eval(u),
+            Curve3::Line(line) => line.eval(u),
         }
     }
 
     fn der1(&self, u: f64) -> Vec3 {
         match self {
             Curve3::Helix(helix) => helix.der1(u),
+            Curve3::Line(line) => line.der1(u),
         }
     }
 
     fn der2(&self, u: f64) -> Vec3 {
         match self {
             Curve3::Helix(helix) => helix.der2(u),
+            Curve3::Line(line) => line.der2(u),
         }
     }
 }

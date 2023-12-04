@@ -13,10 +13,19 @@ pub struct Helix {
     h: f64,
     /// Number of revolutions of the helix
     n: f64,
+
+    orientation: Quat,
+    translation: Vec3,
 }
 impl Helix {
-    pub fn new(r: f64, h: f64, n: f64) -> Self {
-        Self { r, h, n }
+    pub fn new(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
+        Self {
+            r,
+            h,
+            n,
+            orientation,
+            translation,
+        }
     }
 }
 impl Curve3Impl for Helix {
@@ -29,33 +38,39 @@ impl Curve3Impl for Helix {
     }
 
     fn eval(&self, u: f64) -> Point3 {
-        point3(
+        let point = point3(
             self.r * u.cos(), //
             self.r * u.sin(), //
             self.h * u,       //
-        )
+        );
+
+        self.orientation * point + self.translation
     }
 
     fn der1(&self, u: f64) -> Vec3 {
-        vec3(
+        let der1 = vec3(
             -self.r * u.sin(), //
             self.r * u.cos(),  //
             self.h,            //
-        )
+        );
+
+        self.orientation * der1
     }
 
     fn der2(&self, u: f64) -> Vec3 {
-        vec3(
+        let der2 = vec3(
             -self.r * u.cos(), //
             -self.r * u.sin(), //
             0.0,               //
-        )
+        );
+
+        self.orientation * der2
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{f64::consts::TAU, os::windows::fs::FileTypeExt};
+    use std::f64::consts::TAU;
 
     use space::{assert_cc, deg, point3, vec3, Quat};
 
@@ -65,7 +80,13 @@ mod tests {
     };
 
     fn test_helix() -> Helix {
-        Helix::new(1.0, 1.0 / TAU, 2.0)
+        Helix::new(
+            1.0,
+            1.0 / TAU,
+            2.0,
+            Quat::from_axis_angle(vec3(1.0, 0.0, 0.0), deg(90.0)),
+            vec3(1.0, 2.0, 3.0),
+        )
     }
 
     #[test]

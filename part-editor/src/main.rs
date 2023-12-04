@@ -77,11 +77,15 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_curve_material(CurveMaterialSpec::default());
 
-    let helix = ModelCurve {
-        curve: Curve3::helix(1.0, 1.0 / TAU, 10.0),
-        translation: vec3(3.0, 0.0, 0.0),
-        orientation: Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(45.0)),
-    };
+    let helix = Curve3::helix(
+        1.0,
+        1.0 / TAU,
+        10.0,
+        Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(45.0)),
+        vec3(3.0, 0.0, 0.0),
+    );
+
+    let line = Curve3::line(point3(1.0, 1.0, 1.0), point3(-1.0, -1.0, -1.0));
 
     // Define points
     let point_material = scene
@@ -94,7 +98,10 @@ fn build_scene() -> Scene {
     let helix_end = helix.eval(helix.u_max());
 
     // Build part
-    let part = PartModel::new(vec![helix], vec![origin, upper, helix_start, helix_end]);
+    let part = PartModel::new(
+        vec![helix, line],
+        vec![origin, upper, helix_start, helix_end],
+    );
 
     scene.add_model(part.scene_model(curve_material, point_material));
 
@@ -103,11 +110,11 @@ fn build_scene() -> Scene {
 
 // BREP model
 struct PartModel {
-    curves: Vec<ModelCurve>,
+    curves: Vec<Curve3>,
     points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(curves: Vec<ModelCurve>, points: Vec<Point3>) -> Self {
+    pub fn new(curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
         Self { curves, points }
     }
 
@@ -136,7 +143,7 @@ impl PartModel {
     }
 }
 
-fn tessellate_curve(curve: &ModelCurve) -> CurveMesh {
+fn tessellate_curve(curve: &Curve3) -> CurveMesh {
     const NUM_SEGMENTS: u32 = 500;
 
     let u_min = curve.u_min();
@@ -157,6 +164,7 @@ fn tessellate_curve(curve: &ModelCurve) -> CurveMesh {
     CurveMesh::new(points)
 }
 
+/*
 /// Gives primitive/canonical mathematical curves a position and
 /// orientation in space
 #[derive(Debug)]
@@ -190,3 +198,5 @@ impl ModelCurve {
         self.orientation * self.curve.der2(u)
     }
 }
+
+*/

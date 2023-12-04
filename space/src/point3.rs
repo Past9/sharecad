@@ -74,8 +74,13 @@ impl std::fmt::Debug for Point3 {
 impl_op_ex_commutative!(+|p: Vec3, v: Point3| -> Point3 {
     point3(p.x + v.x, p.y + v.y, p.z + v.z)
 });
+impl_op_ex!(+|a: Point3, b: Point3| -> Point3 { point3(a.x + b.x, a.y + b.y, a.z + b.z) });
 impl_op_ex!(-|p: Point3, v: Vec3| -> Point3 { point3(p.x - v.x, p.y - v.y, p.z - v.z) });
 impl_op_ex!(-|a: Point3, b: Point3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
+
+// Binary commutative
+impl_op_ex_commutative!(*|v: Point3, s: f64| -> Point3 { point3(v.x * s, v.y * s, v.z * s) });
+impl_op_ex_commutative!(/|v: Point3, s: f64| -> Point3 { point3(v.x / s, v.y / s, v.z / s) });
 
 // Assignment
 impl_op_ex!(+= |a: &mut Point3, b: Point3| {
