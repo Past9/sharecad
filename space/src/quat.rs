@@ -7,6 +7,11 @@ pub struct Quat {
     pub s: f64,
 }
 impl Quat {
+    pub const ZERO: Self = Self {
+        v: Vec3::ZERO,
+        s: 1.0,
+    };
+
     pub fn new(w: f64, xi: f64, yj: f64, zk: f64) -> Self {
         Self::from_sv(w, vec3(xi, yj, zk))
     }

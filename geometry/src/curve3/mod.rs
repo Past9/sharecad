@@ -3,16 +3,20 @@ mod line;
 
 pub use helix::*;
 pub use line::*;
-use space::{vec2, vec3, Mat22, Point3, Quat, Vec2, Vec3};
+use space::{vec2, vec3, Coincidence, Mat22, Point3, Quat, Vec2, Vec3};
 
-#[derive(Debug)]
+const MAX_NEWTON_ITER: u32 = 64;
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Curve3Distance {
+    iterations: u32,
     uv: Vec2,
     distance: f64,
     cu_pos: Point3,
     cv_pos: Point3,
 }
 
+#[derive(Debug)]
 struct Curve3DistanceIter {
     uv: Vec2,
     distance: f64,
@@ -37,30 +41,42 @@ impl Curve3 {
 
     pub fn min_dist(&self, other: &Self) -> Option<Curve3Distance> {
         let initial_uv = vec2(
-            (self.u_min() + self.u_max()) / 2.0,
+            (self.u_min() + self.u_max()) / 20.0,
             (other.u_min() + other.u_max()) / 2.0,
         );
         Self::min_dist_from_initial_guess(self, other, initial_uv)
     }
 
-    fn min_dist_from_initial_guess(cu: &Self, cv: &Self, mut uv: Vec2) -> Option<Curve3Distance> {
-        println!("start uv = {}", uv);
+    fn min_dist_from_initial_guess(cu: &Self, cv: &Self, uv: Vec2) -> Option<Curve3Distance> {
+        let mut iterations = 0;
+        let mut converged = false;
+        let mut last = Self::dist2(cu, cv, uv);
 
-        let mut best = None;
-        let mut uv_next = uv;
-        for _ in 0..2 {
-            let iter = Self::dist2(cu, cv, uv_next);
-            uv_next = iter.uv_next;
+        for _ in 0..MAX_NEWTON_ITER {
+            let iter = Self::dist2(cu, cv, last.uv_next);
+            iterations += 1;
 
-            best = Some(Curve3Distance {
-                uv: iter.uv,
-                cu_pos: iter.cu_pos,
-                cv_pos: iter.cv_pos,
-                distance: iter.distance,
-            })
+            println!("iter = {:#?}", iter);
+
+            if (iter.uv - last.uv).magnitude().cc(0.0) {
+                converged = true;
+                break;
+            }
+
+            last = iter;
         }
 
-        best
+        if converged {
+            Some(Curve3Distance {
+                iterations,
+                uv: last.uv,
+                distance: last.distance,
+                cu_pos: last.cu_pos,
+                cv_pos: last.cv_pos,
+            })
+        } else {
+            None
+        }
     }
 
     fn dist2(cu: &Self, cv: &Self, uv: Vec2) -> Curve3DistanceIter {
@@ -90,7 +106,9 @@ impl Curve3 {
         let hessian = Mat22::new(duu, duv_vu, duv_vu, dvv);
         let hessian_inv = hessian.inverse().unwrap();
 
-        let uv_next = uv - hessian_inv * gradient;
+        // Newton's method
+        let uv_next = (uv - hessian_inv * gradient)
+            .clamp(vec2(cu.u_min(), cv.u_min()), vec2(cu.u_max(), cv.u_max()));
 
         Curve3DistanceIter {
             uv,
@@ -192,12 +210,34 @@ mod tests {
 
     #[test]
     fn line_line_dist() {
-        let l0 = Curve3::line(point3(0.0, -3.0, 0.0), point3(0.0, 1.0, 0.0)); // 0.75
-        let l1 = Curve3::line(point3(1.0, 0.0, -1.0), point3(1.0, 0.0, 3.0)); // 0.25
+        let l0 = Curve3::line(point3(0.0, -3.0, 0.0), point3(0.0, 1.0, 0.0));
+        let l1 = Curve3::line(point3(1.0, 0.0, -1.0), point3(1.0, 0.0, 3.0));
 
-        let dist = l0.min_dist(&l1);
+        let res = l0.min_dist(&l1);
 
-        println!("end = {:#?}", dist);
+        assert_eq!(
+            Some(Curve3Distance {
+                iterations: 2,
+                uv: vec2(0.75, 0.25),
+                distance: 1.0,
+                cu_pos: point3(0.0, 0.0, 0.0),
+                cv_pos: point3(1.0, 0.0, 0.0)
+            }),
+            res
+        );
+    }
+
+    #[test]
+    fn dist() {
+        let c0 = Curve3::helix(1.0, 1.0, 1.0, Quat::ZERO, Vec3::ZERO);
+
+        println!("helix {:#?}", c0);
+
+        let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
+
+        let res = c0.min_dist(&c1);
+
+        println!("res = {:#?}", res);
     }
 
     pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {

@@ -17,7 +17,7 @@ pub enum TurnDir {
     Opposite,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Vec2 {
     pub x: f64,
     pub y: f64,
