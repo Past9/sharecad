@@ -48,7 +48,7 @@ impl Curve3 {
 
         let mut best = None;
         let mut uv_next = uv;
-        for i in 0..3 {
+        for i in 0..10 {
             let iter = Self::dist2(cu, cv, uv_next);
             uv_next = iter.uv_next;
 
@@ -96,7 +96,8 @@ impl Curve3 {
         println!("gradient {}", gradient);
         println!("- dist2 / gradient {}", -dist2 / gradient);
 
-        let uv_next = uv - dist2 / gradient;
+        let uv_next = (uv - dist2 / gradient)
+            .clamp(vec2(cu.u_min(), cv.u_min()), vec2(cu.u_max(), cv.u_max()));
         println!("uv_next {}", uv_next);
 
         Curve3DistanceIter {
