@@ -3,7 +3,23 @@ mod line;
 
 pub use helix::*;
 pub use line::*;
-use space::{Point3, Quat, Vec3};
+use space::{vec2, vec3, Mat22, Point3, Quat, Vec2, Vec3};
+
+#[derive(Debug)]
+pub struct Curve3Distance {
+    uv: Vec2,
+    distance: f64,
+    cu_pos: Point3,
+    cv_pos: Point3,
+}
+
+struct Curve3DistanceIter {
+    uv: Vec2,
+    distance: f64,
+    cu_pos: Point3,
+    cv_pos: Point3,
+    uv_next: Vec2,
+}
 
 #[derive(Debug)]
 pub enum Curve3 {
@@ -18,6 +34,98 @@ impl Curve3 {
     pub fn line(start: Point3, end: Point3) -> Self {
         Self::Line(Line::new(start, end))
     }
+
+    pub fn min_dist(&self, other: &Self) -> Option<Curve3Distance> {
+        let initial_uv = vec2(
+            (self.u_min() + self.u_max()) / 2.0,
+            (other.u_min() + other.u_max()) / 2.0,
+        );
+        Self::min_dist_from_initial_guess(self, other, initial_uv)
+    }
+
+    fn min_dist_from_initial_guess(cu: &Self, cv: &Self, mut uv: Vec2) -> Option<Curve3Distance> {
+        println!("start uv = {}", uv);
+
+        let mut best = None;
+        let mut uv_next = uv;
+        for i in 0..3 {
+            let iter = Self::dist2(cu, cv, uv_next);
+            uv_next = iter.uv_next;
+
+            best = Some(Curve3Distance {
+                uv: iter.uv,
+                cu_pos: iter.cu_pos,
+                cv_pos: iter.cv_pos,
+                distance: iter.distance,
+            })
+        }
+
+        best
+    }
+
+    fn dist2(cu: &Self, cv: &Self, uv: Vec2) -> Curve3DistanceIter {
+        let cu_pos = cu.eval(uv.x);
+        let cv_pos = cv.eval(uv.y);
+        let cu_der1 = cu.der1(uv.x);
+        let cv_der1 = cv.der1(uv.y);
+        let cu_der2 = cu.der2(uv.x);
+        let cv_der2 = cv.der2(uv.y);
+
+        println!("\nuv {}", uv);
+        println!("cu_pos {}", cu_pos);
+        println!("cv_pos {}", cv_pos);
+        println!("cu_der1 {}", cu_der1);
+        println!("cv_der1 {}", cv_der1);
+
+        // Vector from cv(v) to cu(u).
+        let cv_cu = cu_pos - cv_pos;
+
+        println!("cv_cu {}", cv_cu);
+
+        // Squared distance from cv(v) to cu(u).
+        // This is the function we're minimizing.
+        let dist2 = cv_cu.magnitude2();
+        println!("dist2 {}", dist2);
+
+        let du = (2.0 * (cv_cu * cu_der1)).sum();
+        let dv = (-2.0 * (cv_cu * cv_der1)).sum();
+        println!("du {}", du);
+        println!("dv {}", dv);
+
+        let gradient = vec2(du, dv);
+        println!("gradient {}", gradient);
+        println!("- dist2 / gradient {}", -dist2 / gradient);
+
+        let uv_next = uv - dist2 / gradient;
+        println!("uv_next {}", uv_next);
+
+        Curve3DistanceIter {
+            uv,
+            distance: dist2.sqrt(),
+            cu_pos,
+            cv_pos,
+            uv_next,
+        }
+
+        /*
+        Hessian
+        let du = 2.0 * cv_cu * cu_der1;
+        let dv = -2.0 * cv_cu * cv_der1;
+
+        let duu = 2.0 * (cu_der1.powi(2) + cv_cu * cu_der2).sum();
+        let dvv = 2.0 * (cv_der1.powi(2) - cv_cu * cv_der2).sum();
+
+        let duv_vu = -2.0 * (cu_der1 * cv_der1).sum();
+
+        let hessian = Mat22::new(duu, duv_vu, duv_vu, dvv);
+        let hessian_inv = hessian.inverse().unwrap();
+
+        let uv0 = vec2(u, v);
+        let uv1 = uv0 - hessian_inv * dist2;
+         */
+    }
+
+    fn dist_du(c1: Self, c2: Self, u1: f64, u2: f64) {}
 }
 impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {
@@ -104,7 +212,19 @@ pub trait Curve3Impl {
 
 #[cfg(test)]
 mod tests {
+    use space::point3;
+
     use super::*;
+
+    #[test]
+    fn line_line_dist() {
+        let l0 = Curve3::line(point3(0.0, -3.0, 0.0), point3(0.0, 1.0, 0.0)); // 0.75
+        let l1 = Curve3::line(point3(1.0, 0.0, -1.0), point3(1.0, 0.0, 3.0)); // 0.25
+
+        let dist = l0.min_dist(&l1);
+
+        println!("end = {:#?}", dist);
+    }
 
     pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
         for i in 0..samples {

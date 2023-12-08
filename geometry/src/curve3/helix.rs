@@ -49,7 +49,7 @@ impl Curve3Impl for Helix {
 
     fn der1(&self, u: f64) -> Vec3 {
         let der1 = vec3(
-            -self.r * u.sin(), //
+            self.r * -u.sin(), //
             self.r * u.cos(),  //
             self.h,            //
         );
@@ -59,8 +59,8 @@ impl Curve3Impl for Helix {
 
     fn der2(&self, u: f64) -> Vec3 {
         let der2 = vec3(
-            -self.r * u.cos(), //
-            -self.r * u.sin(), //
+            self.r * -u.cos(), //
+            self.r * -u.sin(), //
             0.0,               //
         );
 

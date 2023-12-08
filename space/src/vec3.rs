@@ -89,6 +89,22 @@ impl Vec3 {
     pub fn has_nan(&self) -> bool {
         self.x.is_nan() || self.y.is_nan() || self.z.is_nan()
     }
+
+    pub fn dot_self(&self) -> f64 {
+        self.dot(*self)
+    }
+
+    pub fn powi(&self, n: i32) -> Self {
+        Self {
+            x: self.x.powi(n),
+            y: self.y.powi(n),
+            z: self.z.powi(n),
+        }
+    }
+
+    pub fn sum(&self) -> f64 {
+        self.x + self.y + self.z
+    }
 }
 impl From<Point3> for Vec3 {
     fn from(point: Point3) -> Self {
@@ -134,8 +150,8 @@ impl_op_ex!(-|a: Vec3| -> Vec3 { vec3(-a.x, -a.y, -a.z) });
 // Binary non-commutative
 impl_op_ex!(+|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x + b.x, a.y + b.y, a.z + b.z) });
 impl_op_ex!(-|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
-impl_op_ex!(*|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x * b.x, a.y * b.y, a.y * b.y) });
-impl_op_ex!(/|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x / b.x, a.y / b.y, a.y / b.y) });
+impl_op_ex!(*|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x * b.x, a.y * b.y, a.z * b.z) });
+impl_op_ex!(/|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x / b.x, a.y / b.y, a.z / b.z) });
 
 // Assignment
 impl_op_ex!(+= |a: &mut Vec3, b: Vec3| {
@@ -151,7 +167,8 @@ impl_op_ex!(-= |a: &mut Vec3, b: Vec3| {
 
 // Binary commutative
 impl_op_ex_commutative!(*|v: Vec3, s: f64| -> Vec3 { vec3(v.x * s, v.y * s, v.z * s) });
-impl_op_ex_commutative!(/|v: Vec3, s: f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
+impl_op_ex!(/|v: Vec3, s: f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
+impl_op_ex!(/|s: f64, v: Vec3| -> Vec3 { vec3(s / v.x, s / v.y, s / v.z) });
 
 #[cfg(test)]
 mod tests {

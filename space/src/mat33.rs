@@ -1,7 +1,5 @@
 use std::ops::Index;
-
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-
 use crate::{rad, vec2, Angle, Quat, Vec2, Point3};
 
 #[derive(Copy, Clone)]
@@ -18,11 +16,10 @@ impl Mat33 {
     }
 
     pub fn transpose(&self) -> Self {
-        let m = self.0;
         Self([
-            [m[0][0], m[1][0], m[2][0]],
-            [m[0][1], m[1][1], m[2][1]],
-            [m[0][2], m[1][2], m[2][2]],
+            [self[0][0], self[1][0], self[2][0]],
+            [self[0][1], self[1][1], self[2][1]],
+            [self[0][2], self[1][2], self[2][2]],
         ])
     }
 
@@ -158,11 +155,10 @@ impl From<Mat33> for [[f64; 3]; 3] {
 }
 impl From<Mat33> for [[f32; 3]; 3] {
     fn from(mat: Mat33) -> Self {
-        let m = mat.0;
         [
-            [m[0][0] as f32, m[0][1] as f32, m[0][2] as f32],
-            [m[1][0] as f32, m[1][1] as f32, m[1][2] as f32],
-            [m[2][0] as f32, m[2][1] as f32, m[2][2] as f32],
+            [mat[0][0] as f32, mat[0][1] as f32, mat[0][2] as f32],
+            [mat[1][0] as f32, mat[1][1] as f32, mat[1][2] as f32],
+            [mat[2][0] as f32, mat[2][1] as f32, mat[2][2] as f32],
         ]
     }
 }
@@ -259,6 +255,7 @@ mod tests {
         );
 
         approx_eq(m.inverse().unwrap(), inv);
+        approx_eq(inv.inverse().unwrap(), m);
         approx_eq(m * inv, Mat33::IDENTITY);
         approx_eq(inv * m, Mat33::IDENTITY);
         approx_eq(m * m.inverse().unwrap(), Mat33::IDENTITY);

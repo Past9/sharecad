@@ -31,6 +31,13 @@ impl Vec2 {
         Self { x, y }
     }
 
+    pub fn clamp(&self, min: Self, max: Self) -> Self {
+        Self {
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
+        }
+    }
+
     pub fn turn_dir(&self, other: Vec2) -> TurnDir {
         let z = (self.x * other.y) - (self.y * other.x);
 
@@ -131,7 +138,8 @@ impl_op_ex!(-|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x - b.x, a.y - b.y) });
 impl_op_ex!(*|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x * b.x, a.y * b.y) });
 impl_op_ex!(/|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x / b.x, a.y / b.y) });
 impl_op_ex_commutative!(*|v: Vec2, s: f64| -> Vec2 { vec2(v.x * s, v.y * s) });
-impl_op_ex_commutative!(/|v: Vec2, s: f64| -> Vec2 { vec2(v.x / s, v.y / s) });
+impl_op_ex!(/|v: Vec2, s: f64| -> Vec2 { vec2(v.x / s, v.y / s) });
+impl_op_ex!(/|s: f64, v: Vec2| -> Vec2 { vec2(s / v.x, s / v.y) });
 
 #[cfg(test)]
 mod tests {
