@@ -48,7 +48,7 @@ impl Curve3 {
 
         let mut best = None;
         let mut uv_next = uv;
-        for i in 0..10 {
+        for _ in 0..2 {
             let iter = Self::dist2(cu, cv, uv_next);
             uv_next = iter.uv_next;
 
@@ -71,34 +71,26 @@ impl Curve3 {
         let cu_der2 = cu.der2(uv.x);
         let cv_der2 = cv.der2(uv.y);
 
-        println!("\nuv {}", uv);
-        println!("cu_pos {}", cu_pos);
-        println!("cv_pos {}", cv_pos);
-        println!("cu_der1 {}", cu_der1);
-        println!("cv_der1 {}", cv_der1);
-
         // Vector from cv(v) to cu(u).
         let cv_cu = cu_pos - cv_pos;
-
-        println!("cv_cu {}", cv_cu);
 
         // Squared distance from cv(v) to cu(u).
         // This is the function we're minimizing.
         let dist2 = cv_cu.magnitude2();
-        println!("dist2 {}", dist2);
 
-        let du = (2.0 * (cv_cu * cu_der1)).sum();
-        let dv = (-2.0 * (cv_cu * cv_der1)).sum();
-        println!("du {}", du);
-        println!("dv {}", dv);
+        let gradient = vec2(
+            (2.0 * cv_cu * cu_der1).sum(),
+            (-2.0 * cv_cu * cv_der1).sum(),
+        );
 
-        let gradient = vec2(du, dv);
-        println!("gradient {}", gradient);
-        println!("- dist2 / gradient {}", -dist2 / gradient);
+        // Hessian
+        let duu = 2.0 * (cu_der1.powi(2) + cv_cu * cu_der2).sum();
+        let dvv = 2.0 * (cv_der1.powi(2) - cv_cu * cv_der2).sum();
+        let duv_vu = -2.0 * (cu_der1 * cv_der1).sum();
+        let hessian = Mat22::new(duu, duv_vu, duv_vu, dvv);
+        let hessian_inv = hessian.inverse().unwrap();
 
-        let uv_next = (uv - dist2 / gradient)
-            .clamp(vec2(cu.u_min(), cv.u_min()), vec2(cu.u_max(), cv.u_max()));
-        println!("uv_next {}", uv_next);
+        let uv_next = uv - hessian_inv * gradient;
 
         Curve3DistanceIter {
             uv,
@@ -107,26 +99,7 @@ impl Curve3 {
             cv_pos,
             uv_next,
         }
-
-        /*
-        Hessian
-        let du = 2.0 * cv_cu * cu_der1;
-        let dv = -2.0 * cv_cu * cv_der1;
-
-        let duu = 2.0 * (cu_der1.powi(2) + cv_cu * cu_der2).sum();
-        let dvv = 2.0 * (cv_der1.powi(2) - cv_cu * cv_der2).sum();
-
-        let duv_vu = -2.0 * (cu_der1 * cv_der1).sum();
-
-        let hessian = Mat22::new(duu, duv_vu, duv_vu, dvv);
-        let hessian_inv = hessian.inverse().unwrap();
-
-        let uv0 = vec2(u, v);
-        let uv1 = uv0 - hessian_inv * dist2;
-         */
     }
-
-    fn dist_du(c1: Self, c2: Self, u1: f64, u2: f64) {}
 }
 impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {

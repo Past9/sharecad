@@ -87,6 +87,9 @@ impl_op_ex!(*|a: Mat22, b: Mat22| -> Self {
         ], //
     ])
 });
+impl_op_ex!(*|m: Mat22, v: Vec2| -> Vec2 {
+    vec2(m[0][0] * v.x + m[0][1] * v.y, m[1][0] * v.x + m[1][1] * v.y)
+});
 
 impl_op_ex_commutative!(*|s: f64, m: Mat22| -> Mat22 {
     Mat22::new(m[0][0] * s, m[0][1] * s, m[1][0] * s, m[1][1] * s)
