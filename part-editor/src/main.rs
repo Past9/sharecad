@@ -25,6 +25,7 @@ use std::{
     sync::Arc,
     time::Instant,
 };
+use tessellate::TessellatedCurve3;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -132,8 +133,27 @@ fn build_scene() -> Scene {
     let helix_start = helix.eval(helix.u_min());
     let helix_end = helix.eval(helix.u_max());
      */
+    let tess_lines = {
+        let mut c1_tess = TessellatedCurve3::new(&c1);
+        let start = Instant::now();
+        c1_tess.tessellate_to_tolerance(0.001);
+        let end = Instant::now();
+        println!("tess {}us", (end - start).as_micros());
+
+        let mut tess_lines = vec![];
+        let mut vert_iter = c1_tess.vertices().iter();
+        let mut last = vert_iter.next().unwrap();
+        for cur in vert_iter {
+            tess_lines.push(Curve3::line(last.pos, cur.pos));
+            last = cur;
+        }
+
+        tess_lines
+    };
 
     let mut curves = vec![c0, c1, line, hd_line];
+    curves.extend(tess_lines);
+
     let mut points = vec![origin];
 
     let shortest = Curve3Distance::shortest(&results).unwrap();

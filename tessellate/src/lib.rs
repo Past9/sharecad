@@ -1,110 +1,94 @@
-use std::{
-    cell::OnceCell,
-    collections::{BTreeMap, LinkedList},
-    iter::{self, Once},
-};
+use std::collections::BTreeSet;
 
 use geometry::{Curve3, Curve3Impl};
 use space::Point3;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Vertex {
-    u: f64,
-    point: Point3,
+    pub u: f64,
+    pub pos: Point3,
 }
-
-#[derive(Debug, Clone)]
-pub struct Segment<'a> {
-    start: Vertex,
-    end: Vertex,
-    dist: OnceCell<f64>,
-    curve: &'a Curve3,
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.u == other.u
+    }
+}
+impl Eq for Vertex {}
+impl PartialOrd for Vertex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.u.partial_cmp(&other.u)
+    }
+}
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.u.total_cmp(&other.u)
+    }
 }
 
 pub struct TessellatedCurve3<'a> {
     curve: &'a Curve3,
-    segments: Vec<Segment<'a>>,
+    vertices: BTreeSet<Vertex>,
 }
 impl<'a> TessellatedCurve3<'a> {
     pub fn new(curve: &'a Curve3) -> Self {
-        let u_min = curve.u_min();
-        let u_max = curve.u_max();
-
-        let segment = Segment {
-            start: Vertex {
-                u: u_min,
-                point: curve.eval(u_min),
+        let vertices = BTreeSet::from_iter([
+            Vertex {
+                u: curve.u_min(),
+                pos: curve.eval(curve.u_min()),
             },
-            end: Vertex {
-                u: u_max,
-                point: curve.eval(u_max),
+            Vertex {
+                pos: curve.eval(curve.u_max()),
+                u: curve.u_max(),
             },
-            dist: OnceCell::new(),
-            curve,
-        };
+        ]);
 
-        Self {
-            curve,
-            segments: vec![segment],
+        Self { curve, vertices }
+    }
+
+    pub fn curve(&self) -> &Curve3 {
+        &self.curve
+    }
+
+    pub fn vertices(&self) -> &BTreeSet<Vertex> {
+        &self.vertices
+    }
+
+    pub fn insert_with_pos(&mut self, u: f64, pos: Point3) {
+        self.vertices.insert(Vertex { u, pos });
+    }
+
+    pub fn insert(&mut self, u: f64) {
+        self.insert_with_pos(u, self.curve.eval(u));
+    }
+
+    pub fn tessellate_to_tolerance(&mut self, tol: f64) {
+        const MAX_ITER: u32 = 100;
+        let mut remaining = MAX_ITER;
+        while self.tessellate_to_tolerance_once(tol) && remaining > 0 {
+            remaining -= 1;
         }
     }
 
-    pub fn refine<F: Fn(&Segment) -> Vec<Vertex>>(&self, refiner: F) -> Self {
-        Self {
-            curve: self.curve,
-            segments: self
-                .segments
-                .iter()
-                .flat_map(|segment| {
-                    let new_verts = refiner(segment);
+    fn tessellate_to_tolerance_once(&mut self, tol: f64) -> bool {
+        let mut changed = false;
+        let mut new_verts = self.vertices.clone();
+        let mut vert_iter = self.vertices.iter();
 
-                    let mut new_segments = Vec::with_capacity(new_verts.len() + 1);
-
-                    new_segments.push(Segment {
-                        start: segment.start.clone(),
-                        dist: OnceCell::new(),
-                        curve: self.curve,
-
-                        // Will be overwritten by the next vert from new_verts
-                        // or by segment.end() if there are none.
-                        end: Vertex {
-                            u: 0.0,
-                            point: Point3::ZERO,
-                        },
-                    });
-
-                    for new_vert in new_verts.into_iter() {
-                        let ns_last_index = new_segments.len() - 1;
-                        new_segments[ns_last_index].end = new_vert;
-                        new_segments.push(Segment {
-                            start: new_segments[ns_last_index].start.clone(),
-                            dist: OnceCell::new(),
-                            curve: self.curve,
-
-                            // Will be overwritten by the next vert from new_verts
-                            // or by segment.end() if there are no more.
-                            end: Vertex {
-                                u: 0.0,
-                                point: Point3::ZERO,
-                            },
-                        });
-                    }
-
-                    let ns_last_index = new_segments.len() - 1;
-                    new_segments[ns_last_index].end = segment.end.clone();
-
-                    new_segments
-                })
-                .collect(),
+        let mut last = vert_iter.next().unwrap();
+        for cur in vert_iter {
+            let deviation = self.curve.line_deviation(last.u, cur.u).unwrap();
+            if deviation.distance > tol {
+                new_verts.insert(Vertex {
+                    u: deviation.uv.x,
+                    pos: deviation.cu_pos,
+                });
+                changed = true;
+            }
+            last = cur;
         }
-    }
 
-    pub fn points(&self) -> Vec<Point3> {
-        let mut points = Vec::with_capacity(self.segments.len() + 1);
+        self.vertices = new_verts;
 
-        points.push(self.segments[0].start.point);
-        points.extend(self.segments.iter().map(|segment| segment.end.point));
-
-        points
+        changed
     }
 }

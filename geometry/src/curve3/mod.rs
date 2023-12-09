@@ -239,8 +239,25 @@ impl Curve3 {
 
         let mut results = vec![];
 
-        let u_params = cu.distance_extrema_params();
-        let v_params = cv.distance_extrema_params();
+        let mut u_params = cu
+            .distance_extrema_params()
+            .into_iter()
+            .filter(|u| *u >= uv_min.x && *u <= uv_max.x)
+            .collect::<Vec<f64>>();
+
+        let mut v_params = cv
+            .distance_extrema_params()
+            .into_iter()
+            .filter(|v| *v >= uv_min.y && *v <= uv_max.y)
+            .collect::<Vec<f64>>();
+
+        if u_params.len() == 0 {
+            u_params.push((uv_min.x + uv_max.x) / 2.0);
+        }
+
+        if v_params.len() == 0 {
+            v_params.push((uv_min.y + uv_max.y) / 2.0);
+        }
 
         for u in u_params.iter() {
             for v in v_params.iter() {
@@ -250,6 +267,10 @@ impl Curve3 {
                     results.push(result);
                 }
             }
+        }
+
+        if results.len() == 0 {
+            panic!("NO RESULTS");
         }
 
         results
@@ -265,7 +286,7 @@ impl Curve3 {
 
         let segments = self.param_segments(segments, true);
 
-        println!("param_segments {:?}", segments);
+        //println!("param_segments {:?}", segments);
 
         segments
     }
