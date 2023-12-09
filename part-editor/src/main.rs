@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Impl, Helix};
+use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -19,7 +19,12 @@ use render::{
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use std::{cell::OnceCell, f64::consts::TAU, sync::Arc};
+use std::{
+    cell::OnceCell,
+    f64::consts::{PI, TAU},
+    sync::Arc,
+    time::Instant,
+};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -77,6 +82,24 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_curve_material(CurveMaterialSpec::default());
 
+    let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
+    let c1 = Curve3::helix(
+        1.0,
+        0.2,
+        5.0,
+        Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
+        vec3(3.0, 0.0, 0.0),
+    );
+    //let c1 = Curve3::line(point3(1.0, -5.0, PI + 1.0), point3(3.0, 5.0, PI - 1.0));
+
+    let start = Instant::now();
+    let results = Curve3::der1_extrema(&c0, &c1);
+    let end = Instant::now();
+    println!("{}us", (end - start).as_micros());
+
+    println!("results.len() = {}", results.len());
+
+    /*
     let helix = Curve3::helix(
         1.0,
         1.0 / TAU,
@@ -86,6 +109,7 @@ fn build_scene() -> Scene {
     );
 
     let line = Curve3::line(point3(1.0, 1.0, 1.0), point3(-1.0, -1.0, -1.0));
+     */
 
     // Define points
     let point_material = scene
@@ -93,15 +117,30 @@ fn build_scene() -> Scene {
         .insert_point_material(PointMaterialSpec::default());
 
     let origin = Point3::ZERO;
+
+    /*
     let upper = point3(0.0, 3.0, 0.0);
     let helix_start = helix.eval(helix.u_min());
     let helix_end = helix.eval(helix.u_max());
+     */
+
+    let mut curves = vec![c0, c1];
+    let mut points = vec![origin];
+
+    let shortest = Curve3Distance::shortest(&results).unwrap();
+    curves.push(Curve3::line(shortest.cu_pos, shortest.cv_pos));
+
+    let longest = Curve3Distance::longest(&results).unwrap();
+    curves.push(Curve3::line(longest.cu_pos, longest.cv_pos));
+
+    /*
+    for res in results.iter() {
+        curves.push(Curve3::line(res.cu_pos, res.cv_pos));
+    }
+     */
 
     // Build part
-    let part = PartModel::new(
-        vec![helix, line],
-        vec![origin, upper, helix_start, helix_end],
-    );
+    let part = PartModel::new(curves, points);
 
     scene.add_model(part.scene_model(curve_material, point_material));
 

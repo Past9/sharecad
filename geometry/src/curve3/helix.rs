@@ -27,6 +27,11 @@ impl Helix {
             translation,
         }
     }
+
+    /// Number of revolutions
+    pub fn n(&self) -> f64 {
+        self.n
+    }
 }
 impl Curve3Impl for Helix {
     fn u_min(&self) -> f64 {

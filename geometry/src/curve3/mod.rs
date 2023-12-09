@@ -9,11 +9,118 @@ const MAX_NEWTON_ITER: u32 = 64;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Curve3Distance {
-    iterations: u32,
-    uv: Vec2,
-    distance: f64,
-    cu_pos: Point3,
-    cv_pos: Point3,
+    pub uv: Vec2,
+    pub distance: f64,
+    pub cu_pos: Point3,
+    pub cv_pos: Point3,
+}
+impl Curve3Distance {
+    pub fn shortest(distances: &[Self]) -> Option<Self> {
+        if distances.len() == 0 {
+            return None;
+        }
+
+        let mut shortest = &distances[0];
+        for dist in distances.iter() {
+            if dist.distance < shortest.distance {
+                shortest = dist;
+            }
+        }
+
+        Some(shortest.clone())
+    }
+
+    pub fn longest(distances: &[Self]) -> Option<Self> {
+        if distances.len() == 0 {
+            return None;
+        }
+
+        let mut longest = &distances[0];
+        for dist in distances.iter() {
+            if dist.distance > longest.distance {
+                longest = dist;
+            }
+        }
+
+        Some(longest.clone())
+    }
+
+    fn dedup(mut distances: Vec<Self>) -> Vec<Self> {
+        if distances.len() == 0 {
+            return distances;
+        }
+
+        distances.sort_by(|a, b| a.uv.x.total_cmp(&b.uv.x).then(a.uv.y.total_cmp(&b.uv.y)));
+
+        //println!("\n\n\n\ndistances = {:#?}\n\n\n\n", distances);
+
+        let avg = |dists: &[&Self]| {
+            //println!("dists len = {}", dists.len());
+            let total = dists.iter().fold(
+                Self {
+                    uv: Vec2::ZERO,
+                    distance: 0.0,
+                    cu_pos: Point3::ZERO,
+                    cv_pos: Point3::ZERO,
+                },
+                |a, b| Self {
+                    uv: a.uv + b.uv,
+                    distance: a.distance + b.distance,
+                    cu_pos: a.cu_pos + b.cu_pos,
+                    cv_pos: a.cv_pos + b.cv_pos,
+                },
+            );
+
+            let len = dists.len() as f64;
+            Self {
+                uv: total.uv / len,
+                distance: total.distance / len,
+                cu_pos: total.cu_pos / len,
+                cv_pos: total.cv_pos / len,
+            }
+        };
+
+        let mut deduped = vec![];
+        let mut compare = &distances[0];
+        let mut dupes = vec![&distances[0]];
+        for i in 1..distances.len() {
+            if Self::are_dupes(compare, &distances[i]) {
+                dupes.push(&distances[i])
+            } else {
+                deduped.push(avg(&dupes));
+                dupes = vec![&distances[i]];
+                compare = &distances[i];
+            }
+        }
+
+        if dupes.len() > 0 {
+            deduped.push(avg(&dupes));
+        }
+
+        deduped
+
+        //distances
+    }
+
+    fn are_dupes(a: &Self, b: &Self) -> bool {
+        a.cu_pos.cc(b.cu_pos) && a.cv_pos.cc(b.cv_pos)
+    }
+
+    fn dedup_2(a: &Self, b: &Self) -> (Self, Option<Self>) {
+        if Self::are_dupes(a, b) {
+            (
+                Self {
+                    uv: (a.uv + b.uv) / 2.0,
+                    distance: (a.distance + b.distance) / 2.0,
+                    cu_pos: (a.cu_pos + b.cu_pos) / 2.0,
+                    cv_pos: (a.cv_pos + b.cv_pos) / 2.0,
+                },
+                None,
+            )
+        } else {
+            (a.clone(), Some(b.clone()))
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -35,28 +142,79 @@ impl Curve3 {
         Self::Helix(Helix::new(r, h, n, orientation, translation))
     }
 
+    pub fn param_segments(&self, segments: u32, include_ends: bool) -> Vec<f64> {
+        let increment = self.u_len() / segments as f64;
+
+        let mut params = Vec::with_capacity(match include_ends {
+            true => segments + 1,
+            false => segments - 1,
+        } as usize);
+
+        if include_ends {
+            params.push(self.u_min());
+        }
+
+        for i in 1..segments {
+            params.push(increment * i as f64);
+        }
+
+        if include_ends {
+            params.push(self.u_max());
+        }
+
+        params
+    }
+
     pub fn line(start: Point3, end: Point3) -> Self {
         Self::Line(Line::new(start, end))
     }
 
     pub fn min_dist(&self, other: &Self) -> Option<Curve3Distance> {
         let initial_uv = vec2(
-            (self.u_min() + self.u_max()) / 20.0,
+            (self.u_min() + self.u_max()) / 2.0,
             (other.u_min() + other.u_max()) / 2.0,
         );
-        Self::min_dist_from_initial_guess(self, other, initial_uv)
+        Self::distance_extrema(self, other, initial_uv)
     }
 
-    fn min_dist_from_initial_guess(cu: &Self, cv: &Self, uv: Vec2) -> Option<Curve3Distance> {
+    /// Returns initial parameters to use when trying to find the zeroes of
+    /// the curve's first derivative
+    fn der1_extrema_params(&self) -> Vec<f64> {
+        let segments = match self {
+            Curve3::Helix(helix) => 4 * helix.n().ceil() as u32,
+            Curve3::Line(_) => 2,
+        };
+
+        self.param_segments(segments, true)
+    }
+
+    pub fn der1_extrema(cu: &Self, cv: &Self) -> Vec<Curve3Distance> {
+        let u_params = cu.der1_extrema_params();
+        let v_params = cv.der1_extrema_params();
+
+        let mut results = vec![];
+
+        for u in u_params.iter() {
+            for v in v_params.iter() {
+                if let Some(result) = Self::distance_extrema(cu, cv, vec2(*u, *v)) {
+                    results.push(result);
+                }
+            }
+        }
+
+        results
+    }
+
+    fn distance_extrema(cu: &Self, cv: &Self, uv: Vec2) -> Option<Curve3Distance> {
         let mut iterations = 0;
         let mut converged = false;
-        let mut last = Self::dist2(cu, cv, uv);
+        let mut last = Self::distance_iter(cu, cv, uv);
 
         for _ in 0..MAX_NEWTON_ITER {
-            let iter = Self::dist2(cu, cv, last.uv_next);
+            let iter = Self::distance_iter(cu, cv, last.uv_next);
             iterations += 1;
 
-            println!("iter = {:#?}", iter);
+            //println!("iter = {:#?}", iter);
 
             if (iter.uv - last.uv).magnitude().cc(0.0) {
                 converged = true;
@@ -68,7 +226,6 @@ impl Curve3 {
 
         if converged {
             Some(Curve3Distance {
-                iterations,
                 uv: last.uv,
                 distance: last.distance,
                 cu_pos: last.cu_pos,
@@ -79,7 +236,7 @@ impl Curve3 {
         }
     }
 
-    fn dist2(cu: &Self, cv: &Self, uv: Vec2) -> Curve3DistanceIter {
+    fn distance_iter(cu: &Self, cv: &Self, uv: Vec2) -> Curve3DistanceIter {
         let cu_pos = cu.eval(uv.x);
         let cv_pos = cv.eval(uv.y);
         let cu_der1 = cu.der1(uv.x);
@@ -204,6 +361,8 @@ pub trait Curve3Impl {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use space::point3;
 
     use super::*;
@@ -217,7 +376,6 @@ mod tests {
 
         assert_eq!(
             Some(Curve3Distance {
-                iterations: 2,
                 uv: vec2(0.75, 0.25),
                 distance: 1.0,
                 cu_pos: point3(0.0, 0.0, 0.0),
@@ -229,15 +387,37 @@ mod tests {
 
     #[test]
     fn dist() {
-        let c0 = Curve3::helix(1.0, 1.0, 1.0, Quat::ZERO, Vec3::ZERO);
+        let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
 
         println!("helix {:#?}", c0);
 
         let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
 
-        let res = c0.min_dist(&c1);
+        let num_iter = 1;
+        let start = Instant::now();
+        for _ in 0..num_iter {
+            let res = c0.min_dist(&c1);
+            println!("res = {:#?}", res);
+        }
+        let end = Instant::now();
+        let dur = end - start;
+        println!(
+            "{} iter in {}us, {}us per iter",
+            num_iter,
+            dur.as_micros(),
+            dur.as_micros() / num_iter
+        );
+    }
 
-        println!("res = {:#?}", res);
+    #[test]
+    fn dist2() {
+        let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
+        let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
+
+        let results = Curve3::der1_extrema(&c0, &c1);
+
+        println!("results = {:#?}", results);
+        println!("results.len() = {}", results.len());
     }
 
     pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
