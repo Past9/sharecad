@@ -85,17 +85,19 @@ fn build_scene() -> Scene {
     let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
     let c1 = Curve3::helix(
         1.0,
-        0.2,
+        0.4,
         5.0,
         Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
-        vec3(3.0, 0.0, 0.0),
+        vec3(-2.0, 0.0, -5.0),
     );
     //let c1 = Curve3::line(point3(1.0, -5.0, PI + 1.0), point3(3.0, 5.0, PI - 1.0));
 
     let start = Instant::now();
-    let results = Curve3::der1_extrema(&c0, &c1);
+    let results = Curve3::distance_extrema(&c0, &c1);
     let end = Instant::now();
     println!("{}us", (end - start).as_micros());
+
+    let results = Curve3Distance::dedup(results);
 
     println!("results.len() = {}", results.len());
 
@@ -111,6 +113,13 @@ fn build_scene() -> Scene {
     let line = Curve3::line(point3(1.0, 1.0, 1.0), point3(-1.0, -1.0, -1.0));
      */
 
+    let line0 = c0.eval(c0.u_min());
+    let line1 = c0.eval(c0.u_max());
+    let line = Curve3::line(line0, line1);
+
+    let hd = c0.line_deviation(c0.u_min(), c0.u_max()).unwrap();
+    let hd_line = Curve3::line(hd.cu_pos, hd.cv_pos);
+
     // Define points
     let point_material = scene
         .materials_mut()
@@ -124,7 +133,7 @@ fn build_scene() -> Scene {
     let helix_end = helix.eval(helix.u_max());
      */
 
-    let mut curves = vec![c0, c1];
+    let mut curves = vec![c0, c1, line, hd_line];
     let mut points = vec![origin];
 
     let shortest = Curve3Distance::shortest(&results).unwrap();

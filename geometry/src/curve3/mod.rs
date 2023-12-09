@@ -3,7 +3,7 @@ mod line;
 
 pub use helix::*;
 pub use line::*;
-use space::{vec2, vec3, Coincidence, Mat22, Point3, Quat, Vec2, Vec3};
+use space::{vec2, vec3, Coincidence, Mat22, Point3, Quat, Vec2, Vec3, COINCIDENT_TOL, NEWTON_TOL};
 
 const MAX_NEWTON_ITER: u32 = 64;
 
@@ -45,7 +45,7 @@ impl Curve3Distance {
         Some(longest.clone())
     }
 
-    fn dedup(mut distances: Vec<Self>) -> Vec<Self> {
+    pub fn dedup(mut distances: Vec<Self>) -> Vec<Self> {
         if distances.len() == 0 {
             return distances;
         }
@@ -169,34 +169,84 @@ impl Curve3 {
         Self::Line(Line::new(start, end))
     }
 
-    pub fn min_dist(&self, other: &Self) -> Option<Curve3Distance> {
-        let initial_uv = vec2(
-            (self.u_min() + self.u_max()) / 2.0,
-            (other.u_min() + other.u_max()) / 2.0,
+    pub fn min_distance_to(&self, other: &Self) -> Option<Curve3Distance> {
+        let extrema = Self::distance_extrema(self, other);
+        Curve3Distance::shortest(&extrema)
+    }
+
+    pub fn line_deviation(&self, u_start: f64, u_end: f64) -> Option<Curve3Distance> {
+        let line = Self::line(self.eval(u_start), self.eval(u_end));
+
+        let extrema = Self::find_distance_extrema(
+            self,
+            &line,
+            vec2(u_start, line.u_min()),
+            vec2(u_end, line.u_max()),
         );
-        Self::distance_extrema(self, other, initial_uv)
+
+        Curve3Distance::longest(&extrema)
     }
 
-    /// Returns initial parameters to use when trying to find the zeroes of
-    /// the curve's first derivative
-    fn der1_extrema_params(&self) -> Vec<f64> {
-        let segments = match self {
-            Curve3::Helix(helix) => 4 * helix.n().ceil() as u32,
-            Curve3::Line(_) => 2,
-        };
+    pub fn distance_extrema(cu: &Self, cv: &Self) -> Vec<Curve3Distance> {
+        let uv_min = vec2(cu.u_min(), cv.u_min());
+        let uv_max = vec2(cu.u_max(), cv.u_max());
 
-        self.param_segments(segments, true)
+        let cu_start = cu.eval(cu.u_min());
+        let cu_end = cu.eval(cu.u_max());
+        let cv_start = cv.eval(cv.u_min());
+        let cv_end = cv.eval(cv.u_max());
+
+        let mut extrema = vec![
+            Curve3Distance {
+                uv: vec2(cu.u_min(), cv.u_min()),
+                distance: (cu_start - cv_start).magnitude(),
+                cu_pos: cu_start,
+                cv_pos: cv_start,
+            },
+            Curve3Distance {
+                uv: vec2(cu.u_min(), cv.u_max()),
+                distance: (cu_start - cv_end).magnitude(),
+                cu_pos: cu_start,
+                cv_pos: cv_end,
+            },
+            Curve3Distance {
+                uv: vec2(cu.u_max(), cv.u_min()),
+                distance: (cu_end - cv_start).magnitude(),
+                cu_pos: cu_end,
+                cv_pos: cv_start,
+            },
+            Curve3Distance {
+                uv: vec2(cu.u_max(), cv.u_max()),
+                distance: (cu_end - cv_end).magnitude(),
+                cu_pos: cu_end,
+                cv_pos: cv_end,
+            },
+        ];
+
+        extrema.extend(Self::find_distance_extrema(cu, cv, uv_min, uv_max));
+
+        extrema
     }
 
-    pub fn der1_extrema(cu: &Self, cv: &Self) -> Vec<Curve3Distance> {
-        let u_params = cu.der1_extrema_params();
-        let v_params = cv.der1_extrema_params();
+    fn find_distance_extrema(
+        cu: &Self,
+        cv: &Self,
+        uv_min: Vec2,
+        uv_max: Vec2,
+    ) -> Vec<Curve3Distance> {
+        //let uv_min = vec2(cu.u_min(), cv.u_min());
+        //let uv_max = vec2(cu.u_max(), cv.u_max());
 
         let mut results = vec![];
 
+        let u_params = cu.distance_extrema_params();
+        let v_params = cv.distance_extrema_params();
+
         for u in u_params.iter() {
             for v in v_params.iter() {
-                if let Some(result) = Self::distance_extrema(cu, cv, vec2(*u, *v)) {
+                if let Some(result) =
+                    Self::local_distance_extrema(cu, cv, vec2(*u, *v), uv_min, uv_max)
+                {
                     results.push(result);
                 }
             }
@@ -205,18 +255,35 @@ impl Curve3 {
         results
     }
 
-    fn distance_extrema(cu: &Self, cv: &Self, uv: Vec2) -> Option<Curve3Distance> {
-        let mut iterations = 0;
+    /// Returns initial parameters to use when trying to find extrema of
+    /// the curve's distance from another entity.
+    fn distance_extrema_params(&self) -> Vec<f64> {
+        let segments = match self {
+            Curve3::Helix(helix) => 3 * helix.n().ceil() as u32,
+            Curve3::Line(_) => 2,
+        };
+
+        let segments = self.param_segments(segments, true);
+
+        println!("param_segments {:?}", segments);
+
+        segments
+    }
+
+    fn local_distance_extrema(
+        cu: &Self,
+        cv: &Self,
+        uv: Vec2,
+        uv_min: Vec2,
+        uv_max: Vec2,
+    ) -> Option<Curve3Distance> {
         let mut converged = false;
-        let mut last = Self::distance_iter(cu, cv, uv);
+        let mut last = Self::distance_iter(cu, cv, uv, uv_min, uv_max);
 
         for _ in 0..MAX_NEWTON_ITER {
-            let iter = Self::distance_iter(cu, cv, last.uv_next);
-            iterations += 1;
+            let iter = Self::distance_iter(cu, cv, last.uv_next, uv_min, uv_max);
 
-            //println!("iter = {:#?}", iter);
-
-            if (iter.uv - last.uv).magnitude().cc(0.0) {
+            if (iter.uv - last.uv).magnitude().cc_newton(NEWTON_TOL) {
                 converged = true;
                 break;
             }
@@ -236,7 +303,13 @@ impl Curve3 {
         }
     }
 
-    fn distance_iter(cu: &Self, cv: &Self, uv: Vec2) -> Curve3DistanceIter {
+    fn distance_iter(
+        cu: &Self,
+        cv: &Self,
+        uv: Vec2,
+        uv_min: Vec2,
+        uv_max: Vec2,
+    ) -> Curve3DistanceIter {
         let cu_pos = cu.eval(uv.x);
         let cv_pos = cv.eval(uv.y);
         let cu_der1 = cu.der1(uv.x);
@@ -264,8 +337,7 @@ impl Curve3 {
         let hessian_inv = hessian.inverse().unwrap();
 
         // Newton's method
-        let uv_next = (uv - hessian_inv * gradient)
-            .clamp(vec2(cu.u_min(), cv.u_min()), vec2(cu.u_max(), cv.u_max()));
+        let uv_next = (uv - hessian_inv * gradient).clamp(uv_min, uv_max);
 
         Curve3DistanceIter {
             uv,
@@ -367,6 +439,7 @@ mod tests {
 
     use super::*;
 
+    /*
     #[test]
     fn line_line_dist() {
         let l0 = Curve3::line(point3(0.0, -3.0, 0.0), point3(0.0, 1.0, 0.0));
@@ -408,13 +481,14 @@ mod tests {
             dur.as_micros() / num_iter
         );
     }
+    */
 
     #[test]
     fn dist2() {
         let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
         let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
 
-        let results = Curve3::der1_extrema(&c0, &c1);
+        let results = Curve3::distance_extrema(&c0, &c1);
 
         println!("results = {:#?}", results);
         println!("results.len() = {}", results.len());

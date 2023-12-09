@@ -1,6 +1,7 @@
 use crate::{Angle, Mat33, Point2, Point3, Vec2, Vec3};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
+pub const NEWTON_TOL: f64 = COINCIDENT_TOL * 0.1;
 
 /// Asserts that two expressions are geometrically coincident. Requires that the left
 /// expression's type implements `space::tolerance::Coincident<{right expression type}>`.
@@ -45,30 +46,34 @@ pub fn within_tolerance_f64(a: f64, b: f64, tolerance: f64) -> bool {
 }
 
 pub trait Coincidence<T> {
-    fn cc(&self, other: T) -> bool;
+    fn coincident(&self, other: T, tolerance: f64) -> bool;
+
+    fn cc(&self, other: T) -> bool {
+        self.coincident(other, COINCIDENT_TOL)
+    }
+
+    fn cc_newton(&self, other: T) -> bool {
+        self.coincident(other, NEWTON_TOL)
+    }
 }
 
 impl Coincidence<f32> for f32 {
-    /// To be considered geometrically coincident,
-    /// `f32`s must have a difference near `0.0`
-    fn cc(&self, other: f32) -> bool {
-        within_tolerance_f32(*self, other, COINCIDENT_TOL as f32)
+    fn coincident(&self, other: f32, tolerance: f64) -> bool {
+        within_tolerance_f32(*self, other, tolerance as f32)
     }
 }
 
 impl Coincidence<f64> for f64 {
-    /// To be considered geometrically coincident,
-    /// `f64`s must have a difference near `0.0`
-    fn cc(&self, other: f64) -> bool {
-        within_tolerance_f64(*self, other, COINCIDENT_TOL)
+    fn coincident(&self, other: f64, tolerance: f64) -> bool {
+        within_tolerance_f64(*self, other, tolerance)
     }
 }
 
 impl Coincidence<Mat33> for Mat33 {
-    fn cc(&self, other: Mat33) -> bool {
+    fn coincident(&self, other: Mat33, tolerance: f64) -> bool {
         for row in 0..3 {
             for col in 0..3 {
-                if !within_tolerance_f64(self[row][col], other[row][col], COINCIDENT_TOL) {
+                if !within_tolerance_f64(self[row][col], other[row][col], tolerance) {
                     return false;
                 }
             }
@@ -82,8 +87,8 @@ impl Coincidence<Vec2> for Vec2 {
     /// To be considered geometrically coincident,
     /// vectors are treated as points and those points
     /// must be separated by a distance near `0.0`
-    fn cc(&self, other: Vec2) -> bool {
-        self.into_point().cc(other.into_point())
+    fn coincident(&self, other: Vec2, tolerance: f64) -> bool {
+        self.into_point().coincident(other.into_point(), tolerance)
     }
 }
 
@@ -91,30 +96,30 @@ impl Coincidence<Vec3> for Vec3 {
     /// To be considered geometrically coincident,
     /// vectors are treated as points and those points
     /// must be separated by a distance near `0.0`
-    fn cc(&self, other: Vec3) -> bool {
-        self.into_point().cc(other.into_point())
+    fn coincident(&self, other: Vec3, tolerance: f64) -> bool {
+        self.into_point().coincident(other.into_point(), tolerance)
     }
 }
 
 impl Coincidence<Point2> for Point2 {
     /// To be considered geometrically coincident,
     /// points must be separated by a distance near `0.0`
-    fn cc(&self, other: Point2) -> bool {
-        within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
+    fn coincident(&self, other: Point2, tolerance: f64) -> bool {
+        within_tolerance_f64((*self - other).magnitude(), 0.0, tolerance)
     }
 }
 
 impl Coincidence<Point3> for Point3 {
     /// To be considered geometrically coincident,
     /// points must be separated by a distance near `0.0`
-    fn cc(&self, other: Point3) -> bool {
-        within_tolerance_f64((*self - other).magnitude(), 0.0, COINCIDENT_TOL)
+    fn coincident(&self, other: Point3, tolerance: f64) -> bool {
+        within_tolerance_f64((*self - other).magnitude(), 0.0, tolerance)
     }
 }
 
 impl Coincidence<Angle> for Angle {
-    fn cc(&self, other: Angle) -> bool {
-        within_tolerance_f64(self.radians(), other.radians(), COINCIDENT_TOL)
+    fn coincident(&self, other: Angle, tolerance: f64) -> bool {
+        within_tolerance_f64(self.radians(), other.radians(), tolerance)
     }
 }
 
