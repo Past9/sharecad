@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
-use geometry::{Curve3, Curve3Impl};
-use space::Point3;
+use geometry::{Curve3, Curve3Impl, Helix};
+use render::model::CurveMesh;
+use space::{Coincidence, Point3};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Vertex {
     pub u: f64,
     pub pos: Point3,
@@ -25,11 +26,11 @@ impl Ord for Vertex {
     }
 }
 
-pub struct TessellatedCurve3<'a> {
+pub struct Curve3Tesselator<'a> {
     curve: &'a Curve3,
     vertices: BTreeSet<Vertex>,
 }
-impl<'a> TessellatedCurve3<'a> {
+impl<'a> Curve3Tesselator<'a> {
     pub fn new(curve: &'a Curve3) -> Self {
         let vertices = BTreeSet::from_iter([
             Vertex {
@@ -43,6 +44,10 @@ impl<'a> TessellatedCurve3<'a> {
         ]);
 
         Self { curve, vertices }
+    }
+
+    pub fn mesh(&self) -> CurveMesh {
+        CurveMesh::new(self.vertices.iter().map(|v| v.pos).collect())
     }
 
     pub fn curve(&self) -> &Curve3 {
@@ -61,6 +66,27 @@ impl<'a> TessellatedCurve3<'a> {
         self.insert_with_pos(u, self.curve.eval(u));
     }
 
+    pub fn tesselate_to_dist(&mut self, tolerance: f64) {
+        match self.curve {
+            Curve3::Helix(helix) => self.tessellate_helix_to_dist(helix, tolerance),
+            Curve3::Line(line) => {
+                // Line is already tesselated by the constructor, don't need
+                // to do anything
+            }
+        }
+    }
+
+    fn tessellate_helix_to_dist(&mut self, helix: &Helix, tolerance: f64) {
+        let param_inc = 2.0 * (1.0 - tolerance / helix.r()).acos();
+
+        let num_points = ((helix.u_len() / param_inc).ceil() - 1.0) as usize;
+
+        for i in 1..=num_points {
+            let param = i as f64 * param_inc;
+            self.insert(param);
+        }
+    }
+
     pub fn tessellate_to_tolerance(&mut self, tol: f64) {
         const MAX_ITER: u32 = 100;
         let mut remaining = MAX_ITER;
@@ -70,6 +96,8 @@ impl<'a> TessellatedCurve3<'a> {
     }
 
     fn tessellate_to_tolerance_once(&mut self, tol: f64) -> bool {
+        println!("\n\ntessellate_to_tolerance_once");
+
         let mut changed = false;
         let mut new_verts = self.vertices.clone();
         let mut vert_iter = self.vertices.iter();
@@ -77,6 +105,14 @@ impl<'a> TessellatedCurve3<'a> {
         let mut last = vert_iter.next().unwrap();
         for cur in vert_iter {
             let deviation = self.curve.line_deviation(last.u, cur.u).unwrap();
+
+            if deviation.distance.cc(0.0) {
+                println!(
+                    "deviation, last, cur {:#?}, {:#?}, {:#?}",
+                    deviation, last, cur
+                );
+            }
+
             if deviation.distance > tol {
                 new_verts.insert(Vertex {
                     u: deviation.uv.x,

@@ -35,6 +35,10 @@ impl Curve3Impl for Line {
     fn der2(&self, _u: f64) -> Vec3 {
         Vec3::ZERO
     }
+
+    fn period(&self) -> Option<f64> {
+        None
+    }
 }
 
 #[cfg(test)]

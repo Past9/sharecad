@@ -142,6 +142,17 @@ impl Curve3 {
         Self::Helix(Helix::new(r, h, n, orientation, translation))
     }
 
+    pub fn line(start: Point3, end: Point3) -> Self {
+        Self::Line(Line::new(start, end))
+    }
+
+    pub fn curvature(&self, u: f64) -> f64 {
+        let der1 = self.der1(u);
+        let der2 = self.der2(u);
+
+        (der1.cross(der2)).magnitude() / der1.magnitude().powi(3)
+    }
+
     pub fn param_segments(&self, segments: u32, include_ends: bool) -> Vec<f64> {
         let increment = self.u_len() / segments as f64;
 
@@ -163,10 +174,6 @@ impl Curve3 {
         }
 
         params
-    }
-
-    pub fn line(start: Point3, end: Point3) -> Self {
-        Self::Line(Line::new(start, end))
     }
 
     pub fn min_distance_to(&self, other: &Self) -> Option<Curve3Distance> {
@@ -242,14 +249,19 @@ impl Curve3 {
         let mut u_params = cu
             .distance_extrema_params()
             .into_iter()
-            .filter(|u| *u >= uv_min.x && *u <= uv_max.x)
+            .filter(|u| *u > uv_min.x && *u < uv_max.x)
             .collect::<Vec<f64>>();
 
         let mut v_params = cv
             .distance_extrema_params()
             .into_iter()
-            .filter(|v| *v >= uv_min.y && *v <= uv_max.y)
+            .filter(|v| *v > uv_min.y && *v < uv_max.y)
             .collect::<Vec<f64>>();
+
+        println!(
+            "initial u_params = {:?}, v_params = {:?}",
+            u_params, v_params
+        );
 
         if u_params.len() == 0 {
             u_params.push((uv_min.x + uv_max.x) / 2.0);
@@ -258,6 +270,8 @@ impl Curve3 {
         if v_params.len() == 0 {
             v_params.push((uv_min.y + uv_max.y) / 2.0);
         }
+
+        println!("fixed u_params = {:?}, v_params = {:?}", u_params, v_params);
 
         for u in u_params.iter() {
             for v in v_params.iter() {
@@ -404,6 +418,13 @@ impl Curve3Impl for Curve3 {
             Curve3::Line(line) => line.der2(u),
         }
     }
+
+    fn period(&self) -> Option<f64> {
+        match self {
+            Curve3::Helix(helix) => helix.period(),
+            Curve3::Line(line) => line.period(),
+        }
+    }
 }
 
 pub trait Curve3Impl {
@@ -412,6 +433,12 @@ pub trait Curve3Impl {
 
     fn u_len(&self) -> f64 {
         self.u_max() - self.u_min()
+    }
+
+    fn period(&self) -> Option<f64>;
+
+    fn is_periodic(&self) -> bool {
+        self.period().is_some()
     }
 
     fn eval(&self, u: f64) -> Point3;

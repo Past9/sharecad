@@ -32,6 +32,15 @@ impl Helix {
     pub fn n(&self) -> f64 {
         self.n
     }
+
+    /// Radius
+    pub fn r(&self) -> f64 {
+        self.r
+    }
+
+    pub fn arc_len(&self, u: f64) -> f64 {
+        (self.h.powi(2) + self.r.powi(2)).sqrt() * u
+    }
 }
 impl Curve3Impl for Helix {
     fn u_min(&self) -> f64 {
@@ -71,18 +80,29 @@ impl Curve3Impl for Helix {
 
         self.orientation * der2
     }
+
+    fn period(&self) -> Option<f64> {
+        Some(TAU)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::f64::consts::TAU;
 
-    use space::{assert_cc, deg, point3, vec3, Quat};
+    use space::{assert_cc, deg, point3, vec3, Quat, Vec3};
 
     use crate::{
         curve3::tests::{validate_der1, validate_der2},
         Curve3Impl, Helix,
     };
+
+    #[test]
+    fn arc_length() {
+        let helix = Helix::new(1.0, 1.0 / TAU, 1.0, Quat::ZERO, Vec3::ZERO);
+
+        println!("{}", helix.arc_len(TAU));
+    }
 
     fn test_helix() -> Helix {
         Helix::new(
