@@ -91,10 +91,11 @@ fn build_scene() -> Scene {
     let curves = vec![
         Curve3::helix(
             1.0,
-            1.0 / TAU,
+            0.4,
             10.0,
-            Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
-            vec3(-2.0, 0.0, -5.0),
+            Quat::ZERO,
+            Vec3::ZERO, //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
+                        //vec3(-2.0, 0.0, -5.0),
         ),
         Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
@@ -132,7 +133,8 @@ impl PartModel {
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
             let start = Instant::now();
-            tess.tesselate_to_dist(tolerance);
+            tess.tessellate(0.01);
+            //tess.tesselate_to_dist(tolerance);
             let end = Instant::now();
             println!(
                 "tess {} points in {}us",

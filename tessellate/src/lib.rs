@@ -66,6 +66,32 @@ impl<'a> Curve3Tesselator<'a> {
         self.insert_with_pos(u, self.curve.eval(u));
     }
 
+    pub fn tessellate(&mut self, tolerance: f64) {
+        let u_max = self.curve.u_max();
+        let mut u = 0.0;
+        let mut params = vec![];
+
+        while u < u_max {
+            u += self.delta_u(u, tolerance);
+            if u < u_max {
+                params.push(u);
+            }
+        }
+
+        for param in params.into_iter() {
+            self.insert(param);
+        }
+    }
+
+    pub fn delta_u(&mut self, u: f64, tolerance: f64) -> f64 {
+        let der1 = self.curve.der1(u);
+        let der2 = self.curve.der2(u);
+
+        let p = der1.magnitude().powi(3) / (der1.cross(der2)).magnitude();
+
+        2.0 * (tolerance * (2.0 * p - tolerance)) / der1.magnitude()
+    }
+
     pub fn tesselate_to_dist(&mut self, tolerance: f64) {
         match self.curve {
             Curve3::Helix(helix) => self.tessellate_helix_to_dist(helix, tolerance),
