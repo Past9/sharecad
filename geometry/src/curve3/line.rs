@@ -2,7 +2,7 @@ use space::{Point3, Vec3};
 
 use crate::Curve3Impl;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Line {
     start: Point3,
     end: Point3,

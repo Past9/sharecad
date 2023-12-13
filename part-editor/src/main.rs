@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix};
+use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix, Surface3};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -25,7 +25,7 @@ use std::{
     sync::Arc,
     time::Instant,
 };
-use tessellate::Curve3Tesselator;
+use tessellate::{Curve3Tesselator, Surface3Tessellator};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -88,24 +88,52 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
 
+    let helix = Curve3::helix(
+        1.0,
+        0.4,
+        10.0,
+        Quat::ZERO,
+        vec3(5.0, 0.0, 0.0), //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
+                             //vec3(-2.0, 0.0, -5.0),
+    );
+
+    let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
+    let path = Curve3::helix(
+        1.0,
+        0.4,
+        0.25,
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+        Vec3::ZERO,
+    );
+
+    let sweep = Surface3::sweep(profile.clone(), path.clone());
+
+    let surfaces = vec![sweep];
+
     let curves = vec![
-        Curve3::helix(
-            1.0,
-            0.4,
-            10.0,
-            Quat::ZERO,
-            Vec3::ZERO, //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
-                        //vec3(-2.0, 0.0, -5.0),
-        ),
+        helix,
+        profile,
+        path,
+        // Axes
         Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
     ];
 
-    let points = vec![Point3::ZERO];
+    let mut points = vec![Point3::ZERO];
+
+    for surface in surfaces.iter() {
+        let mut tess = Surface3Tessellator::new(surface);
+        tess.tessellate(0.01);
+        for row in tess.points().iter() {
+            for point in row.iter() {
+                points.push(point.clone());
+            }
+        }
+    }
 
     // Build part
-    let part = PartModel::new(curves, points);
+    let part = PartModel::new(surfaces, curves, points);
 
     scene.add_model(part.scene_model_by_dist_tolerance(0.001, curve_material, point_material));
 
@@ -114,12 +142,17 @@ fn build_scene() -> Scene {
 
 // BREP model
 struct PartModel {
+    surfaces: Vec<Surface3>,
     curves: Vec<Curve3>,
     points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
-        Self { curves, points }
+    pub fn new(surfaces: Vec<Surface3>, curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
+        Self {
+            surfaces,
+            curves,
+            points,
+        }
     }
 
     pub fn scene_model_by_dist_tolerance(
@@ -130,10 +163,15 @@ impl PartModel {
     ) -> SceneModel {
         let mut scene_model = SceneModel::new();
 
+        for surface in self.surfaces.iter() {
+            let mut tess = Surface3Tessellator::new(surface);
+            tess.tessellate(0.01);
+        }
+
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
             let start = Instant::now();
-            tess.tessellate(0.01);
+            tess.tessellate(0.002);
             //tess.tesselate_to_dist(tolerance);
             let end = Instant::now();
             println!(

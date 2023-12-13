@@ -132,7 +132,7 @@ struct Curve3DistanceIter {
     uv_next: Vec2,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Curve3 {
     Helix(Helix),
     Line(Line),
@@ -423,6 +423,41 @@ impl Curve3Impl for Curve3 {
         match self {
             Curve3::Helix(helix) => helix.period(),
             Curve3::Line(line) => line.period(),
+        }
+    }
+
+    fn u_len(&self) -> f64 {
+        match self {
+            Curve3::Helix(helix) => helix.u_len(),
+            Curve3::Line(line) => line.u_len(),
+        }
+    }
+
+    fn is_periodic(&self) -> bool {
+        match self {
+            Curve3::Helix(helix) => helix.is_periodic(),
+            Curve3::Line(line) => line.is_periodic(),
+        }
+    }
+
+    fn tangent(&self, u: f64) -> Vec3 {
+        match self {
+            Curve3::Helix(helix) => helix.tangent(u),
+            Curve3::Line(line) => line.tangent(u),
+        }
+    }
+
+    fn curvature(&self, u: f64) -> f64 {
+        match self {
+            Curve3::Helix(helix) => helix.curvature(u),
+            Curve3::Line(line) => line.curvature(u),
+        }
+    }
+
+    fn eval_sections(&self, chords: u32) -> Vec<Point3> {
+        match self {
+            Curve3::Helix(helix) => helix.eval_sections(chords),
+            Curve3::Line(line) => line.eval_sections(chords),
         }
     }
 }
