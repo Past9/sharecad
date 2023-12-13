@@ -103,7 +103,7 @@ fn build_scene() -> Scene {
         0.4,
         0.25,
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        Vec3::ZERO,
+        vec3(-1.0, 0.0, 0.0),
     );
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());

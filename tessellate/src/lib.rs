@@ -186,14 +186,18 @@ impl<'a> Surface3Tessellator<'a> {
 
         let mut u = self.surface.u_min();
         loop {
+            //println!("\nu = {}", u);
             let mut row = vec![];
 
             let mut v = self.surface.v_min();
             loop {
+                //println!("  v = {}", v);
                 row.push(self.surface.eval(u, v));
 
                 if v < v_max {
-                    v += self.delta_v(u, v, tolerance).min(v_max);
+                    let delta_v = self.delta_v(u, v, tolerance);
+                    //println!("rcv delta_v = {}", delta_v);
+                    v += delta_v.min(v_max);
                 } else {
                     break;
                 }
@@ -202,7 +206,9 @@ impl<'a> Surface3Tessellator<'a> {
             vertices.push(row);
 
             if u < u_max {
-                u += self.delta_u(u, v, tolerance).min(u_max);
+                let delta_u = self.delta_u(u, v, tolerance);
+                println!("rcv delta_u = {}", delta_u);
+                u += delta_u.min(u_max);
             } else {
                 break;
             }
@@ -220,23 +226,47 @@ impl<'a> Surface3Tessellator<'a> {
         let f1b = der_u.dot(der_v);
         let f1c = der_v.magnitude2();
 
-        let n = der_u.cross(der_v);
+        let n = der_v.cross(der_u);
 
         let f2a = der_uu.dot(n);
-        let f2b = der_u.dot(n);
-        let f2c = der_v.dot(n);
+        let f2b = der_uv.dot(n);
+        let f2c = der_vv.dot(n);
 
         let du: f64 = 1.0;
         let dv: f64 = 0.0;
 
-        let p = (f1a * du.powi(2) + 2.0 * f1b * du * dv + f1c * dv.powi(2))
-            / (f2a * du.powi(2) + 2.0 * f2b * du * dv + f2c * dv.powi(2));
+        let p = (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
+            / (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2));
 
         let s1 = der_u;
         let s2 = der_v;
 
         let delta_u =
             2.0 * (tolerance * (2.0 * p - tolerance)).sqrt() / (s1 + s2 * (dv / du)).magnitude();
+
+        println!("\n\nDELTA_U");
+        println!("der_u = {}", der_u);
+        println!("der_v = {}", der_v);
+        println!("f1a = {}", f1a);
+        println!("f1b = {}", f1b);
+        println!("f1c = {}", f1c);
+        println!("f2a = {}", f2a);
+        println!("f2b = {}", f2b);
+        println!("f2c = {}", f2c);
+        println!(
+            "p num = {}",
+            (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
+        );
+        println!(
+            "p den = {}",
+            (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2))
+        );
+        println!("p = {}", p);
+        println!("s1 = {:?}", s1);
+        println!("s2 = {:?}", s2);
+        println!("num = {:?}", (tolerance * (2.0 * p - tolerance)));
+        println!("den = {:?}", (s1 + s2 * (dv / du)));
+        println!("delta_u = {}", delta_u);
 
         delta_u
     }
@@ -249,17 +279,17 @@ impl<'a> Surface3Tessellator<'a> {
         let f1b = der_u.dot(der_v);
         let f1c = der_v.magnitude2();
 
-        let n = der_u.cross(der_v);
+        let n = der_v.cross(der_u);
 
         let f2a = der_uu.dot(n);
-        let f2b = der_u.dot(n);
-        let f2c = der_v.dot(n);
+        let f2b = der_uv.dot(n);
+        let f2c = der_vv.dot(n);
 
         let du: f64 = 0.0;
         let dv: f64 = 1.0;
 
-        let p = (f1a * du.powi(2) + 2.0 * f1b * du * dv + f1c * dv.powi(2))
-            / (f2a * du.powi(2) + 2.0 * f2b * du * dv + f2c * dv.powi(2));
+        let p = (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
+            / (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2));
 
         let s1 = der_u;
         let s2 = der_v;
