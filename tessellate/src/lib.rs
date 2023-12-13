@@ -197,7 +197,7 @@ impl<'a> Surface3Tessellator<'a> {
                 if v < v_max {
                     let delta_v = self.delta_v(u, v, tolerance);
                     //println!("rcv delta_v = {}", delta_v);
-                    v += delta_v.min(v_max);
+                    v = (v + delta_v).min(v_max);
                 } else {
                     break;
                 }
@@ -206,9 +206,9 @@ impl<'a> Surface3Tessellator<'a> {
             vertices.push(row);
 
             if u < u_max {
-                let delta_u = self.delta_u(u, v, tolerance);
+                let delta_u = self.delta_u(u, self.surface.v_min(), tolerance);
                 println!("rcv delta_u = {}", delta_u);
-                u += delta_u.min(u_max);
+                u = (u + delta_u).min(u_max);
             } else {
                 break;
             }
@@ -220,83 +220,23 @@ impl<'a> Surface3Tessellator<'a> {
 
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
         let (der_u, der_v) = self.surface.der1(u, v);
-        let (der_uu, der_uv, der_vv) = self.surface.der2(u, v);
+        let (der_uu, _der_uv, _der_vv) = self.surface.der2(u, v);
 
         let f1a = der_u.magnitude2();
-        let f1b = der_u.dot(der_v);
-        let f1c = der_v.magnitude2();
-
         let n = der_v.cross(der_u);
-
         let f2a = der_uu.dot(n);
-        let f2b = der_uv.dot(n);
-        let f2c = der_vv.dot(n);
 
-        let du: f64 = 1.0;
-        let dv: f64 = 0.0;
-
-        let p = (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
-            / (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2));
-
-        let s1 = der_u;
-        let s2 = der_v;
-
-        let delta_u =
-            2.0 * (tolerance * (2.0 * p - tolerance)).sqrt() / (s1 + s2 * (dv / du)).magnitude();
-
-        println!("\n\nDELTA_U");
-        println!("der_u = {}", der_u);
-        println!("der_v = {}", der_v);
-        println!("f1a = {}", f1a);
-        println!("f1b = {}", f1b);
-        println!("f1c = {}", f1c);
-        println!("f2a = {}", f2a);
-        println!("f2b = {}", f2b);
-        println!("f2c = {}", f2c);
-        println!(
-            "p num = {}",
-            (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
-        );
-        println!(
-            "p den = {}",
-            (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2))
-        );
-        println!("p = {}", p);
-        println!("s1 = {:?}", s1);
-        println!("s2 = {:?}", s2);
-        println!("num = {:?}", (tolerance * (2.0 * p - tolerance)));
-        println!("den = {:?}", (s1 + s2 * (dv / du)));
-        println!("delta_u = {}", delta_u);
-
-        delta_u
+        2.0 * (tolerance * (2.0 * (f1a / f2a) - tolerance)).sqrt() / f1a.sqrt()
     }
 
     pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
         let (der_u, der_v) = self.surface.der1(u, v);
-        let (der_uu, der_uv, der_vv) = self.surface.der2(u, v);
+        let (_der_uu, _der_uv, der_vv) = self.surface.der2(u, v);
 
-        let f1a = der_u.magnitude2();
-        let f1b = der_u.dot(der_v);
         let f1c = der_v.magnitude2();
-
         let n = der_v.cross(der_u);
-
-        let f2a = der_uu.dot(n);
-        let f2b = der_uv.dot(n);
         let f2c = der_vv.dot(n);
 
-        let du: f64 = 0.0;
-        let dv: f64 = 1.0;
-
-        let p = (f1a * du.powi(2) + 2.0 * f1c * du * dv + f1b * dv.powi(2))
-            / (f2a * du.powi(2) + 2.0 * f2c * du * dv + f2b * dv.powi(2));
-
-        let s1 = der_u;
-        let s2 = der_v;
-
-        let delta_v =
-            2.0 * (tolerance * (2.0 * p - tolerance)).sqrt() / (s1 * (du / dv) + s2).magnitude();
-
-        delta_v
+        2.0 * (tolerance * (2.0 * (f1c / f2c) - tolerance)).sqrt() / f1c.sqrt()
     }
 }

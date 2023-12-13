@@ -124,7 +124,7 @@ fn build_scene() -> Scene {
 
     for surface in surfaces.iter() {
         let mut tess = Surface3Tessellator::new(surface);
-        tess.tessellate(0.01);
+        tess.tessellate(0.002);
         for row in tess.points().iter() {
             for point in row.iter() {
                 points.push(point.clone());
@@ -165,7 +165,7 @@ impl PartModel {
 
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
-            tess.tessellate(0.01);
+            tess.tessellate(0.02);
         }
 
         for curve in self.curves.iter() {
