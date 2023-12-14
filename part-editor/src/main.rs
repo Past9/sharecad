@@ -165,7 +165,8 @@ impl PartModel {
 
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
-            tess.tessellate(0.02);
+            tess.tess(0.02);
+            //tess.tessellate(0.02);
         }
 
         for curve in self.curves.iter() {

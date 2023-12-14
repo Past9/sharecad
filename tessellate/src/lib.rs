@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use geometry::{Curve3, Curve3Impl, Helix, Surface3, Surface3Impl};
 use render::model::CurveMesh;
-use space::{vec2, Coincidence, Point3};
+use space::{vec2, Coincidence, Point3, Vec2};
 
 #[derive(Clone, Debug)]
 pub struct CurveVertex {
@@ -207,15 +207,72 @@ impl<'a> Surface3Tessellator<'a> {
 
             if u < u_max {
                 let delta_u = self.delta_u(u, self.surface.v_min(), tolerance);
-                println!("rcv delta_u = {}", delta_u);
                 u = (u + delta_u).min(u_max);
             } else {
                 break;
             }
         }
 
-        println!("vertices {:#?}", vertices);
         self.points = vertices;
+    }
+
+    pub fn tess(&mut self, tolerance: f64) {
+        //
+        let u_min = self.surface.u_min();
+        let v_min = self.surface.v_min();
+        let u_max = self.surface.u_max();
+        let v_max = self.surface.v_max();
+        let mut params: Vec<Vec<Vec2>> = vec![vec![vec2(u_min, v_min)]];
+
+        loop {
+            println!("params.len() = {}", params.len());
+            let mut complete = true;
+            for row in params.iter_mut() {
+                // Add one vertex in the +U direction on reach row
+                let row_end = row[row.len() - 1];
+                let u_next =
+                    (row_end.u() + self.delta_u(row_end.u(), row_end.v(), tolerance)).min(u_max);
+
+                let add_uv = match u_next == u_max {
+                    true => row[row.len() - 1].u() < u_next,
+                    false => true,
+                };
+
+                if add_uv {
+                    row.push(vec2(u_next, row_end.v()));
+                    complete = false;
+                }
+            }
+
+            // Add another row in the +V direction
+            let mut new_row = vec![];
+            for uv in params[params.len() - 1].iter() {
+                let v_next = (uv.v() + self.delta_v(uv.u(), uv.v(), tolerance)).min(v_max);
+
+                let add_uv = match v_next == v_max {
+                    true => uv.v() < v_next,
+                    false => true,
+                };
+
+                if add_uv {
+                    new_row.push(vec2(uv.u(), v_next));
+                    complete = false;
+                }
+            }
+
+            if new_row.len() > 0 {
+                params.push(new_row);
+            }
+
+            if complete {
+                break;
+            }
+        }
+
+        println!("Params:");
+        for row in params.iter() {
+            println!("  {:?}", row);
+        }
     }
 
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {

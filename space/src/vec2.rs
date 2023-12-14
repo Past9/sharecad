@@ -31,6 +31,14 @@ impl Vec2 {
         Self { x, y }
     }
 
+    pub fn u(&self) -> f64 {
+        self.x
+    }
+
+    pub fn v(&self) -> f64 {
+        self.y
+    }
+
     pub fn clamp(&self, min: Self, max: Self) -> Self {
         Self {
             x: self.x.clamp(min.x, max.x),
