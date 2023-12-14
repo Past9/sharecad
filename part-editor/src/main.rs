@@ -118,10 +118,10 @@ fn build_scene() -> Scene {
         1.0,
         deg(180.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-1.0, 0.0, 0.0),
+        vec3(0.0, 0.0, 0.0),
     );
 
-    //println!("frenet = {:#?}", path.frenet(0.0));
+    println!("frenet = {:#?}", path.frenet(0.0));
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
@@ -159,7 +159,7 @@ fn build_scene() -> Scene {
     let part = PartModel::new(surfaces, curves, points);
 
     scene.add_model(part.scene_model_by_dist_tolerance(
-        0.00001,
+        0.001,
         surface_material,
         curve_material,
         point_material,

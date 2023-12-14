@@ -20,6 +20,7 @@ impl Sweep {
     pub fn path_rotation(&self, v: f64) -> Mat33 {
         let start_rot = self.path.frenet(self.path.u_min());
         let cur_rot = self.path.frenet(v);
+        //start_rot.inverse().unwrap() * cur_rot
         start_rot.inverse().unwrap() * cur_rot
     }
 }
