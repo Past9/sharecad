@@ -17,9 +17,9 @@ impl Mat33 {
 
     pub fn from_axes(x: Vec3, y: Vec3, z: Vec3) -> Self {
         Self([
-            [x.x, x.y, x.z],
-            [y.x, y.y, y.z],
-            [z.x, z.y, z.z],
+            [x.x, y.x, z.x],
+            [x.y, y.y, z.y],
+            [x.z, y.z, z.z],
         ])
     }
 

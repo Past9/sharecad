@@ -339,11 +339,17 @@ pub trait Curve3Impl {
         let d1 = self.der1(u);
         let d2 = self.der2(u);
 
+        /*
         let b = d1.cross(d2).normalize();
 
         let x = d1.normalize();
         let z = b;
         let y = z.cross(x);
+         */
+
+        let x = d1;
+        let y = d2.normalize();
+        let z = x.cross(y);
 
         Mat33::from_axes(x, y, z)
     }

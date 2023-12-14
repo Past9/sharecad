@@ -23,6 +23,7 @@ pub struct Vec2 {
     pub y: f64,
 }
 impl Vec2 {
+    pub const ONES: Self = Self { x: 1.0, y: 1.0 };
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
     pub const UNIT_X: Self = Self { x: 1.0, y: 0.0 };
     pub const UNIT_Y: Self = Self { x: 0.0, y: 1.0 };
@@ -104,6 +105,10 @@ impl Vec2 {
     pub fn to_f32s(&self) -> [f32; 2] {
         [self.x as f32, self.y as f32]
     }
+
+    pub fn lerp(&self, other: Self, t: f64) -> Self {
+        (Self::ONES - t) * self + t * other
+    }
 }
 impl From<Point2> for Vec2 {
     fn from(point: Point2) -> Self {
@@ -140,14 +145,15 @@ impl std::fmt::Debug for Vec2 {
     }
 }
 
-impl_op_ex!(-|a: Vec2| -> Vec2 { vec2(-a.x, -a.y) });
-impl_op_ex!(+|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x + b.x, a.y + b.y) });
-impl_op_ex!(-|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x - b.x, a.y - b.y) });
-impl_op_ex!(*|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x * b.x, a.y * b.y) });
-impl_op_ex!(/|a: Vec2, b: Vec2| -> Vec2 { vec2(a.x / b.x, a.y / b.y) });
-impl_op_ex_commutative!(*|v: Vec2, s: f64| -> Vec2 { vec2(v.x * s, v.y * s) });
-impl_op_ex!(/|v: Vec2, s: f64| -> Vec2 { vec2(v.x / s, v.y / s) });
-impl_op_ex!(/|s: f64, v: Vec2| -> Vec2 { vec2(s / v.x, s / v.y) });
+impl_op_ex!(-|a: &Vec2| -> Vec2 { vec2(-a.x, -a.y) });
+impl_op_ex!(+|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x + b.x, a.y + b.y) });
+impl_op_ex!(-|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x - b.x, a.y - b.y) });
+impl_op_ex!(*|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x * b.x, a.y * b.y) });
+impl_op_ex!(/|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x / b.x, a.y / b.y) });
+impl_op_ex_commutative!(*|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x * s, v.y * s) });
+impl_op_ex!(-|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x - s, v.y - s) });
+impl_op_ex!(/|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x / s, v.y / s) });
+impl_op_ex!(/|s: &f64, v: &Vec2| -> Vec2 { vec2(s / v.x, s / v.y) });
 
 #[cfg(test)]
 mod tests {

@@ -12,6 +12,8 @@ mod quat;
 mod vec2;
 mod vec3;
 
+use std::ops::{Add, Mul};
+
 pub use angle::*;
 pub use coord2::*;
 pub use mat22::*;
@@ -23,3 +25,7 @@ pub use quat::*;
 pub use tolerance::*;
 pub use vec2::*;
 pub use vec3::*;
+
+pub fn lerp<T>(a: f64, b: f64, t: f64) -> f64 {
+    (1.0 - t) * a + t * b
+}

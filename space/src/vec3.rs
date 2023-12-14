@@ -16,6 +16,11 @@ pub struct Vec3 {
     pub z: f64,
 }
 impl Vec3 {
+    pub const ONES: Self = Self {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
+    };
     pub const ZERO: Self = Self {
         x: 0.0,
         y: 0.0,
@@ -105,6 +110,10 @@ impl Vec3 {
     pub fn sum(&self) -> f64 {
         self.x + self.y + self.z
     }
+
+    pub fn lerp(&self, other: Self, t: f64) -> Self {
+        (Self::ONES - t) * self + t * other
+    }
 }
 impl From<Point3> for Vec3 {
     fn from(point: Point3) -> Self {
@@ -148,27 +157,27 @@ impl std::fmt::Debug for Vec3 {
 impl_op_ex!(-|a: Vec3| -> Vec3 { vec3(-a.x, -a.y, -a.z) });
 
 // Binary non-commutative
-impl_op_ex!(+|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x + b.x, a.y + b.y, a.z + b.z) });
-impl_op_ex!(-|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
-impl_op_ex!(*|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x * b.x, a.y * b.y, a.z * b.z) });
-impl_op_ex!(/|a: Vec3, b: Vec3| -> Vec3 { vec3(a.x / b.x, a.y / b.y, a.z / b.z) });
+impl_op_ex!(+|a: &Vec3, b: &Vec3| -> Vec3 { vec3(a.x + b.x, a.y + b.y, a.z + b.z) });
+impl_op_ex!(-|a: &Vec3, b: &Vec3| -> Vec3 { vec3(a.x - b.x, a.y - b.y, a.z - b.z) });
+impl_op_ex!(*|a: &Vec3, b: &Vec3| -> Vec3 { vec3(a.x * b.x, a.y * b.y, a.z * b.z) });
+impl_op_ex!(/|a: &Vec3, b: &Vec3| -> Vec3 { vec3(a.x / b.x, a.y / b.y, a.z / b.z) });
 
 // Assignment
-impl_op_ex!(+= |a: &mut Vec3, b: Vec3| {
+impl_op_ex!(+= |a: &mut Vec3, b: &Vec3| {
    a.x += b.x;
    a.y += b.y;
    a.z += b.z;
 });
-impl_op_ex!(-= |a: &mut Vec3, b: Vec3| {
+impl_op_ex!(-= |a: &mut Vec3, b: &Vec3| {
    a.x -= b.x;
    a.y -= b.y;
    a.z -= b.z;
 });
 
-// Binary commutative
-impl_op_ex_commutative!(*|v: Vec3, s: f64| -> Vec3 { vec3(v.x * s, v.y * s, v.z * s) });
-impl_op_ex!(/|v: Vec3, s: f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
-impl_op_ex!(/|s: f64, v: Vec3| -> Vec3 { vec3(s / v.x, s / v.y, s / v.z) });
+impl_op_ex_commutative!(*|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x * s, v.y * s, v.z * s) });
+impl_op_ex!(-|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x - s, v.y - s, v.z - s) });
+impl_op_ex!(/|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
+impl_op_ex!(/|s: &f64, v: &Vec3| -> Vec3 { vec3(s / v.x, s / v.y, s / v.z) });
 
 #[cfg(test)]
 mod tests {

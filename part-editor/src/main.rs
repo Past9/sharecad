@@ -103,7 +103,12 @@ fn build_scene() -> Scene {
     );
 
     //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
-    let profile = Curve3::arc(1.0, deg(90.0), Quat::ZERO, Vec3::ZERO);
+    let profile = Curve3::arc(
+        1.0,
+        deg(90.0),
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
+        Vec3::ZERO,
+    );
     //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 0.0, 1.0));
     /*
     let path = Curve3::helix(
@@ -124,6 +129,16 @@ fn build_scene() -> Scene {
     println!("frenet = {:#?}", path.frenet(0.0));
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
+
+    let mut points = vec![Point3::ZERO];
+    const MAX: usize = 20;
+    for i_u in 0..=MAX {
+        let u = (i_u as f64 / MAX as f64) * profile.u_len();
+        for i_v in 0..=MAX {
+            let v = (i_v as f64 / MAX as f64) * path.u_len();
+            points.push(sweep.eval(u, v));
+        }
+    }
 
     println!(
         "translation = {:?}",
@@ -152,8 +167,6 @@ fn build_scene() -> Scene {
         Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
     ];
-
-    let mut points = vec![Point3::ZERO];
 
     // Build part
     let part = PartModel::new(surfaces, curves, points);
