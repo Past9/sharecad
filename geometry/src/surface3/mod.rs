@@ -93,9 +93,9 @@ impl Surface3Impl for Surface3 {
         }
     }
 
-    fn tangent(&self, u: f64, v: f64) -> (Vec3, Vec3) {
+    fn tangents(&self, u: f64, v: f64) -> (Vec3, Vec3) {
         match self {
-            Surface3::Sweep(sweep) => sweep.tangent(u, v),
+            Surface3::Sweep(sweep) => sweep.tangents(u, v),
         }
     }
 
@@ -137,13 +137,13 @@ pub trait Surface3Impl {
     fn der1(&self, u: f64, v: f64) -> (Vec3, Vec3);
     fn der2(&self, u: f64, v: f64) -> (Vec3, Vec3, Vec3);
 
-    fn tangent(&self, u: f64, v: f64) -> (Vec3, Vec3) {
+    fn tangents(&self, u: f64, v: f64) -> (Vec3, Vec3) {
         let (der1_u, der1_v) = self.der1(u, v);
         (der1_u.normalize(), der1_v.normalize())
     }
 
     fn normal(&self, u: f64, v: f64) -> Vec3 {
-        let tangent = self.tangent(u, v);
+        let tangent = self.tangents(u, v);
         tangent.0.cross(tangent.1)
     }
 }

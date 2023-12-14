@@ -13,7 +13,8 @@ use render::{
     light::{AmbientLight, DirectionalLight},
     model::{
         CurveId, CurveMaterialId, CurveMaterialSpec, CurveMesh, ModelInstance, PointMaterialId,
-        PointMaterialSpec, SceneCurve, SceneModel, ScenePoint,
+        PointMaterialSpec, SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId,
+        SurfaceMaterialSpec,
     },
     render::MsaaSamples,
     scene::{self, Scene},
@@ -78,12 +79,15 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
     ]);
 
-    // Define curves
+    // Define materials
+    let surface_material = scene
+        .materials_mut()
+        .insert_surface_material(SurfaceMaterialSpec::default().roughness_rgb(rgb(0.5, 0.5, 0.5)));
+
     let curve_material = scene
         .materials_mut()
         .insert_curve_material(CurveMaterialSpec::default());
 
-    // Define points
     let point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
@@ -111,7 +115,7 @@ fn build_scene() -> Scene {
     let surfaces = vec![sweep];
 
     let curves = vec![
-        helix,
+        //helix,
         profile,
         path,
         // Axes
@@ -122,8 +126,10 @@ fn build_scene() -> Scene {
 
     let mut points = vec![Point3::ZERO];
 
+    /*
     for surface in surfaces.iter() {
         let mut tess = Surface3Tessellator::new(surface);
+        //tess.tessellate(0.002);
         tess.tessellate(0.002);
         for row in tess.points().iter() {
             for point in row.iter() {
@@ -131,11 +137,17 @@ fn build_scene() -> Scene {
             }
         }
     }
+     */
 
     // Build part
     let part = PartModel::new(surfaces, curves, points);
 
-    scene.add_model(part.scene_model_by_dist_tolerance(0.001, curve_material, point_material));
+    scene.add_model(part.scene_model_by_dist_tolerance(
+        0.001,
+        surface_material,
+        curve_material,
+        point_material,
+    ));
 
     scene
 }
@@ -158,6 +170,7 @@ impl PartModel {
     pub fn scene_model_by_dist_tolerance(
         &self,
         tolerance: f64,
+        surface_material: SurfaceMaterialId,
         curve_material: CurveMaterialId,
         point_material: PointMaterialId,
     ) -> SceneModel {
@@ -165,14 +178,15 @@ impl PartModel {
 
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
-            tess.tess(0.02);
+            tess.tess(tolerance);
             //tess.tessellate(0.02);
+            scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
         }
 
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
             let start = Instant::now();
-            tess.tessellate(0.002);
+            tess.tessellate(tolerance);
             //tess.tesselate_to_dist(tolerance);
             let end = Instant::now();
             println!(

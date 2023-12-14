@@ -21,6 +21,14 @@ impl Point2 {
         Self { x, y }
     }
 
+    pub fn u(&self) -> f64 {
+        self.x
+    }
+
+    pub fn v(&self) -> f64 {
+        self.y
+    }
+
     pub fn into_vec(&self) -> Vec2 {
         (*self).into()
     }

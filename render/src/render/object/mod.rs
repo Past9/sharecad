@@ -318,8 +318,11 @@ impl ObjectRenderer {
                 render_pass.set_pipeline(&self.surface_pipeline);
 
                 for (_model_id, model) in scene.models().iter() {
-                    for (_surface_id, surface) in model.surfaces().iter() {
-                        render_pass.set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
+                    for (surface_id, surface) in model.surfaces().iter() {
+                        render_pass.set_vertex_buffer(
+                            0,
+                            surface.vertex_buffer(surface_id, device).slice(..),
+                        );
                         render_pass.set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                         render_pass.set_index_buffer(
                             surface.index_buffer(device).slice(..),

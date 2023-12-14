@@ -67,6 +67,12 @@ impl SceneModel {
         id
     }
 
+    pub fn add_surface(&mut self, surface: SceneSurface) -> SurfaceId {
+        let id = self.surface_ids.next();
+        self.surfaces.insert(id, surface);
+        id
+    }
+
     pub fn add_curve(&mut self, curve: SceneCurve) -> CurveId {
         let id = self.curve_ids.next();
         self.curves.insert(id, curve);

@@ -18,25 +18,21 @@ impl From<u32> for SurfaceId {
 
 #[derive(Debug)]
 pub struct SceneSurface {
-    pub id: SurfaceId,
+    //pub id: SurfaceId,
     pub mesh: SurfaceMesh,
     pub material_id: SurfaceMaterialId,
 }
 impl SceneSurface {
-    pub fn new(id: SurfaceId, mesh: SurfaceMesh, material_id: SurfaceMaterialId) -> Self {
-        Self {
-            id,
-            mesh,
-            material_id,
-        }
+    pub fn new(mesh: SurfaceMesh, material_id: SurfaceMaterialId) -> Self {
+        Self { mesh, material_id }
     }
 
     pub fn material_id(&self) -> SurfaceMaterialId {
         self.material_id
     }
 
-    pub fn vertex_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
-        self.mesh.vertex_buffer(self.id, device)
+    pub fn vertex_buffer(&self, id: &SurfaceId, device: &wgpu::Device) -> &wgpu::Buffer {
+        self.mesh.vertex_buffer(id, device)
     }
 
     pub fn index_buffer(&self, device: &wgpu::Device) -> &wgpu::Buffer {
@@ -65,7 +61,7 @@ impl SurfaceMesh {
         }
     }
 
-    fn vertex_buffer(&self, id: SurfaceId, device: &wgpu::Device) -> &wgpu::Buffer {
+    fn vertex_buffer(&self, id: &SurfaceId, device: &wgpu::Device) -> &wgpu::Buffer {
         self.vertex_buffer.get_or_init(|| {
             let vertex_data = self
                 .vertices
@@ -106,7 +102,7 @@ pub struct SurfaceVertex {
     pub param_coords: Vec2,
 }
 impl SurfaceVertex {
-    pub fn to_raw(&self, id: SurfaceId) -> SurfaceVertexRaw {
+    pub fn to_raw(&self, id: &SurfaceId) -> SurfaceVertexRaw {
         SurfaceVertexRaw {
             id: id.0,
             position: self.position.to_f32s(),

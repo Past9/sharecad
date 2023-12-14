@@ -1115,7 +1115,7 @@ impl VisualRenderer {
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
                     for (_model_id, model) in scene.models().iter() {
-                        for (_surface_id, surface) in model.surfaces().iter() {
+                        for (surface_id, surface) in model.surfaces().iter() {
                             let material = scene
                                 .materials()
                                 .surface()
@@ -1125,8 +1125,10 @@ impl VisualRenderer {
                                 continue;
                             }
 
-                            render_pass
-                                .set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
+                            render_pass.set_vertex_buffer(
+                                0,
+                                surface.vertex_buffer(surface_id, device).slice(..),
+                            );
                             render_pass
                                 .set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                             render_pass.set_index_buffer(
@@ -1285,7 +1287,7 @@ impl VisualRenderer {
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
                     for (_model_id, model) in scene.models().iter() {
-                        for (_surface_id, surface) in model.surfaces().iter() {
+                        for (surface_id, surface) in model.surfaces().iter() {
                             let material = scene
                                 .materials()
                                 .surface()
@@ -1295,8 +1297,10 @@ impl VisualRenderer {
                                 continue;
                             }
 
-                            render_pass
-                                .set_vertex_buffer(0, surface.vertex_buffer(device).slice(..));
+                            render_pass.set_vertex_buffer(
+                                0,
+                                surface.vertex_buffer(surface_id, device).slice(..),
+                            );
                             render_pass
                                 .set_vertex_buffer(1, model.instance_buffer(device).slice(..));
                             render_pass.set_index_buffer(
