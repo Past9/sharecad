@@ -84,6 +84,7 @@ pub trait Curve2Impl {
     }
 
     fn local_axes(&self, u: f64) -> (Vec2, Vec2) {
+        todo!("Make this consistent with Curve3Impl::frenet(...)");
         let tangent = self.tangent(u);
         (-tangent.orthogonal(), tangent)
     }

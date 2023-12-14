@@ -1,6 +1,6 @@
 use std::ops::Index;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use crate::{rad, vec2, Angle, Quat, Vec2, Point3};
+use crate::{rad, vec2, Angle, Quat, Vec2, Point3, Vec3};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -13,6 +13,14 @@ impl Mat33 {
 
     pub fn new(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64, g: f64, h: f64, i: f64) -> Self {
         Self([[a, b, c], [d, e, f], [g, h, i]])
+    }
+
+    pub fn from_axes(x: Vec3, y: Vec3, z: Vec3) -> Self {
+        Self([
+            [x.x, x.y, x.z],
+            [y.x, y.y, y.z],
+            [z.x, z.y, z.z],
+        ])
     }
 
     pub fn transpose(&self) -> Self {
@@ -194,6 +202,14 @@ impl std::fmt::Debug for Mat33 {
     }
 }
 
+impl_op_ex!(*|m: Mat33, v: Vec3| -> Vec3 {
+    Vec3::new(
+        m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
+        m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
+        m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z,
+    )
+});
+
 impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
     Self([
         [
@@ -211,6 +227,22 @@ impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
             a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1],
             a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2],
         ], //
+    ])
+});
+
+impl_op_ex!(-|a: Mat33, b: Mat33| -> Self {
+    Self([
+        [a[0][0] - b[0][0], a[0][1] - b[0][1], a[0][2] - b[0][2]],
+        [a[1][0] - b[1][0], a[1][1] - b[1][1], a[1][2] - b[1][2]],
+        [a[2][0] - b[2][0], a[2][1] - b[2][1], a[2][2] - b[2][2]],
+    ])
+});
+
+impl_op_ex!(+|a: Mat33, b: Mat33| -> Self {
+    Self([
+        [a[0][0] + b[0][0], a[0][1] + b[0][1], a[0][2] + b[0][2]],
+        [a[1][0] + b[1][0], a[1][1] + b[1][1], a[1][2] + b[1][2]],
+        [a[2][0] + b[2][0], a[2][1] + b[2][1], a[2][2] + b[2][2]],
     ])
 });
 

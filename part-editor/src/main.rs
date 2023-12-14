@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix, Surface3};
+use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix, Surface3, Surface3Impl};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -80,9 +80,10 @@ fn build_scene() -> Scene {
     ]);
 
     // Define materials
-    let surface_material = scene
-        .materials_mut()
-        .insert_surface_material(SurfaceMaterialSpec::default().roughness_rgb(rgb(0.5, 0.5, 0.5)));
+    let surface_material = scene.materials_mut().insert_surface_material(
+        SurfaceMaterialSpec::default().roughness_rgb(rgb(0.4, 0.4, 0.4)), //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
+                                                                          //.metallic_rgb(rgb(1.0, 1.0, 1.0)),
+    );
 
     let curve_material = scene
         .materials_mut()
@@ -101,7 +102,10 @@ fn build_scene() -> Scene {
                              //vec3(-2.0, 0.0, -5.0),
     );
 
-    let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
+    //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
+    let profile = Curve3::arc(1.0, deg(90.0), Quat::ZERO, Vec3::ZERO);
+    //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 0.0, 1.0));
+    /*
     let path = Curve3::helix(
         1.0,
         0.4,
@@ -109,8 +113,33 @@ fn build_scene() -> Scene {
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
         vec3(-1.0, 0.0, 0.0),
     );
+    */
+    let path = Curve3::arc(
+        1.0,
+        deg(180.0),
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+        vec3(-1.0, 0.0, 0.0),
+    );
+
+    //println!("frenet = {:#?}", path.frenet(0.0));
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
+
+    println!(
+        "translation = {:?}",
+        match &sweep {
+            Surface3::Sweep(path) => path.path_translation(sweep.v_min()),
+            _ => panic!("wrong curve"),
+        }
+    );
+
+    println!(
+        "rotation = {:#?}",
+        match &sweep {
+            Surface3::Sweep(path) => path.path_rotation(sweep.v_min()),
+            _ => panic!("wrong curve"),
+        }
+    );
 
     let surfaces = vec![sweep];
 
@@ -126,24 +155,11 @@ fn build_scene() -> Scene {
 
     let mut points = vec![Point3::ZERO];
 
-    /*
-    for surface in surfaces.iter() {
-        let mut tess = Surface3Tessellator::new(surface);
-        //tess.tessellate(0.002);
-        tess.tessellate(0.002);
-        for row in tess.points().iter() {
-            for point in row.iter() {
-                points.push(point.clone());
-            }
-        }
-    }
-     */
-
     // Build part
     let part = PartModel::new(surfaces, curves, points);
 
     scene.add_model(part.scene_model_by_dist_tolerance(
-        0.001,
+        0.00001,
         surface_material,
         curve_material,
         point_material,

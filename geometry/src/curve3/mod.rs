@@ -1,9 +1,14 @@
+mod arc;
 mod helix;
 mod line;
 
+pub use arc::*;
 pub use helix::*;
 pub use line::*;
-use space::{vec2, vec3, Coincidence, Mat22, Point3, Quat, Vec2, Vec3, COINCIDENT_TOL, NEWTON_TOL};
+use space::{
+    vec2, vec3, Angle, Coincidence, Mat22, Mat33, Point3, Quat, Vec2, Vec3, COINCIDENT_TOL,
+    NEWTON_TOL,
+};
 
 const MAX_NEWTON_ITER: u32 = 64;
 
@@ -134,10 +139,15 @@ struct Curve3DistanceIter {
 
 #[derive(Debug, Clone)]
 pub enum Curve3 {
+    Arc(Arc),
     Helix(Helix),
     Line(Line),
 }
 impl Curve3 {
+    pub fn arc(r: f64, angle: Angle, orientation: Quat, translation: Vec3) -> Self {
+        Self::Arc(Arc::new(r, angle, orientation, translation))
+    }
+
     pub fn helix(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
         Self::Helix(Helix::new(r, h, n, orientation, translation))
     }
@@ -175,217 +185,11 @@ impl Curve3 {
 
         params
     }
-
-    pub fn min_distance_to(&self, other: &Self) -> Option<Curve3Distance> {
-        let extrema = Self::distance_extrema(self, other);
-        Curve3Distance::shortest(&extrema)
-    }
-
-    pub fn line_deviation(&self, u_start: f64, u_end: f64) -> Option<Curve3Distance> {
-        let line = Self::line(self.eval(u_start), self.eval(u_end));
-
-        let extrema = Self::find_distance_extrema(
-            self,
-            &line,
-            vec2(u_start, line.u_min()),
-            vec2(u_end, line.u_max()),
-        );
-
-        Curve3Distance::longest(&extrema)
-    }
-
-    pub fn distance_extrema(cu: &Self, cv: &Self) -> Vec<Curve3Distance> {
-        let uv_min = vec2(cu.u_min(), cv.u_min());
-        let uv_max = vec2(cu.u_max(), cv.u_max());
-
-        let cu_start = cu.eval(cu.u_min());
-        let cu_end = cu.eval(cu.u_max());
-        let cv_start = cv.eval(cv.u_min());
-        let cv_end = cv.eval(cv.u_max());
-
-        let mut extrema = vec![
-            Curve3Distance {
-                uv: vec2(cu.u_min(), cv.u_min()),
-                distance: (cu_start - cv_start).magnitude(),
-                cu_pos: cu_start,
-                cv_pos: cv_start,
-            },
-            Curve3Distance {
-                uv: vec2(cu.u_min(), cv.u_max()),
-                distance: (cu_start - cv_end).magnitude(),
-                cu_pos: cu_start,
-                cv_pos: cv_end,
-            },
-            Curve3Distance {
-                uv: vec2(cu.u_max(), cv.u_min()),
-                distance: (cu_end - cv_start).magnitude(),
-                cu_pos: cu_end,
-                cv_pos: cv_start,
-            },
-            Curve3Distance {
-                uv: vec2(cu.u_max(), cv.u_max()),
-                distance: (cu_end - cv_end).magnitude(),
-                cu_pos: cu_end,
-                cv_pos: cv_end,
-            },
-        ];
-
-        extrema.extend(Self::find_distance_extrema(cu, cv, uv_min, uv_max));
-
-        extrema
-    }
-
-    fn find_distance_extrema(
-        cu: &Self,
-        cv: &Self,
-        uv_min: Vec2,
-        uv_max: Vec2,
-    ) -> Vec<Curve3Distance> {
-        //let uv_min = vec2(cu.u_min(), cv.u_min());
-        //let uv_max = vec2(cu.u_max(), cv.u_max());
-
-        let mut results = vec![];
-
-        let mut u_params = cu
-            .distance_extrema_params()
-            .into_iter()
-            .filter(|u| *u > uv_min.x && *u < uv_max.x)
-            .collect::<Vec<f64>>();
-
-        let mut v_params = cv
-            .distance_extrema_params()
-            .into_iter()
-            .filter(|v| *v > uv_min.y && *v < uv_max.y)
-            .collect::<Vec<f64>>();
-
-        println!(
-            "initial u_params = {:?}, v_params = {:?}",
-            u_params, v_params
-        );
-
-        if u_params.len() == 0 {
-            u_params.push((uv_min.x + uv_max.x) / 2.0);
-        }
-
-        if v_params.len() == 0 {
-            v_params.push((uv_min.y + uv_max.y) / 2.0);
-        }
-
-        println!("fixed u_params = {:?}, v_params = {:?}", u_params, v_params);
-
-        for u in u_params.iter() {
-            for v in v_params.iter() {
-                if let Some(result) =
-                    Self::local_distance_extrema(cu, cv, vec2(*u, *v), uv_min, uv_max)
-                {
-                    results.push(result);
-                }
-            }
-        }
-
-        if results.len() == 0 {
-            panic!("NO RESULTS");
-        }
-
-        results
-    }
-
-    /// Returns initial parameters to use when trying to find extrema of
-    /// the curve's distance from another entity.
-    fn distance_extrema_params(&self) -> Vec<f64> {
-        let segments = match self {
-            Curve3::Helix(helix) => 3 * helix.n().ceil() as u32,
-            Curve3::Line(_) => 2,
-        };
-
-        let segments = self.param_segments(segments, true);
-
-        //println!("param_segments {:?}", segments);
-
-        segments
-    }
-
-    fn local_distance_extrema(
-        cu: &Self,
-        cv: &Self,
-        uv: Vec2,
-        uv_min: Vec2,
-        uv_max: Vec2,
-    ) -> Option<Curve3Distance> {
-        let mut converged = false;
-        let mut last = Self::distance_iter(cu, cv, uv, uv_min, uv_max);
-
-        for _ in 0..MAX_NEWTON_ITER {
-            let iter = Self::distance_iter(cu, cv, last.uv_next, uv_min, uv_max);
-
-            if (iter.uv - last.uv).magnitude().cc_newton(NEWTON_TOL) {
-                converged = true;
-                break;
-            }
-
-            last = iter;
-        }
-
-        if converged {
-            Some(Curve3Distance {
-                uv: last.uv,
-                distance: last.distance,
-                cu_pos: last.cu_pos,
-                cv_pos: last.cv_pos,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn distance_iter(
-        cu: &Self,
-        cv: &Self,
-        uv: Vec2,
-        uv_min: Vec2,
-        uv_max: Vec2,
-    ) -> Curve3DistanceIter {
-        let cu_pos = cu.eval(uv.x);
-        let cv_pos = cv.eval(uv.y);
-        let cu_der1 = cu.der1(uv.x);
-        let cv_der1 = cv.der1(uv.y);
-        let cu_der2 = cu.der2(uv.x);
-        let cv_der2 = cv.der2(uv.y);
-
-        // Vector from cv(v) to cu(u).
-        let cv_cu = cu_pos - cv_pos;
-
-        // Squared distance from cv(v) to cu(u).
-        // This is the function we're minimizing.
-        let dist2 = cv_cu.magnitude2();
-
-        let gradient = vec2(
-            (2.0 * cv_cu * cu_der1).sum(),
-            (-2.0 * cv_cu * cv_der1).sum(),
-        );
-
-        // Hessian
-        let duu = 2.0 * (cu_der1.powi(2) + cv_cu * cu_der2).sum();
-        let dvv = 2.0 * (cv_der1.powi(2) - cv_cu * cv_der2).sum();
-        let duv_vu = -2.0 * (cu_der1 * cv_der1).sum();
-        let hessian = Mat22::new(duu, duv_vu, duv_vu, dvv);
-        let hessian_inv = hessian.inverse().unwrap();
-
-        // Newton's method
-        let uv_next = (uv - hessian_inv * gradient).clamp(uv_min, uv_max);
-
-        Curve3DistanceIter {
-            uv,
-            distance: dist2.sqrt(),
-            cu_pos,
-            cv_pos,
-            uv_next,
-        }
-    }
 }
 impl Curve3Impl for Curve3 {
     fn u_min(&self) -> f64 {
         match self {
+            Curve3::Arc(arc) => arc.u_min(),
             Curve3::Helix(helix) => helix.u_min(),
             Curve3::Line(line) => line.u_min(),
         }
@@ -393,6 +197,7 @@ impl Curve3Impl for Curve3 {
 
     fn u_max(&self) -> f64 {
         match self {
+            Curve3::Arc(arc) => arc.u_max(),
             Curve3::Helix(helix) => helix.u_max(),
             Curve3::Line(line) => line.u_max(),
         }
@@ -400,6 +205,7 @@ impl Curve3Impl for Curve3 {
 
     fn eval(&self, u: f64) -> Point3 {
         match self {
+            Curve3::Arc(arc) => arc.eval(u),
             Curve3::Helix(helix) => helix.eval(u),
             Curve3::Line(line) => line.eval(u),
         }
@@ -407,6 +213,7 @@ impl Curve3Impl for Curve3 {
 
     fn der1(&self, u: f64) -> Vec3 {
         match self {
+            Curve3::Arc(arc) => arc.der1(u),
             Curve3::Helix(helix) => helix.der1(u),
             Curve3::Line(line) => line.der1(u),
         }
@@ -414,6 +221,7 @@ impl Curve3Impl for Curve3 {
 
     fn der2(&self, u: f64) -> Vec3 {
         match self {
+            Curve3::Arc(arc) => arc.der2(u),
             Curve3::Helix(helix) => helix.der2(u),
             Curve3::Line(line) => line.der2(u),
         }
@@ -421,6 +229,7 @@ impl Curve3Impl for Curve3 {
 
     fn period(&self) -> Option<f64> {
         match self {
+            Curve3::Arc(arc) => arc.period(),
             Curve3::Helix(helix) => helix.period(),
             Curve3::Line(line) => line.period(),
         }
@@ -428,6 +237,7 @@ impl Curve3Impl for Curve3 {
 
     fn u_len(&self) -> f64 {
         match self {
+            Curve3::Arc(arc) => arc.u_len(),
             Curve3::Helix(helix) => helix.u_len(),
             Curve3::Line(line) => line.u_len(),
         }
@@ -435,6 +245,7 @@ impl Curve3Impl for Curve3 {
 
     fn is_periodic(&self) -> bool {
         match self {
+            Curve3::Arc(arc) => arc.is_periodic(),
             Curve3::Helix(helix) => helix.is_periodic(),
             Curve3::Line(line) => line.is_periodic(),
         }
@@ -442,6 +253,7 @@ impl Curve3Impl for Curve3 {
 
     fn tangent(&self, u: f64) -> Vec3 {
         match self {
+            Curve3::Arc(arc) => arc.tangent(u),
             Curve3::Helix(helix) => helix.tangent(u),
             Curve3::Line(line) => line.tangent(u),
         }
@@ -449,6 +261,7 @@ impl Curve3Impl for Curve3 {
 
     fn curvature(&self, u: f64) -> f64 {
         match self {
+            Curve3::Arc(arc) => arc.curvature(u),
             Curve3::Helix(helix) => helix.curvature(u),
             Curve3::Line(line) => line.curvature(u),
         }
@@ -456,8 +269,17 @@ impl Curve3Impl for Curve3 {
 
     fn eval_sections(&self, chords: u32) -> Vec<Point3> {
         match self {
+            Curve3::Arc(arc) => arc.eval_sections(chords),
             Curve3::Helix(helix) => helix.eval_sections(chords),
             Curve3::Line(line) => line.eval_sections(chords),
+        }
+    }
+
+    fn frenet(&self, u: f64) -> Mat33 {
+        match self {
+            Curve3::Arc(arc) => arc.frenet(u),
+            Curve3::Helix(helix) => helix.frenet(u),
+            Curve3::Line(line) => line.frenet(u),
         }
     }
 }
@@ -512,70 +334,24 @@ pub trait Curve3Impl {
 
         points
     }
+
+    fn frenet(&self, u: f64) -> Mat33 {
+        let d1 = self.der1(u);
+        let d2 = self.der2(u);
+
+        let b = d1.cross(d2).normalize();
+
+        let x = d1.normalize();
+        let z = b;
+        let y = z.cross(x);
+
+        Mat33::from_axes(x, y, z)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
-
-    use space::point3;
-
     use super::*;
-
-    /*
-    #[test]
-    fn line_line_dist() {
-        let l0 = Curve3::line(point3(0.0, -3.0, 0.0), point3(0.0, 1.0, 0.0));
-        let l1 = Curve3::line(point3(1.0, 0.0, -1.0), point3(1.0, 0.0, 3.0));
-
-        let res = l0.min_dist(&l1);
-
-        assert_eq!(
-            Some(Curve3Distance {
-                uv: vec2(0.75, 0.25),
-                distance: 1.0,
-                cu_pos: point3(0.0, 0.0, 0.0),
-                cv_pos: point3(1.0, 0.0, 0.0)
-            }),
-            res
-        );
-    }
-
-    #[test]
-    fn dist() {
-        let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
-
-        println!("helix {:#?}", c0);
-
-        let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
-
-        let num_iter = 1;
-        let start = Instant::now();
-        for _ in 0..num_iter {
-            let res = c0.min_dist(&c1);
-            println!("res = {:#?}", res);
-        }
-        let end = Instant::now();
-        let dur = end - start;
-        println!(
-            "{} iter in {}us, {}us per iter",
-            num_iter,
-            dur.as_micros(),
-            dur.as_micros() / num_iter
-        );
-    }
-    */
-
-    #[test]
-    fn dist2() {
-        let c0 = Curve3::helix(1.0, 0.2, 5.0, Quat::ZERO, Vec3::ZERO);
-        let c1 = Curve3::line(point3(2.0, -5.0, 2.0), point3(2.0, 5.0, 2.0));
-
-        let results = Curve3::distance_extrema(&c0, &c1);
-
-        println!("results = {:#?}", results);
-        println!("results.len() = {}", results.len());
-    }
 
     pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
         for i in 0..samples {
