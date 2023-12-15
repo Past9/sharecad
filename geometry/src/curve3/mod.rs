@@ -194,14 +194,21 @@ pub trait Curve3Impl {
     }
 
     fn local_coords(&self, u: f64) -> Mat33 {
+        // X axis is tangent to the curve
         let der1 = self.der1(u);
-
         let x = der1.normalize();
 
+        // To find Y, first find any vector D that is
+        // not parallel to the X-axis.
         let d = x.non_parallel();
-        let d2 = d - (x.dot(d)) * x;
 
+        // Find the component of D that is perpendicular
+        // to the X-axis. Normalize it and use it as the
+        // Y-axis
+        let d2 = d - (x.dot(d)) * x;
         let y = d2.normalize();
+
+        // Z-axis is perpendicular to X and Y axes
         let z = x.cross(y);
 
         Mat33::from_axes(x, y, z)
