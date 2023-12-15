@@ -8,7 +8,7 @@ pub use revolution::*;
 pub use sweep::*;
 pub use translation::*;
 
-use space::{Point3, Vec3};
+use space::{Angle, Point3, Vec3};
 
 use crate::Curve3;
 
@@ -19,6 +19,30 @@ pub enum Surface3 {
     Sweep(Sweep),
 }
 impl Surface3 {
+    pub fn extrusion(profile: Curve3, direction: Vec3) -> Self {
+        Self::Extrusion(Extrusion::new(profile, direction))
+    }
+
+    pub fn translation(profile: Curve3, path: Curve3) -> Self {
+        Self::Translation(Translation::new(profile, path))
+    }
+
+    pub fn revolution(
+        profile: Curve3,
+        axis_origin: Point3,
+        axis_direction: Vec3,
+        start_angle: Angle,
+        sweep_angle: Angle,
+    ) -> Self {
+        Self::Revolution(Revolution::new(
+            profile,
+            axis_origin,
+            axis_direction,
+            start_angle,
+            sweep_angle,
+        ))
+    }
+
     pub fn sweep(profile: Curve3, path: Curve3) -> Self {
         Self::Sweep(Sweep::new(profile, path))
     }
@@ -204,126 +228,90 @@ pub trait Surface3Impl {
 
 #[cfg(test)]
 mod tests {
+    use space::lerp;
+
+    use crate::test::{validate_der1_curve, validate_der_1d};
+
     use super::*;
 
-    pub fn validate_der1<S: Surface3Impl>(surface: &S, samples: usize, tolerance: f64) {
-        for i_u in 0..samples {
-            for i_v in 0..samples {
-                // Define parameters for the current sample
-                let u = i_u as f64 / (samples - 1) as f64;
-                let v = i_v as f64 / (samples - 1) as f64;
+    /// Validates the derivative of a function with a 2-dimensional input space
+    pub fn validate_der_2d<F: Fn(f64, f64) -> Vec3, D: Fn(f64, f64) -> Vec3>(
+        function: F,
+        derivative: D,
+        u_min: f64,
+        u_max: f64,
+        v_min: f64,
+        v_max: f64,
+        samples: usize,
+        tolerance: f64,
+        name: &str,
+    ) {
+        // Move along U, validating the derivative of each curve along V
+        for i in 0..samples {
+            // Define u for the current sample
+            let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
 
-                // Calculate the exact first derivative at (u, v)
-                let computed_der1 = surface.der1(u, v);
+            validate_der_1d(
+                |v| function(u, v),
+                |v| derivative(u, v),
+                v_min,
+                v_max,
+                samples,
+                tolerance,
+                &format!("{} derivative with respect to V at U = {}", name, u),
+            );
+        }
 
-                // Test convergence on U
-                {
-                    // U-parameter deviation that we start checking the sample with
-                    let mut u_deviation = surface.u_len() / 10.0;
+        // Move along V, validating the derivative of each curve along U
+        for i in 0..samples {
+            // Define u for the current sample
+            let v = lerp(v_min, v_max, i as f64 / (samples - 1) as f64);
 
-                    // Flag for whether the approximated first derivative below gets close enough to
-                    // the computed derivative at U
-                    let mut u_converged = false;
-
-                    // Last approximate derivative that does not contain NaNs
-                    let mut last_notnan_approx = Vec3::ZERO;
-
-                    // Iteratively approximate the derivative with respect to U by getting the vector
-                    // between two points on the curve centered around u, decreasing their distance from u each time.
-                    for _ in 0..64 {
-                        // Get parameters above and below u, clamped between 0 and 1
-                        let u_lo = (u - u_deviation).clamp(0.0, 1.0);
-                        let u_hi = (u + u_deviation).clamp(0.0, 1.0);
-
-                        // Evaluate the curve at those parameters
-                        let lo_pos = surface.eval(u_lo, v);
-                        let hi_pos = surface.eval(u_hi, v);
-
-                        // Approximate the derivative by getting a vector between those two points
-                        // and scaling it by the parameter distance between them
-                        let converged_der1 = (hi_pos - lo_pos) / (u_hi - u_lo);
-
-                        if !converged_der1.has_nan() {
-                            last_notnan_approx = converged_der1;
-                        }
-
-                        // Get the difference between the exact derivative vector and the approximated one
-                        let dist = (computed_der1.0 - converged_der1).magnitude();
-
-                        // If the distance is within tolerance, we consider the exact derivative
-                        // calculation to be valid and stop iteration for this sample.
-                        if dist < tolerance {
-                            u_converged = true;
-                            break;
-                        }
-
-                        // If we haven't converged yet, reduce the deviation from u.
-                        u_deviation /= 2.0;
-                    }
-
-                    // Panic if we never got close enough to the exact derivative calculation.
-                    if !u_converged {
-                        panic!(
-                            "Derivative 1 @ u = {} computed as {}, but converged to {}, outside tolerance {}",
-                            u, computed_der1.0, last_notnan_approx, tolerance
-                        );
-                    }
-                }
-
-                // Test convergence on V
-                {
-                    // V-parameter deviation that we start checking the sample with
-                    let mut v_deviation = surface.u_len() / 10.0;
-
-                    // Flag for whether the approximated first derivative below gets close enough to
-                    // the computed derivative at V
-                    let mut v_converged = false;
-
-                    // Last approximate derivative that does not contain NaNs
-                    let mut last_notnan_approx = Vec3::ZERO;
-
-                    // Iteratively approximate the derivative with respect to U by getting the vector
-                    // between two points on the curve centered around u, decreasing their distance from u each time.
-                    for _ in 0..64 {
-                        // Get parameters above and below u, clamped between 0 and 1
-                        let v_lo = (v - v_deviation).clamp(0.0, 1.0);
-                        let v_hi = (v + v_deviation).clamp(0.0, 1.0);
-
-                        // Evaluate the curve at those parameters
-                        let lo_pos = surface.eval(u, v_lo);
-                        let hi_pos = surface.eval(u, v_hi);
-
-                        // Approximate the derivative by getting a vector between those two points
-                        // and scaling it by the parameter distance between them
-                        let converged_der1 = (hi_pos - lo_pos) / (v_hi - v_lo);
-
-                        if !converged_der1.has_nan() {
-                            last_notnan_approx = converged_der1;
-                        }
-
-                        // Get the difference between the exact derivative vector and the approximated one
-                        let dist = (computed_der1.1 - converged_der1).magnitude();
-
-                        // If the distance is within tolerance, we consider the exact derivative
-                        // calculation to be valid and stop iteration for this sample.
-                        if dist < tolerance {
-                            v_converged = true;
-                            break;
-                        }
-
-                        // If we haven't converged yet, reduce the deviation from u.
-                        v_deviation /= 2.0;
-                    }
-
-                    // Panic if we never got close enough to the exact derivative calculation.
-                    if !v_converged {
-                        panic!(
-                            "Derivative 1 @ v = {} computed as {}, but converged to {}, outside tolerance {}",
-                            v, computed_der1.0, last_notnan_approx, tolerance
-                        );
-                    }
-                }
-            }
+            validate_der_1d(
+                |u| function(u, v),
+                |u| derivative(u, v),
+                u_min,
+                u_max,
+                samples,
+                tolerance,
+                &format!("{} derivative with respect to U at V = {}", name, v),
+            );
         }
     }
+
+    /*
+    pub fn validate_der1_surface<S: Surface3Impl>(surface: &S, samples: usize, tolerance: f64) {
+        // Move along U, validating the derivative of each curve along V
+        for i in 0..samples {
+            // Define u for the current sample
+            let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
+
+            validate_der_1d(
+                |v| function(u, v),
+                |v| derivative(u, v),
+                v_min,
+                v_max,
+                samples,
+                tolerance,
+                &format!("{} derivative with respect to V at U = {}", name, u),
+            );
+        }
+
+        // Move along V, validating the derivative of each curve along U
+        for i in 0..samples {
+            // Define u for the current sample
+            let v = lerp(v_min, v_max, i as f64 / (samples - 1) as f64);
+
+            validate_der_1d(
+                |u| function(u, v),
+                |u| derivative(u, v),
+                u_min,
+                u_max,
+                samples,
+                tolerance,
+                &format!("{} derivative with respect to U at V = {}", name, v),
+            );
+        }
+    }
+    */
 }

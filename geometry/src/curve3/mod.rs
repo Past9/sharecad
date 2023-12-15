@@ -5,137 +5,7 @@ mod line;
 pub use arc::*;
 pub use helix::*;
 pub use line::*;
-use space::{
-    vec2, vec3, Angle, Coincidence, Mat22, Mat33, Point3, Quat, Vec2, Vec3, COINCIDENT_TOL,
-    NEWTON_TOL,
-};
-
-const MAX_NEWTON_ITER: u32 = 64;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Curve3Distance {
-    pub uv: Vec2,
-    pub distance: f64,
-    pub cu_pos: Point3,
-    pub cv_pos: Point3,
-}
-impl Curve3Distance {
-    pub fn shortest(distances: &[Self]) -> Option<Self> {
-        if distances.len() == 0 {
-            return None;
-        }
-
-        let mut shortest = &distances[0];
-        for dist in distances.iter() {
-            if dist.distance < shortest.distance {
-                shortest = dist;
-            }
-        }
-
-        Some(shortest.clone())
-    }
-
-    pub fn longest(distances: &[Self]) -> Option<Self> {
-        if distances.len() == 0 {
-            return None;
-        }
-
-        let mut longest = &distances[0];
-        for dist in distances.iter() {
-            if dist.distance > longest.distance {
-                longest = dist;
-            }
-        }
-
-        Some(longest.clone())
-    }
-
-    pub fn dedup(mut distances: Vec<Self>) -> Vec<Self> {
-        if distances.len() == 0 {
-            return distances;
-        }
-
-        distances.sort_by(|a, b| a.uv.x.total_cmp(&b.uv.x).then(a.uv.y.total_cmp(&b.uv.y)));
-
-        //println!("\n\n\n\ndistances = {:#?}\n\n\n\n", distances);
-
-        let avg = |dists: &[&Self]| {
-            //println!("dists len = {}", dists.len());
-            let total = dists.iter().fold(
-                Self {
-                    uv: Vec2::ZERO,
-                    distance: 0.0,
-                    cu_pos: Point3::ZERO,
-                    cv_pos: Point3::ZERO,
-                },
-                |a, b| Self {
-                    uv: a.uv + b.uv,
-                    distance: a.distance + b.distance,
-                    cu_pos: a.cu_pos + b.cu_pos,
-                    cv_pos: a.cv_pos + b.cv_pos,
-                },
-            );
-
-            let len = dists.len() as f64;
-            Self {
-                uv: total.uv / len,
-                distance: total.distance / len,
-                cu_pos: total.cu_pos / len,
-                cv_pos: total.cv_pos / len,
-            }
-        };
-
-        let mut deduped = vec![];
-        let mut compare = &distances[0];
-        let mut dupes = vec![&distances[0]];
-        for i in 1..distances.len() {
-            if Self::are_dupes(compare, &distances[i]) {
-                dupes.push(&distances[i])
-            } else {
-                deduped.push(avg(&dupes));
-                dupes = vec![&distances[i]];
-                compare = &distances[i];
-            }
-        }
-
-        if dupes.len() > 0 {
-            deduped.push(avg(&dupes));
-        }
-
-        deduped
-
-        //distances
-    }
-
-    fn are_dupes(a: &Self, b: &Self) -> bool {
-        a.cu_pos.cc(b.cu_pos) && a.cv_pos.cc(b.cv_pos)
-    }
-
-    fn dedup_2(a: &Self, b: &Self) -> (Self, Option<Self>) {
-        if Self::are_dupes(a, b) {
-            (
-                Self {
-                    uv: (a.uv + b.uv) / 2.0,
-                    distance: (a.distance + b.distance) / 2.0,
-                    cu_pos: (a.cu_pos + b.cu_pos) / 2.0,
-                    cv_pos: (a.cv_pos + b.cv_pos) / 2.0,
-                },
-                None,
-            )
-        } else {
-            (a.clone(), Some(b.clone()))
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Curve3DistanceIter {
-    uv: Vec2,
-    distance: f64,
-    cu_pos: Point3,
-    cv_pos: Point3,
-    uv_next: Vec2,
-}
+use space::{Angle, Mat33, Point3, Quat, Vec3};
 
 #[derive(Debug, Clone)]
 pub enum Curve3 {
@@ -227,6 +97,14 @@ impl Curve3Impl for Curve3 {
         }
     }
 
+    fn der3(&self, u: f64) -> Vec3 {
+        match self {
+            Curve3::Arc(arc) => arc.der3(u),
+            Curve3::Helix(helix) => helix.der3(u),
+            Curve3::Line(line) => line.der3(u),
+        }
+    }
+
     fn period(&self) -> Option<f64> {
         match self {
             Curve3::Arc(arc) => arc.period(),
@@ -256,6 +134,14 @@ impl Curve3Impl for Curve3 {
             Curve3::Arc(arc) => arc.tangent(u),
             Curve3::Helix(helix) => helix.tangent(u),
             Curve3::Line(line) => line.tangent(u),
+        }
+    }
+
+    fn local_coords(&self, u: f64) -> Mat33 {
+        match self {
+            Curve3::Arc(arc) => arc.local_coords(u),
+            Curve3::Helix(helix) => helix.local_coords(u),
+            Curve3::Line(line) => line.local_coords(u),
         }
     }
 
@@ -301,9 +187,24 @@ pub trait Curve3Impl {
     fn eval(&self, u: f64) -> Point3;
     fn der1(&self, u: f64) -> Vec3;
     fn der2(&self, u: f64) -> Vec3;
+    fn der3(&self, u: f64) -> Vec3;
 
     fn tangent(&self, u: f64) -> Vec3 {
         self.der1(u).normalize()
+    }
+
+    fn local_coords(&self, u: f64) -> Mat33 {
+        let der1 = self.der1(u);
+
+        let x = der1.normalize();
+
+        let d = x.non_parallel();
+        let d2 = d - (x.dot(d)) * x;
+
+        let y = d2.normalize();
+        let z = x.cross(y);
+
+        Mat33::from_axes(x, y, z)
     }
 
     fn curvature(&self, u: f64) -> f64 {
@@ -357,18 +258,31 @@ pub trait Curve3Impl {
 
 #[cfg(test)]
 mod tests {
+    use space::lerp;
+
     use super::*;
 
-    pub fn validate_der1<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
+    /// Validates the derivative of a function with a 1-dimensional input space
+    pub(crate) fn validate_der_1d<F: Fn(f64) -> Vec3, D: Fn(f64) -> Vec3>(
+        function: F,
+        derivative: D,
+        u_min: f64,
+        u_max: f64,
+        samples: usize,
+        tolerance: f64,
+        name: &str,
+    ) {
+        let u_len = u_max - u_min;
+
         for i in 0..samples {
             // Parameter deviation that we start checking each sample with
-            let mut deviation = curve.u_len() / 10.0;
+            let mut deviation = u_len / 10.0;
 
             // Define u for the current sample
-            let u = i as f64 / (samples - 1) as f64;
+            let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
 
             // Calculate the exact first derivative at u
-            let actual_der1 = curve.der1(u);
+            let computed_derivative = derivative(u);
 
             // Flag for whether the approximated first derivative below gets close enough to actual_der1
             let mut converged = false;
@@ -380,27 +294,27 @@ mod tests {
             // centered around u, decreasing their distance from u each time.
             for _ in 0..64 {
                 // Get parameters above and below u, clamped between 0 and 1
-                let u_lo = (u - deviation).clamp(0.0, 1.0);
-                let u_hi = (u + deviation).clamp(0.0, 1.0);
+                let u_lo = (u - deviation).clamp(u_min, u_max);
+                let u_hi = (u + deviation).clamp(u_min, u_max);
 
                 // Evaluate the curve at those parameters
-                let lo_pos = curve.eval(u_lo);
-                let hi_pos = curve.eval(u_hi);
+                let lo_pos = function(u_lo);
+                let hi_pos = function(u_hi);
 
                 // Approximate the derivative by getting a vector between those two points
                 // and scaling it by the parameter distance between them
-                let approx_der1 = (hi_pos - lo_pos) / (u_hi - u_lo);
+                let estimated_derivative = (hi_pos - lo_pos) / (u_hi - u_lo);
 
-                if !approx_der1.has_nan() {
-                    last_notnan_approx = approx_der1;
+                if !estimated_derivative.has_nan() {
+                    last_notnan_approx = estimated_derivative;
                 }
 
                 // Get the difference between the exact derivative vector and the approximated one
-                let dist = (actual_der1 - approx_der1).magnitude();
+                let error = (computed_derivative - estimated_derivative).magnitude();
 
                 // If the distance is within tolerance, we consider the exact derivative
                 // calculation to be valid and stop iteration for this sample.
-                if dist < tolerance {
+                if error < tolerance {
                     converged = true;
                     break;
                 }
@@ -412,70 +326,52 @@ mod tests {
             // Panic if we never got close enough to the exact derivative calculation.
             if !converged {
                 panic!(
-                    "Derivative 1 @ u = {} is {}, only converged to {}, outside tolerance {}",
-                    u, actual_der1, last_notnan_approx, tolerance
+                    "{} @ u = {} is {}, only converged to {}",
+                    name, u, computed_derivative, last_notnan_approx,
                 );
             }
         }
     }
 
-    pub fn validate_der2<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
-        for i in 0..samples {
-            // Parameter deviation that we start checking each sample with
-            let mut deviation = curve.u_len() / 10.0;
+    pub fn validate_ders_1d<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
+        validate_der1_1d(curve, samples, tolerance);
+        validate_der2_1d(curve, samples, tolerance);
+        validate_der3_1d(curve, samples, tolerance);
+    }
 
-            // Define u for the current sample
-            let u = i as f64 / (samples - 1) as f64;
+    pub fn validate_der1_1d<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
+        validate_der_1d(
+            |u| curve.eval(u).into_vec(),
+            |u| curve.der1(u),
+            curve.u_min(),
+            curve.u_max(),
+            samples,
+            tolerance,
+            "First derivative",
+        );
+    }
 
-            // Calculate the exact second derivative at u
-            let actual_der2 = curve.der2(u);
+    pub fn validate_der2_1d<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
+        validate_der_1d(
+            |u| curve.der1(u),
+            |u| curve.der2(u),
+            curve.u_min(),
+            curve.u_max(),
+            samples,
+            tolerance,
+            "Second derivative",
+        );
+    }
 
-            // Flag for whether the approximated second derivative below gets close enough to actual_der2
-            let mut converged = false;
-
-            // Last approximate derivative that does not contain NaNs
-            let mut last_notnan_approx = Vec3::ZERO;
-
-            // Iteratively approximate the second derivative by getting the vector between two first derivative
-            // vectors on the curve centered around u, decreasing their distance from u each time.
-            for _ in 0..64 {
-                // Get parameters above and below u, clamped between 0 and 1
-                let u_lo = (u - deviation).clamp(0.0, 1.0);
-                let u_hi = (u + deviation).clamp(0.0, 1.0);
-
-                // Evaluate the first derivative of the curve at those parameters
-                let lo_der1 = curve.der1(u_lo);
-                let hi_der1 = curve.der1(u_hi);
-
-                // Approximate the second derivative by getting a vector between those two vectors
-                // and scaling it by the parameter distance between them
-                let approx_der2 = (hi_der1 - lo_der1) / (u_hi - u_lo);
-
-                if !approx_der2.has_nan() {
-                    last_notnan_approx = approx_der2;
-                }
-
-                // Get the difference between the exact derivative vector and the approximated one
-                let dist = (actual_der2 - approx_der2).magnitude();
-
-                // If the distance is within tolerance, we consider the exact derivative
-                // calculation to be valid and stop iteration for this sample.
-                if dist < tolerance {
-                    converged = true;
-                    break;
-                }
-
-                // If we haven't converged yet, reduce the deviation from u.
-                deviation /= 2.0;
-            }
-
-            // Panic if we never got close enough to the exact derivative calculation.
-            if !converged {
-                panic!(
-                    "Derivative 2 @ u = {} is {}, only converged to {}, outside tolerance {}",
-                    u, actual_der2, last_notnan_approx, tolerance
-                );
-            }
-        }
+    pub fn validate_der3_1d<C: Curve3Impl>(curve: &C, samples: usize, tolerance: f64) {
+        validate_der_1d(
+            |u| curve.der2(u),
+            |u| curve.der3(u),
+            curve.u_min(),
+            curve.u_max(),
+            samples,
+            tolerance,
+            "Third derivative",
+        );
     }
 }

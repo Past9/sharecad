@@ -1,4 +1,4 @@
-use crate::Point3;
+use crate::{Coincidence, Point3};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
 pub fn vec3(x: f64, y: f64, z: f64) -> Vec3 {
@@ -113,6 +113,17 @@ impl Vec3 {
 
     pub fn lerp(&self, other: Self, t: f64) -> Self {
         (Self::ONES - t) * self + t * other
+    }
+
+    // Generates a unit vector guaranteed to not be parallel to `self`.
+    pub fn non_parallel(&self) -> Self {
+        // https://math.stackexchange.com/a/3122025
+        let start = self.normalize();
+        if start.z.abs().cc(1.0) {
+            vec3(0.0, start.z, 0.0)
+        } else {
+            vec3(-start.y, start.x, start.z)
+        }
     }
 }
 impl From<Point3> for Vec3 {

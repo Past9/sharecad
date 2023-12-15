@@ -36,6 +36,10 @@ impl Curve3Impl for Line {
         Vec3::ZERO
     }
 
+    fn der3(&self, _u: f64) -> Vec3 {
+        Vec3::ZERO
+    }
+
     fn period(&self) -> Option<f64> {
         None
     }
@@ -43,10 +47,7 @@ impl Curve3Impl for Line {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        curve3::tests::{validate_der1, validate_der2},
-        Curve3Impl, Line,
-    };
+    use crate::{curve3::tests::validate_ders_1d, Curve3Impl, Line};
     use space::{assert_cc, point3};
 
     fn test_line() -> Line {
@@ -69,12 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn helix_validate_der1() {
-        validate_der1(&test_line(), 100, 1e-7);
-    }
-
-    #[test]
-    fn helix_validate_der2() {
-        validate_der2(&test_line(), 100, 1e-7);
+    fn line_validate_ders() {
+        validate_ders_1d(&test_line(), 100, 1e-7);
     }
 }

@@ -7,25 +7,19 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Distance, Curve3Impl, Helix, Surface3, Surface3Impl};
+use geometry::{Curve3, Curve3Impl, Surface3, Surface3Impl};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveId, CurveMaterialId, CurveMaterialSpec, CurveMesh, ModelInstance, PointMaterialId,
-        PointMaterialSpec, SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId,
-        SurfaceMaterialSpec,
+        CurveMaterialId, CurveMaterialSpec, CurveMesh, PointMaterialId, PointMaterialSpec,
+        SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
     },
     render::MsaaSamples,
-    scene::{self, Scene},
+    scene::Scene,
 };
-use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use std::{
-    cell::OnceCell,
-    f64::consts::{PI, TAU},
-    sync::Arc,
-    time::Instant,
-};
+use space::{deg, vec3, Point3, Quat, Vec3};
+use std::{sync::Arc, time::Instant};
 use tessellate::{Curve3Tesselator, Surface3Tessellator};
 
 fn main() -> Result<(), eframe::Error> {
@@ -278,40 +272,3 @@ fn tessellate_curve(curve: &Curve3) -> CurveMesh {
 
     CurveMesh::new(points)
 }
-
-/*
-/// Gives primitive/canonical mathematical curves a position and
-/// orientation in space
-#[derive(Debug)]
-struct ModelCurve {
-    curve: Curve3,
-    translation: Vec3,
-    orientation: Quat,
-}
-impl ModelCurve {
-    fn u_min(&self) -> f64 {
-        self.curve.u_min()
-    }
-
-    fn u_max(&self) -> f64 {
-        self.curve.u_max()
-    }
-
-    fn u_len(&self) -> f64 {
-        self.curve.u_len()
-    }
-
-    pub fn eval(&self, u: f64) -> Point3 {
-        self.orientation * self.curve.eval(u) + self.translation
-    }
-
-    pub fn der1(&self, u: f64) -> Vec3 {
-        self.orientation * self.curve.der1(u)
-    }
-
-    pub fn der2(&self, u: f64) -> Vec3 {
-        self.orientation * self.curve.der2(u)
-    }
-}
-
-*/

@@ -48,4 +48,30 @@ impl Curve3Impl for Arc {
         let der2 = vec3(self.r * -u.cos(), self.r * -u.sin(), 0.0);
         self.orientation * der2
     }
+
+    fn der3(&self, u: f64) -> Vec3 {
+        let der3 = vec3(self.r * u.sin(), self.r * -u.cos(), 0.0);
+        self.orientation * der3
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Arc;
+    use crate::curve3::tests::validate_ders_1d;
+    use space::{deg, vec3, Quat};
+
+    fn test_arc() -> Arc {
+        Arc::new(
+            1.0,
+            deg(360.0),
+            Quat::from_axis_angle(vec3(1.0, 0.0, 0.0), deg(90.0)),
+            vec3(1.0, 2.0, 3.0),
+        )
+    }
+
+    #[test]
+    fn arc_validate_ders() {
+        validate_ders_1d(&test_arc(), 100, 1e-7);
+    }
 }

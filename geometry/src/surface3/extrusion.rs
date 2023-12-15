@@ -4,11 +4,11 @@ use crate::{Curve3, Curve3Impl, Surface3Impl};
 
 pub struct Extrusion {
     profile: Curve3,
-    extrude: Vec3,
+    direction: Vec3,
 }
 impl Extrusion {
-    pub fn new(profile: Curve3, extrude: Vec3) -> Self {
-        Self { profile, extrude }
+    pub fn new(profile: Curve3, direction: Vec3) -> Self {
+        Self { profile, direction }
     }
 }
 impl Surface3Impl for Extrusion {
@@ -37,12 +37,12 @@ impl Surface3Impl for Extrusion {
     }
 
     fn eval(&self, u: f64, v: f64) -> space::Point3 {
-        Vec3::ZERO.lerp(self.extrude, v) + self.profile.eval(u)
+        Vec3::ZERO.lerp(self.direction, v) + self.profile.eval(u)
     }
 
     fn der1(&self, u: f64, _v: f64) -> (space::Vec3, space::Vec3) {
         let du = self.profile.der1(u);
-        let dv = self.extrude;
+        let dv = self.direction;
         (du, dv)
     }
 

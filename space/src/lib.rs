@@ -26,6 +26,6 @@ pub use tolerance::*;
 pub use vec2::*;
 pub use vec3::*;
 
-pub fn lerp<T>(a: f64, b: f64, t: f64) -> f64 {
+pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
     (1.0 - t) * a + t * b
 }
