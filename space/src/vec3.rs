@@ -125,6 +125,36 @@ impl Vec3 {
             vec3(-start.y, start.x, start.z)
         }
     }
+
+    /// Returns the first derivative of `self.normalize()`, given the first
+    /// derivative of `self`.
+    pub fn norm_der1(&self, der1: Self) -> Self {
+        let g = self;
+        let g_p = der1;
+        let g_mag = g.magnitude();
+        let f = g / g_mag;
+
+        let g_p_over_g_mag = g_p / g_mag;
+
+        g_p_over_g_mag - f.dot(g_p_over_g_mag) * f
+    }
+
+    /// Returns the second derivative of `self.normalize()`, given the first
+    /// two derivatives of `self`
+    pub fn norm_der2(&self, der1: Self, der2: Self) -> Self {
+        let g = self;
+        let g_p = der1;
+        let g_pp = der2;
+        let g_mag = g.magnitude();
+        let g_p_over_g_mag = g_p / g_mag;
+        let g_pp_over_g_mag = g_pp / g_mag;
+        let f = g / g_mag;
+        let f_p = self.norm_der1(der1);
+
+        g_pp_over_g_mag
+            - 2.0 * (f.dot(g_p_over_g_mag)) * f_p
+            - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
+    }
 }
 impl From<Point3> for Vec3 {
     fn from(point: Point3) -> Self {

@@ -73,6 +73,14 @@ impl Curve3Impl for Curve3 {
         }
     }
 
+    fn never_tangent(&self) -> Vec3 {
+        match self {
+            Curve3::Arc(arc) => arc.never_tangent(),
+            Curve3::Helix(helix) => helix.never_tangent(),
+            Curve3::Line(line) => line.never_tangent(),
+        }
+    }
+
     fn eval(&self, u: f64) -> Point3 {
         match self {
             Curve3::Arc(arc) => arc.eval(u),
@@ -137,6 +145,7 @@ impl Curve3Impl for Curve3 {
         }
     }
 
+    /*
     fn local_coords(&self, u: f64) -> Mat33 {
         match self {
             Curve3::Arc(arc) => arc.local_coords(u),
@@ -144,6 +153,7 @@ impl Curve3Impl for Curve3 {
             Curve3::Line(line) => line.local_coords(u),
         }
     }
+     */
 
     fn curvature(&self, u: f64) -> f64 {
         match self {
@@ -184,6 +194,8 @@ pub trait Curve3Impl {
         self.period().is_some()
     }
 
+    fn never_tangent(&self) -> Vec3;
+
     fn eval(&self, u: f64) -> Point3;
     fn der1(&self, u: f64) -> Vec3;
     fn der2(&self, u: f64) -> Vec3;
@@ -193,6 +205,7 @@ pub trait Curve3Impl {
         self.der1(u).normalize()
     }
 
+    /*
     fn local_coords(&self, u: f64) -> Mat33 {
         // X axis is tangent to the curve
         let der1 = self.der1(u);
@@ -200,7 +213,7 @@ pub trait Curve3Impl {
 
         // To find Y, first find any vector D that is
         // not parallel to the X-axis.
-        let d = x.non_parallel();
+        let d = self.never_tangent();
 
         // Find the component of D that is perpendicular
         // to the X-axis. Normalize it and use it as the
@@ -213,6 +226,20 @@ pub trait Curve3Impl {
 
         Mat33::from_axes(x, y, z)
     }
+
+    fn local_coords_der1(&self, u: f64) -> Mat33 {
+        let (x, y, z) = self.local_coords(u);
+
+        let der1_mag = self.der1(u).magnitude();
+        let der2 = self.der2(u);
+
+        let x_der1 = (der2 / der1_mag) - x * (x.dot(der2 / der1_mag));
+
+        let y_der1 = todo!();
+
+        todo!()
+    }
+     */
 
     fn curvature(&self, u: f64) -> f64 {
         let der1 = self.der1(u);

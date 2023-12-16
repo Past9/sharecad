@@ -1,6 +1,6 @@
 use std::ops::Index;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use crate::{rad, vec2, Angle, Quat, Vec2, Point3, Vec3};
+use crate::{rad, vec2, Angle, Quat, Vec2, Point3, Vec3, vec3};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -21,6 +21,14 @@ impl Mat33 {
             [x.y, y.y, z.y],
             [x.z, y.z, z.z],
         ])
+    }
+
+    pub fn into_axes(&self) -> (Vec3, Vec3, Vec3) {
+        (
+            vec3(self[0][0], self[1][0], self[2][0]),
+            vec3(self[0][1], self[1][1], self[2][1]),
+            vec3(self[0][2], self[1][2], self[2][2]),
+        )
     }
 
     pub fn transpose(&self) -> Self {

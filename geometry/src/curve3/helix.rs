@@ -78,6 +78,10 @@ impl Curve3Impl for Helix {
     fn period(&self) -> Option<f64> {
         Some(TAU)
     }
+
+    fn never_tangent(&self) -> Vec3 {
+        self.orientation * Vec3::UNIT_Z
+    }
 }
 
 #[cfg(test)]

@@ -43,6 +43,10 @@ impl Curve3Impl for Line {
     fn period(&self) -> Option<f64> {
         None
     }
+
+    fn never_tangent(&self) -> Vec3 {
+        todo!()
+    }
 }
 
 #[cfg(test)]

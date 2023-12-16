@@ -100,8 +100,10 @@ fn build_scene() -> Scene {
     let profile = Curve3::arc(
         1.0,
         deg(90.0),
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
-        Vec3::ZERO,
+        //Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
+        Quat::ZERO,
+        //Vec3::ZERO,
+        vec3(1.0, 0.0, 0.0),
     );
     //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 0.0, 1.0));
     /*
@@ -115,9 +117,9 @@ fn build_scene() -> Scene {
     */
     let path = Curve3::arc(
         1.0,
-        deg(180.0),
+        deg(135.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(0.0, 0.0, 0.0),
+        vec3(-2.0, 0.0, 0.0),
     );
 
     println!("frenet = {:#?}", path.frenet(0.0));
@@ -133,22 +135,6 @@ fn build_scene() -> Scene {
             points.push(sweep.eval(u, v));
         }
     }
-
-    println!(
-        "translation = {:?}",
-        match &sweep {
-            Surface3::Sweep(path) => path.path_translation(sweep.v_min()),
-            _ => panic!("wrong curve"),
-        }
-    );
-
-    println!(
-        "rotation = {:#?}",
-        match &sweep {
-            Surface3::Sweep(path) => path.path_rotation(sweep.v_min()),
-            _ => panic!("wrong curve"),
-        }
-    );
 
     let surfaces = vec![sweep];
 

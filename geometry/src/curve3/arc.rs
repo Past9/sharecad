@@ -53,6 +53,10 @@ impl Curve3Impl for Arc {
         let der3 = vec3(self.r * u.sin(), self.r * -u.cos(), 0.0);
         self.orientation * der3
     }
+
+    fn never_tangent(&self) -> Vec3 {
+        self.orientation * Vec3::UNIT_Z
+    }
 }
 
 #[cfg(test)]

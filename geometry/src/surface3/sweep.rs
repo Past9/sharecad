@@ -1,4 +1,6 @@
-use space::{Mat33, Vec3};
+use std::cell::OnceCell;
+
+use space::{Mat33, Point3, Vec3};
 
 use crate::{Curve3, Curve3Impl, Surface3Impl};
 
@@ -11,17 +13,55 @@ impl Sweep {
         Self { profile, path }
     }
 
-    pub fn path_translation(&self, v: f64) -> Vec3 {
-        let start_pos = self.path.eval(self.path.u_min());
-        let cur_pos = self.path.eval(v);
-        cur_pos - start_pos
-    }
+    fn path_axes(&self, v: f64) -> (Mat33, Mat33, Mat33) {
+        let der1 = self.path.der1(v);
+        let d = self.path.never_tangent();
 
-    pub fn path_rotation(&self, v: f64) -> Mat33 {
-        let start_rot = self.path.frenet(self.path.u_min());
-        let cur_rot = self.path.frenet(v);
-        //start_rot.inverse().unwrap() * cur_rot
-        start_rot.inverse().unwrap() * cur_rot
+        // Compute axes of local coordinate system
+        let (i1, i2, i3, d2) = {
+            let i1 = der1.normalize();
+
+            let d2 = d - (i1.dot(d)) * i1;
+
+            let i2 = d2.normalize();
+            let i3 = i1.cross(i2);
+
+            (i1, i2, i3, d2)
+        };
+
+        let der2 = self.path.der2(v);
+
+        // Compute first derivatives of axes
+        let (i1_der1, i2_der1, i3_der1, d2_der1) = {
+            let i1_der1 = der1.norm_der1(der2);
+
+            let d2_der1 = -i1 * (i1_der1.dot(d));
+            let i2_der1 = d2.norm_der1(d2_der1);
+
+            let i3_der1 = i1.cross(i2_der1) + i1_der1.cross(i2);
+
+            (i1_der1, i2_der1, i3_der1, d2_der1)
+        };
+
+        // Compute second derivatives of axes
+        let (i1_der2, i2_der2, i3_der2) = {
+            let der3 = self.path.der3(v);
+
+            let i1_der2 = der1.norm_der2(der2, der3);
+
+            let d2_der2 = -i1 * (i1_der2.dot(d));
+            let i2_der2 = d2.norm_der2(d2_der1, d2_der2);
+
+            let i3_der2 = i1.cross(i2_der2) + 2.0 * i1_der1.cross(i2_der2) + i2_der2.cross(i2);
+
+            (i1_der2, i2_der2, i3_der2)
+        };
+
+        (
+            Mat33::from_axes(i1, i2, i3),
+            Mat33::from_axes(i1_der1, i2_der1, i3_der1),
+            Mat33::from_axes(i1_der2, i2_der2, i3_der2),
+        )
     }
 }
 impl Surface3Impl for Sweep {
@@ -49,22 +89,46 @@ impl Surface3Impl for Sweep {
         self.path.period()
     }
 
-    fn eval(&self, u: f64, v: f64) -> space::Point3 {
+    fn eval(&self, u: f64, v: f64) -> Point3 {
         let profile_pos = self.profile.eval(u);
         let path_start = self.path.eval(self.v_min());
         let path_pos = self.path.eval(v);
 
-        let m = self.path.local_coords(v) * self.path.local_coords(self.v_min());
+        let m = self.path_axes(v).0 * self.path_axes(self.v_min()).0.inverse().unwrap();
 
         path_pos + m * (profile_pos - path_start)
     }
 
-    fn der1(&self, u: f64, v: f64) -> (space::Vec3, space::Vec3) {
-        todo!()
+    fn der1(&self, u: f64, v: f64) -> (Vec3, Vec3) {
+        let path_start = self.path.eval(self.v_min());
+        let path_axes_start_inverse = self.path_axes(self.v_min()).0.inverse().unwrap();
+        let path_axes = self.path_axes(v);
+
+        let m = path_axes.0 * path_axes_start_inverse;
+        let du = m * self.profile.der1(u);
+
+        let m_der1 = path_axes_start_inverse * path_axes.1;
+        let dv = self.path.der1(v) + m_der1 * (self.profile.eval(u) - path_start);
+
+        (du, dv)
     }
 
-    fn der2(&self, u: f64, v: f64) -> (space::Vec3, space::Vec3, space::Vec3) {
-        todo!()
+    fn der2(&self, u: f64, v: f64) -> (Vec3, Vec3, Vec3) {
+        let profile_pos = self.profile.eval(u);
+        let path_start = self.path.eval(self.v_min());
+        let path_axes_start_inverse = self.path_axes(self.v_min()).0.inverse().unwrap();
+        let path_axes = self.path_axes(v);
+
+        let m = path_axes.0 * path_axes_start_inverse;
+        let duu = m * self.profile.der2(u);
+
+        let m_der1 = path_axes_start_inverse * path_axes.1;
+        let duv = m_der1 * self.profile.der1(u);
+
+        let m_der2 = path_axes_start_inverse * path_axes.2;
+        let dvv = self.path.der2(v) + m_der2 * (profile_pos - path_start);
+
+        (duu, duv, dvv)
     }
 }
 
@@ -72,7 +136,7 @@ impl Surface3Impl for Sweep {
 mod tests {
     use space::{deg, vec3, Quat, Vec3};
 
-    use crate::{Curve3, Curve3Impl, Surface3};
+    use crate::{Curve3, Surface3};
 
     #[test]
     pub fn test_der1() {
