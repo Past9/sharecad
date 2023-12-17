@@ -235,7 +235,7 @@ mod tests {
     use super::*;
 
     /// Validates the derivative of a function with a 2-dimensional input space
-    pub fn validate_der_2d<F: Fn(f64, f64) -> Vec3, D: Fn(f64, f64) -> Vec3>(
+    pub fn validate_der1_2d<F: Fn(f64, f64) -> Vec3, D: Fn(f64, f64) -> (Vec3, Vec3)>(
         function: F,
         derivative: D,
         u_min: f64,
@@ -244,7 +244,6 @@ mod tests {
         v_max: f64,
         samples: usize,
         tolerance: f64,
-        name: &str,
     ) {
         // Move along U, validating the derivative of each curve along V
         for i in 0..samples {
@@ -253,12 +252,12 @@ mod tests {
 
             validate_der_1d(
                 |v| function(u, v),
-                |v| derivative(u, v),
+                |v| derivative(u, v).1,
                 v_min,
                 v_max,
                 samples,
                 tolerance,
-                &format!("{} derivative with respect to V at U = {}", name, u),
+                &format!("First derivative with respect to V at U = {}", u),
             );
         }
 
@@ -269,14 +268,27 @@ mod tests {
 
             validate_der_1d(
                 |u| function(u, v),
-                |u| derivative(u, v),
+                |u| derivative(u, v).0,
                 u_min,
                 u_max,
                 samples,
                 tolerance,
-                &format!("{} derivative with respect to U at V = {}", name, v),
+                &format!("First derivative with respect to U at V = {}", v),
             );
         }
+    }
+
+    pub fn validate_ders_2d<S: Surface3Impl>(surface: &S, samples: usize, tolerance: f64) {
+        validate_der1_2d(
+            |u, v| surface.eval(u, v).into_vec(),
+            |u, v| surface.der1(u, v),
+            surface.u_min(),
+            surface.u_max(),
+            surface.v_min(),
+            surface.v_max(),
+            samples,
+            tolerance,
+        );
     }
 
     /*

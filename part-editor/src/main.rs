@@ -122,8 +122,6 @@ fn build_scene() -> Scene {
         vec3(-2.0, 0.0, 0.0),
     );
 
-    println!("frenet = {:#?}", path.frenet(0.0));
-
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
     let mut points = vec![Point3::ZERO];

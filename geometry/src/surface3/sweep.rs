@@ -136,26 +136,26 @@ impl Surface3Impl for Sweep {
 mod tests {
     use space::{deg, vec3, Quat, Vec3};
 
-    use crate::{Curve3, Surface3};
+    use crate::{surface3::tests::validate_ders_2d, Curve3, Surface3};
+
+    fn test_sweep() -> Surface3 {
+        Surface3::sweep(
+            // Profile
+            Curve3::arc(1.0, deg(90.0), Quat::ZERO, vec3(1.0, 0.0, 0.0)),
+            // Path
+            Curve3::arc(
+                1.0,
+                deg(135.0),
+                Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+                vec3(-2.0, 0.0, 0.0),
+            ),
+        )
+    }
 
     #[test]
-    pub fn test_der1() {
-        let profile = Curve3::arc(
-            1.0,
-            deg(90.0),
-            Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
-            Vec3::ZERO,
-        );
+    pub fn sweep_validate_ders() {
+        let sweep = test_sweep();
 
-        let path = Curve3::arc(
-            1.0,
-            deg(180.0),
-            Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            vec3(0.0, 0.0, 0.0),
-        );
-
-        let sweep = Surface3::sweep(profile.clone(), path.clone());
-
-        //validate_der1(&sweep, 100, 1e-7);
+        validate_ders_2d(&sweep, 100, 1e-7)
     }
 }
