@@ -156,6 +156,18 @@ impl Mat33 {
         } 
         equal
     }
+
+    pub fn col0(&self) -> Vec3 {
+        vec3(self[0][0], self[1][0], self[2][0])
+    }
+
+    pub fn col1(&self) -> Vec3 {
+        vec3(self[0][1], self[1][1], self[2][1])
+    }
+
+    pub fn col2(&self) -> Vec3 {
+        vec3(self[0][2], self[1][2], self[2][2])
+    }
 }
 impl Index<usize> for Mat33 {
     type Output = [f64; 3];

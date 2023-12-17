@@ -55,7 +55,7 @@ impl Sweep {
                 (-i1_der2.dot(d) * i1) - 2.0 * (i1_der1.dot(d) * i1_der1) - (i1.dot(d) * i1_der2);
             let i2_der2 = d2.norm_der2(d2_der1, d2_der2);
 
-            let i3_der2 = i1.cross(i2_der2) + 2.0 * i1_der1.cross(i2_der2) + i2_der2.cross(i2);
+            let i3_der2 = i1.cross(i2_der2) + 2.0 * i1_der1.cross(i2_der1) + i1_der2.cross(i2);
 
             (i1_der2, i2_der2, i3_der2)
         };
@@ -123,8 +123,6 @@ impl Surface3Impl for Sweep {
         let path_axes_start_inverse = self.path_axes(self.v_min()).0.inverse().unwrap();
         let path_axes = self.path_axes(v);
 
-        //println!("path_axes ({}, {}) = {:#?}", u, v, path_axes);
-
         let m = path_axes.0 * path_axes_start_inverse;
         let duu = m * self.profile.der2(u);
 
@@ -132,6 +130,16 @@ impl Surface3Impl for Sweep {
         let duv = m_der1 * self.profile.der1(u);
 
         let m_der2 = path_axes.2 * path_axes_start_inverse;
+
+        /*
+        println!("path_axes = {:#?}", path_axes);
+        println!("m_der2 {:#?}", m_der2);
+        println!("self.path.der2 {:#?}", self.path.der2(v));
+        println!("profile_pos {:#?}", profile_pos);
+        println!("path_start {:#?}", path_start);
+        println!("profile_pos - path_start {:#?}", profile_pos - path_start);
+         */
+
         let dvv = self.path.der2(v) + m_der2 * (profile_pos - path_start);
 
         (duu, duv, dvv)
@@ -142,7 +150,10 @@ impl Surface3Impl for Sweep {
 mod tests {
     use space::{deg, vec3, Quat, Vec3};
 
-    use crate::{surface3::tests::validate_ders_2d, Curve3, Surface3};
+    use crate::{
+        surface3::tests::validate_ders_2d, test::validate_der_1d, Curve3, Curve3Impl, Surface3,
+        Surface3Impl,
+    };
 
     fn test_sweep() -> Surface3 {
         Surface3::sweep(
@@ -163,5 +174,116 @@ mod tests {
         let sweep = test_sweep();
 
         validate_ders_2d(&sweep, 100, 1e-7)
+    }
+
+    #[test]
+    fn test_path_axes() {
+        let sweep = test_sweep().expect_sweep();
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).0.col0(),
+            |v| sweep.path_axes(v).1.col0(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local X-axis first derivative",
+        );
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).0.col1(),
+            |v| sweep.path_axes(v).1.col1(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local Y-axis first derivative",
+        );
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).0.col2(),
+            |v| sweep.path_axes(v).1.col2(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local Z-axis first derivative",
+        );
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).1.col0(),
+            |v| sweep.path_axes(v).2.col0(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local X-axis second derivative",
+        );
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).1.col1(),
+            |v| sweep.path_axes(v).2.col1(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local Y-axis second derivative",
+        );
+
+        validate_der_1d(
+            |v| sweep.path_axes(v).1.col2(),
+            |v| sweep.path_axes(v).2.col2(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path local Z-axis second derivative",
+        );
+
+        /*
+        validate_der_1d(
+            |v| sweep.path_axes(v).1.col0(),
+            |v| sweep.path_axes(v).2.col0(),
+            sweep.v_min(),
+            sweep.v_max(),
+            100,
+            1e-7,
+            "Path axes first",
+        );
+         */
+    }
+
+    #[test]
+    fn test_norm_ders() {
+        // TODO: This test doesn't belong here. Its purpose is to test the Vec3::norm_der1(...)
+        // and Vec3::norm_der2(...) functions, so it should be placed with those.
+        let curve = Curve3::arc(1.0, deg(360.0), Quat::ZERO, Vec3::ZERO);
+
+        // Test Vec3::norm_der1(...)
+        validate_der_1d(
+            |u| curve.eval(u).into_vec().normalize(),
+            |u| curve.eval(u).into_vec().norm_der1(curve.der1(u)),
+            curve.u_min(),
+            curve.u_max(),
+            100,
+            1e-7,
+            "Vec3::norm_der1(...)",
+        );
+
+        // Test Vec3::norm_der2(...)
+        validate_der_1d(
+            |u| curve.eval(u).into_vec().norm_der1(curve.der1(u)),
+            |u| {
+                curve
+                    .eval(u)
+                    .into_vec()
+                    .norm_der2(curve.der1(u), curve.der2(u))
+            },
+            curve.u_min(),
+            curve.u_max(),
+            100,
+            1e-7,
+            "Vec3::norm_der2(...)",
+        );
     }
 }

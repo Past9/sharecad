@@ -76,7 +76,7 @@ impl Curve3Impl for Helix {
     }
 
     fn period(&self) -> Option<f64> {
-        Some(TAU)
+        None
     }
 
     fn never_tangent(&self) -> Vec3 {

@@ -19,7 +19,7 @@ use render::{
     scene::Scene,
 };
 use space::{deg, vec3, Point3, Quat, Vec3};
-use std::{sync::Arc, time::Instant};
+use std::{f64::consts::TAU, sync::Arc, time::Instant};
 use tessellate::{Curve3Tesselator, Surface3Tessellator};
 
 fn main() -> Result<(), eframe::Error> {
@@ -89,11 +89,11 @@ fn build_scene() -> Scene {
 
     let helix = Curve3::helix(
         1.0,
-        0.4,
-        10.0,
-        Quat::ZERO,
-        vec3(5.0, 0.0, 0.0), //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
-                             //vec3(-2.0, 0.0, -5.0),
+        0.1 + 2.0 / TAU,
+        2.0,
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+        vec3(-2.0, 0.0, 0.0), //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
+                              //vec3(-2.0, 0.0, -5.0),
     );
 
     //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
@@ -122,6 +122,9 @@ fn build_scene() -> Scene {
         vec3(-2.0, 0.0, 0.0),
     );
 
+    //let path = helix;
+
+    //let sweep = Surface3::sweep(profile.clone(), path.clone());
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
     let mut points = vec![Point3::ZERO];
@@ -133,6 +136,11 @@ fn build_scene() -> Scene {
             points.push(sweep.eval(u, v));
         }
     }
+
+    let mut tess = Surface3Tessellator::new(&sweep);
+    let dv = tess.delta_v(sweep.u_max(), sweep.v_min(), 0.001);
+    println!("dv = {}", dv);
+    panic!("This huge number is because delta_v doesn't consider curvature in the U-direction");
 
     let surfaces = vec![sweep];
 

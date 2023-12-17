@@ -32,7 +32,7 @@ pub fn validate_der_1d<F: Fn(f64) -> Vec3, D: Fn(f64) -> Vec3>(
 
         // Iteratively approximate the derivative by getting the vector between two points on the curve
         // centered around u, decreasing their distance from u each time.
-        for _ in 0..64 {
+        for i in 0..64 {
             // Get parameters above and below u, clamped between 0 and 1
             let u_lo = (u - deviation).clamp(u_min, u_max);
             let u_hi = (u + deviation).clamp(u_min, u_max);
@@ -44,6 +44,14 @@ pub fn validate_der_1d<F: Fn(f64) -> Vec3, D: Fn(f64) -> Vec3>(
             // Approximate the derivative by getting a vector between those two points
             // and scaling it by the parameter distance between them
             let estimated_derivative = (hi_pos - lo_pos) / (u_hi - u_lo);
+
+            /*
+            println!("\nsample = {i}");
+            println!("v_lo, v_hi = {u_lo}, {u_hi}");
+            println!("actual deviation = {}", u_hi - u_lo);
+            println!("lo_pos, hi_pos = {lo_pos}, {hi_pos}");
+            println!("estimated_derivative = {estimated_derivative}");
+             */
 
             if !estimated_derivative.has_nan() {
                 last_notnan_approx = estimated_derivative;

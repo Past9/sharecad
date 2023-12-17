@@ -46,6 +46,13 @@ impl Surface3 {
     pub fn sweep(profile: Curve3, path: Curve3) -> Self {
         Self::Sweep(Sweep::new(profile, path))
     }
+
+    pub fn expect_sweep(self) -> Sweep {
+        match self {
+            Surface3::Sweep(sweep) => sweep,
+            _ => panic!("Expected sweep"),
+        }
+    }
 }
 impl Surface3Impl for Surface3 {
     fn u_min(&self) -> f64 {
@@ -300,6 +307,8 @@ mod tests {
             validate_der_1d(
                 |v| function(u, v).1,
                 |v| derivative(u, v).2,
+                //|v| function(u, v).0,
+                //|v| derivative(u, v).0,
                 v_min,
                 v_max,
                 samples,
