@@ -234,7 +234,7 @@ mod tests {
 
     use super::*;
 
-    /// Validates the derivative of a function with a 2-dimensional input space
+    /// Validates the first derivative of a function with a 2-dimensional input space
     pub fn validate_der1_2d<F: Fn(f64, f64) -> Vec3, D: Fn(f64, f64) -> (Vec3, Vec3)>(
         function: F,
         derivative: D,
@@ -245,7 +245,7 @@ mod tests {
         samples: usize,
         tolerance: f64,
     ) {
-        // Move along U, validating the derivative of each curve along V
+        // Move along U, validating the first derivative of each curve along V
         for i in 0..samples {
             // Define u for the current sample
             let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
@@ -261,7 +261,7 @@ mod tests {
             );
         }
 
-        // Move along V, validating the derivative of each curve along U
+        // Move along V, validating the first derivative of each curve along U
         for i in 0..samples {
             // Define u for the current sample
             let v = lerp(v_min, v_max, i as f64 / (samples - 1) as f64);
@@ -278,6 +278,53 @@ mod tests {
         }
     }
 
+    /// Validates the second derivatives of a function with a 2-dimensional input space
+    pub fn validate_der2_2d<
+        F: Fn(f64, f64) -> (Vec3, Vec3),
+        D: Fn(f64, f64) -> (Vec3, Vec3, Vec3),
+    >(
+        function: F,
+        derivative: D,
+        u_min: f64,
+        u_max: f64,
+        v_min: f64,
+        v_max: f64,
+        samples: usize,
+        tolerance: f64,
+    ) {
+        // Move along U, validating the second derivative of each curve along V (dvv)
+        for i in 0..samples {
+            // Define u for the current sample
+            let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
+
+            validate_der_1d(
+                |v| function(u, v).1,
+                |v| derivative(u, v).1,
+                v_min,
+                v_max,
+                samples,
+                tolerance,
+                &format!("Second derivative with respect to VV at U = {}", u),
+            );
+        }
+
+        // Move along V, validating the second derivative of each curve along U (duu)
+        for i in 0..samples {
+            // Define u for the current sample
+            let v = lerp(v_min, v_max, i as f64 / (samples - 1) as f64);
+
+            validate_der_1d(
+                |u| function(u, v).0,
+                |u| derivative(u, v).0,
+                u_min,
+                u_max,
+                samples,
+                tolerance,
+                &format!("Second derivative with respect to UU at V = {}", v),
+            );
+        }
+    }
+
     pub fn validate_ders_2d<S: Surface3Impl>(surface: &S, samples: usize, tolerance: f64) {
         validate_der1_2d(
             |u, v| surface.eval(u, v).into_vec(),
@@ -289,41 +336,16 @@ mod tests {
             samples,
             tolerance,
         );
+
+        validate_der2_2d(
+            |u, v| surface.der1(u, v),
+            |u, v| surface.der2(u, v),
+            surface.u_min(),
+            surface.u_max(),
+            surface.v_min(),
+            surface.v_max(),
+            samples,
+            tolerance,
+        );
     }
-
-    /*
-    pub fn validate_der1_surface<S: Surface3Impl>(surface: &S, samples: usize, tolerance: f64) {
-        // Move along U, validating the derivative of each curve along V
-        for i in 0..samples {
-            // Define u for the current sample
-            let u = lerp(u_min, u_max, i as f64 / (samples - 1) as f64);
-
-            validate_der_1d(
-                |v| function(u, v),
-                |v| derivative(u, v),
-                v_min,
-                v_max,
-                samples,
-                tolerance,
-                &format!("{} derivative with respect to V at U = {}", name, u),
-            );
-        }
-
-        // Move along V, validating the derivative of each curve along U
-        for i in 0..samples {
-            // Define u for the current sample
-            let v = lerp(v_min, v_max, i as f64 / (samples - 1) as f64);
-
-            validate_der_1d(
-                |u| function(u, v),
-                |u| derivative(u, v),
-                u_min,
-                u_max,
-                samples,
-                tolerance,
-                &format!("{} derivative with respect to U at V = {}", name, v),
-            );
-        }
-    }
-    */
 }

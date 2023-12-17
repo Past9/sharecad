@@ -61,8 +61,9 @@ impl Curve3Impl for Arc {
 
 #[cfg(test)]
 mod tests {
+    use crate::test::validate_ders_curve;
+
     use super::Arc;
-    use crate::curve3::tests::validate_ders_1d;
     use space::{deg, vec3, Quat};
 
     fn test_arc() -> Arc {
@@ -76,6 +77,6 @@ mod tests {
 
     #[test]
     fn arc_validate_ders() {
-        validate_ders_1d(&test_arc(), 100, 1e-7);
+        validate_ders_curve(&test_arc(), 100, 1e-7);
     }
 }

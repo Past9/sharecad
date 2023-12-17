@@ -90,7 +90,7 @@ mod tests {
 
     use space::{assert_cc, deg, point3, vec3, Quat};
 
-    use crate::{curve3::tests::validate_ders_1d, Curve3Impl, Helix};
+    use crate::{test::validate_ders_curve, Curve3Impl, Helix};
 
     fn test_helix() -> Helix {
         Helix::new(
@@ -119,6 +119,6 @@ mod tests {
 
     #[test]
     fn helix_validate_ders() {
-        validate_ders_1d(&test_helix(), 100, 1e-7);
+        validate_ders_curve(&test_helix(), 100, 1e-7);
     }
 }

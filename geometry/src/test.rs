@@ -3,7 +3,7 @@ use space::{lerp, Vec3};
 use crate::Curve3Impl;
 
 /// Validates the derivative of a function with a 1-dimensional input space
-pub(crate) fn validate_der_1d<F: Fn(f64) -> Vec3, D: Fn(f64) -> Vec3>(
+pub fn validate_der_1d<F: Fn(f64) -> Vec3, D: Fn(f64) -> Vec3>(
     function: F,
     derivative: D,
     u_min: f64,

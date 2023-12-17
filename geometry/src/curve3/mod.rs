@@ -290,6 +290,7 @@ pub trait Curve3Impl {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use space::lerp;
@@ -409,3 +410,4 @@ mod tests {
         );
     }
 }
+*/

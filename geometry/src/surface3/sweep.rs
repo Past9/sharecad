@@ -35,7 +35,8 @@ impl Sweep {
         let (i1_der1, i2_der1, i3_der1, d2_der1) = {
             let i1_der1 = der1.norm_der1(der2);
 
-            let d2_der1 = -i1 * (i1_der1.dot(d));
+            //let d2_der1 = -i1 * (i1_der1.dot(d));
+            let d2_der1 = (-i1_der1.dot(d) * i1) - (i1.dot(d) * i1_der1);
             let i2_der1 = d2.norm_der1(d2_der1);
 
             let i3_der1 = i1.cross(i2_der1) + i1_der1.cross(i2);
@@ -49,7 +50,9 @@ impl Sweep {
 
             let i1_der2 = der1.norm_der2(der2, der3);
 
-            let d2_der2 = -i1 * (i1_der2.dot(d));
+            //let d2_der2 = -i1 * (i1_der2.dot(d));
+            let d2_der2 =
+                (-i1_der2.dot(d) * i1) - 2.0 * (i1_der1.dot(d) * i1_der1) - (i1.dot(d) * i1_der2);
             let i2_der2 = d2.norm_der2(d2_der1, d2_der2);
 
             let i3_der2 = i1.cross(i2_der2) + 2.0 * i1_der1.cross(i2_der2) + i2_der2.cross(i2);
@@ -120,13 +123,15 @@ impl Surface3Impl for Sweep {
         let path_axes_start_inverse = self.path_axes(self.v_min()).0.inverse().unwrap();
         let path_axes = self.path_axes(v);
 
+        println!("path_axes ({}, {}) = {:#?}", u, v, path_axes);
+
         let m = path_axes.0 * path_axes_start_inverse;
         let duu = m * self.profile.der2(u);
 
-        let m_der1 = path_axes_start_inverse * path_axes.1;
+        let m_der1 = path_axes.1 * path_axes_start_inverse;
         let duv = m_der1 * self.profile.der1(u);
 
-        let m_der2 = path_axes_start_inverse * path_axes.2;
+        let m_der2 = path_axes.2 * path_axes_start_inverse;
         let dvv = self.path.der2(v) + m_der2 * (profile_pos - path_start);
 
         (duu, duv, dvv)

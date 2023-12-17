@@ -218,6 +218,14 @@ impl_op_ex!(*|m: Mat33, v: Vec3| -> Vec3 {
     )
 });
 
+impl_op_ex!(*|v: Vec3, m: Mat33| -> Vec3 {
+    Vec3::new(
+        m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z,
+        m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z,
+        m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z,
+    )
+});
+
 impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
     Self([
         [

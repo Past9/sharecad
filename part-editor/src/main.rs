@@ -117,7 +117,7 @@ fn build_scene() -> Scene {
     */
     let path = Curve3::arc(
         1.0,
-        deg(135.0),
+        deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
         vec3(-2.0, 0.0, 0.0),
     );
@@ -185,22 +185,18 @@ impl PartModel {
 
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
+            let start = Instant::now();
             tess.tess(tolerance);
+            let end = Instant::now();
+            println!("tess surface in {}us", (end - start).as_micros());
+
             //tess.tessellate(0.02);
             scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
         }
 
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
-            let start = Instant::now();
             tess.tessellate(tolerance);
-            //tess.tesselate_to_dist(tolerance);
-            let end = Instant::now();
-            println!(
-                "tess {} points in {}us",
-                tess.vertices().len(),
-                (end - start).as_micros()
-            );
             scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 1.0));
         }
 
