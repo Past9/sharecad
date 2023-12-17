@@ -123,7 +123,7 @@ impl Surface3Impl for Sweep {
         let path_axes_start_inverse = self.path_axes(self.v_min()).0.inverse().unwrap();
         let path_axes = self.path_axes(v);
 
-        println!("path_axes ({}, {}) = {:#?}", u, v, path_axes);
+        //println!("path_axes ({}, {}) = {:#?}", u, v, path_axes);
 
         let m = path_axes.0 * path_axes_start_inverse;
         let duu = m * self.profile.der2(u);

@@ -299,7 +299,7 @@ mod tests {
 
             validate_der_1d(
                 |v| function(u, v).1,
-                |v| derivative(u, v).1,
+                |v| derivative(u, v).2,
                 v_min,
                 v_max,
                 samples,
