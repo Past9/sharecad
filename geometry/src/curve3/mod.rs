@@ -243,7 +243,7 @@ pub trait Curve3Impl {
 
     fn curvature(&self, u: f64) -> f64 {
         let der1 = self.der1(u);
-        let der2 = self.der1(u);
+        let der2 = self.der2(u);
 
         let num = der1.cross(der2).magnitude();
         let den = der1.magnitude().powi(3);

@@ -1,4 +1,4 @@
-use space::{Point3, Vec3};
+use space::{vec3, Point3, Vec3};
 
 use crate::Curve3Impl;
 

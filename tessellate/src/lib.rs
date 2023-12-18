@@ -214,25 +214,85 @@ impl<'a> Surface3Tessellator<'a> {
             .collect();
     }
 
+    /*
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
-        let (der_u, der_v) = self.surface.der1(u, v);
-        let (der_uu, _der_uv, _der_vv) = self.surface.der2(u, v);
+        let (e, _f, _g) = self.surface.ff1(u, v);
+        let (l, _m, _n) = self.surface.ff2(u, v);
 
-        let f1a = der_u.magnitude2();
-        let n = der_v.cross(der_u);
-        let f2a = der_uu.dot(n);
+        2.0 * (tolerance * (2.0 * (e / l) - tolerance)).sqrt() / e.sqrt()
+    }
+     */
 
-        2.0 * (tolerance * (2.0 * (f1a / f2a) - tolerance)).sqrt() / f1a.sqrt()
+    pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+        let du = self.surface.der1(u, v).0;
+        let duu = self.surface.der2(u, v).0;
+
+        let k = du.cross(duu).magnitude() / du.magnitude().powi(3);
+        let p = k.recip();
+
+        2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / du.magnitude()
     }
 
     pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
-        let (der_u, der_v) = self.surface.der1(u, v);
-        let (_der_uu, _der_uv, der_vv) = self.surface.der2(u, v);
+        let dv = self.surface.der1(u, v).1;
+        let dvv = self.surface.der2(u, v).2;
 
-        let f1c = der_v.magnitude2();
-        let n = der_v.cross(der_u);
-        let f2c = der_vv.dot(n);
+        let k = dv.cross(dvv).magnitude() / dv.magnitude().powi(3);
+        let p = k.recip();
 
-        2.0 * (tolerance * (2.0 * (f1c / f2c) - tolerance)).sqrt() / f1c.sqrt()
+        2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / dv.magnitude()
     }
+
+    /*
+    pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+        let (_e, _f, g) = self.surface.ff1(u, v);
+        let (_l, _m, n) = self.surface.ff2(u, v);
+
+        // N may go to zero, causing division by zero!
+        println!("u, v = {}, {}", u, v);
+        println!("g = {}", g);
+        println!("n = {}", n);
+        println!("g / n = {}", g / n);
+        println!("du = {}", self.surface.der1(u, v).0);
+        println!("dv = {}", self.surface.der1(u, v).1);
+        println!("duu = {}", self.surface.der2(u, v).0);
+        println!("duv = {}", self.surface.der2(u, v).1);
+        println!("dvv = {}", self.surface.der2(u, v).2);
+
+        println!("ff1 = {:?}", self.surface.ff1(u, v));
+        println!("ff2 = {:?}", self.surface.ff2(u, v));
+        println!(
+            "ff2 normal = {:?}",
+            self.surface
+                .der1(u, v)
+                .1
+                .cross(self.surface.der1(u, v).0)
+                .normalize()
+        );
+
+        println!(
+            "normal_curvature U = {:?}",
+            self.surface.normal_curvature(u, v, vec2(1.0, 0.0))
+        );
+        println!(
+            "normal_curvature V = {:?}",
+            self.surface.normal_curvature(u, v, vec2(0.0, 1.0))
+        );
+        println!(
+            "normal_curvature UV = {:?}",
+            self.surface.normal_curvature(u, v, vec2(1.0, 1.0))
+        );
+        println!(
+            "guassian_curvature = {:?}",
+            self.surface.gaussian_curvature(u, v)
+        );
+        println!("mean_curvature = {:?}", self.surface.mean_curvature(u, v));
+        println!(
+            "principal_curvatures = {:?}",
+            self.surface.principal_curvatures(u, v)
+        );
+
+        2.0 * (tolerance * (2.0 * (g / n) - tolerance)).sqrt() / g.sqrt()
+    }
+    */
 }
