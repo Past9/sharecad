@@ -115,17 +115,6 @@ impl Vec3 {
         (Self::ONES - t) * self + t * other
     }
 
-    // Generates a unit vector guaranteed to not be parallel to `self`.
-    pub fn non_parallel(&self) -> Self {
-        // https://math.stackexchange.com/a/3122025
-        let start = self.normalize();
-        if start.z.abs().cc(1.0) {
-            vec3(0.0, start.z, 0.0)
-        } else {
-            vec3(-start.y, start.x, start.z)
-        }
-    }
-
     /// Returns the first derivative of `self.normalize()`, given the first
     /// derivative of `self`.
     pub fn norm_der1(&self, der1: Self) -> Self {

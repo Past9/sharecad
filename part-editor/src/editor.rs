@@ -88,22 +88,13 @@ impl StateInner {
     ) -> Self {
         let render_state = frame.wgpu_render_state().unwrap();
 
-        let mut view_state = ViewState::new_from_resources(
+        let view_state = ViewState::new_from_resources(
             render_state,
             Some(wgpu::TextureUsages::TEXTURE_BINDING),
             msaa_samples,
             ctx.pixels_per_point(),
             scene,
         );
-
-        let scene = view_state.scene_mut();
-
-        scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
-        scene.set_camera_directional_lights(vec![
-            DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
-            DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
-            DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
-        ]);
 
         init_transfer(
             render_state,

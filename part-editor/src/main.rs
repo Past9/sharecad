@@ -71,12 +71,14 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
         DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
+        //DirectionalLight::new(vec3(0.0, 0.0, 1.0), rgb(1.0, 0.0, 0.0)),
     ]);
 
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
-        SurfaceMaterialSpec::default().roughness_rgb(rgb(0.4, 0.4, 0.4)), //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
-                                                                          //.metallic_rgb(rgb(1.0, 1.0, 1.0)),
+        SurfaceMaterialSpec::default()
+            .roughness_rgb(rgb(0.4, 0.4, 0.4)) //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
+            .metallic_rgb(rgb(0.1, 0.1, 0.1)),
     );
 
     let curve_material = scene
@@ -119,10 +121,14 @@ fn build_scene() -> Scene {
         1.0,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-2.0, 0.0, 0.0),
+        vec3(-1.0, 0.0, 0.0),
     );
 
-    let path = helix;
+    let line = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 5.0));
+
+    //let path = line;
+
+    //let profile = Curve3::line(point3(0.0, 0.0, 0.0), point3(30.0, 0.0, 0.0));
 
     //let sweep = Surface3::sweep(profile.clone(), path.clone());
     let sweep = Surface3::sweep(profile.clone(), path.clone());

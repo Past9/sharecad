@@ -1,4 +1,4 @@
-use space::{vec3, Point3, Vec3};
+use space::{vec3, Coincidence, Point3, Vec3};
 
 use crate::Curve3Impl;
 
@@ -45,7 +45,12 @@ impl Curve3Impl for Line {
     }
 
     fn never_tangent(&self) -> Vec3 {
-        todo!()
+        let tangent = (self.end - self.start).normalize();
+        if tangent.z.abs().cc(1.0) {
+            vec3(0.0, tangent.z, 0.0)
+        } else {
+            vec3(-tangent.y, tangent.x, tangent.z)
+        }
     }
 }
 
