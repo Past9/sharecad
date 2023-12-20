@@ -132,8 +132,7 @@ impl<'a> Surface3Tessellator<'a> {
         )
     }
 
-    pub fn tess(&mut self, tolerance: f64) {
-        //
+    pub fn tess_uvs(&mut self, tolerance: f64) -> Vec<Vec<Point2>> {
         let u_min = self.surface.u_min();
         let v_min = self.surface.v_min();
         let u_max = self.surface.u_max();
@@ -149,7 +148,7 @@ impl<'a> Surface3Tessellator<'a> {
                     (row_end.u() + self.delta_u(row_end.u(), row_end.v(), tolerance)).min(u_max);
 
                 let add_uv = match u_next == u_max {
-                    true => row[row.len() - 1].u() < u_next,
+                    true => row_end.u() < u_next,
                     false => true,
                 };
 
@@ -161,7 +160,8 @@ impl<'a> Surface3Tessellator<'a> {
 
             // Add another row in the +V direction
             let mut new_row = vec![];
-            for uv in params[params.len() - 1].iter() {
+            let last_row = &params[params.len() - 1];
+            for uv in last_row.iter() {
                 let v_next = (uv.v() + self.delta_v(uv.u(), uv.v(), tolerance)).min(v_max);
 
                 let add_uv = match v_next == v_max {
@@ -184,6 +184,28 @@ impl<'a> Surface3Tessellator<'a> {
             }
         }
 
+        params
+    }
+
+    pub fn tess(&mut self, tolerance: f64) {
+        let params = self.tess_uvs(tolerance);
+
+        /*
+        for row in params.iter() {
+            for uv in row.iter() {
+                let (du, dv) = self.surface.der1(uv.u(), uv.v());
+
+                println!("du.dv = {}", du.dot(dv));
+
+                let normal = self.surface.normal(uv.u(), uv.v());
+                //println!("{}, {}", normal, normal.magnitude());
+                if normal.cc(Vec3::ZERO) {
+                    //println!("zero normal @ {}", uv);
+                }
+            }
+        }
+         */
+
         // Flatten the UV points
         let uv_flat = params
             .into_iter()
@@ -204,12 +226,137 @@ impl<'a> Surface3Tessellator<'a> {
         // Calculate the mesh vertices in Euclidean space
         self.points = uv_flat
             .into_iter()
-            .map(|uv| SurfacePoint {
-                u: uv.x,
-                v: uv.y,
-                pos: self.surface.eval(uv.x, uv.y),
-                tangents: self.surface.tangents(uv.x, uv.y),
-                normal: self.surface.normal(uv.x, uv.y),
+            .filter_map(|uv| {
+                //
+
+                //let normal = self.surface.normal(uv.x, uv.y).normalize();
+                let (du, dv) = self.surface.der1(uv.x, uv.y);
+
+                let dv = if dv.cc(Vec3::ZERO) {
+                    /*
+                    let func = |u: f64, v: f64| -> Vec3 {
+                        let (du, dv) = self.surface.der1(u, v);
+                        du.cross(dv).normalize()
+                    };
+                    */
+                    let func = |u: f64, v: f64| -> Vec3 {
+                        let (_, dv) = self.surface.der1(u, v);
+                        dv.normalize()
+                    };
+
+                    let u = uv.x;
+                    let v = uv.y;
+
+                    let u_max = self.surface.u_max();
+                    let u_min = self.surface.u_min();
+                    const START_DIST: f64 = 0.1;
+
+                    let max_rows = 40;
+
+                    let end_u = u;
+                    let start_u = {
+                        let dist_to_max = (self.surface.u_max() - end_u).abs();
+                        let dist_to_min = (self.surface.u_min() - end_u).abs();
+
+                        if u_max < u_min {
+                            // If closer to top of U range, start from below
+                            end_u - START_DIST
+                        } else {
+                            // Otherwise start from above
+                            end_u + START_DIST
+                        }
+                    };
+
+                    let initial_h = start_u - end_u;
+                    let mut found_solution = false;
+
+                    let mut h = initial_h;
+
+                    let mut a = vec![vec![Vec3::ZERO; max_rows]; max_rows];
+
+                    //a[0][0] = self.surface.der1(h, v).1;
+                    a[0][0] = func(h, v);
+
+                    let mut solution = None;
+
+                    for i in 0..max_rows - 1 {
+                        h = h / 2.0;
+
+                        //a[i + 1][0] = self.surface.der1(h, v).1;
+                        a[i + 1][0] = func(h, v);
+
+                        for j in 0..=i {
+                            let num = 4f64.powi(j as i32 + 1) * a[i + 1][j] - a[i][j];
+                            let den = 4f64.powi(j as i32 + 1) - 1.0;
+                            a[i + 1][j + 1] = num / den;
+                        }
+
+                        let latest = a[i + 1][i + 1];
+                        let previous = a[i][i];
+
+                        /*
+                        println!("");
+                        println!("i = {}", i);
+                        println!("latest = {}", latest);
+                        println!("previous = {}", previous);
+                        println!("latest - previous = {}", latest - previous);
+                        println!("magnitude = {}", (latest - previous).magnitude());
+                        */
+
+                        if (latest - previous).magnitude() < 0.001 {
+                            //println!("solved dv = {}", a[i + 1][i + 1]);
+                            solution = Some(latest);
+                        } else {
+                            //println!("searching dv = {}", a[i + 1][i + 1]);
+                        }
+                    }
+
+                    //panic!("a = {:#?}", a);
+
+                    /*
+                    if !found_solution {
+                        panic!("NO SOLUTION");
+                    }
+                     */
+
+                    solution
+                } else {
+                    Some(dv)
+                };
+
+                if let Some(dv) = dv {
+                    let tangent = du.normalize();
+                    let bitangent = dv.normalize();
+                    let normal = du.cross(dv).normalize();
+                    Some(SurfacePoint {
+                        u: uv.x,
+                        v: uv.y,
+                        pos: self.surface.eval(uv.x, uv.y),
+                        tangents: (tangent, bitangent),
+                        normal: normal, //tangents: self.surface.tangents(uv.x, uv.y),
+                                        //normal: self.surface.normal(uv.x, uv.y),
+                    })
+                } else {
+                    None
+                }
+
+                //let tangent = du.normalize();
+                //let bitangent = normal.cross(tangent).normalize();
+
+                //let normal = Vec3::UNIT_Z;
+                /*
+                let tangent = Vec3::UNIT_X;
+                let bitangent = Vec3::UNIT_Z;
+
+                Some(SurfacePoint {
+                    u: uv.x,
+                    v: uv.y,
+                    pos: self.surface.eval(uv.x, uv.y),
+                    tangents: (tangent, bitangent),
+                    normal: normal, //tangents: self.surface.tangents(uv.x, uv.y),
+                                    //normal: self.surface.normal(uv.x, uv.y),
+                })
+                 */
             })
             .collect();
     }
@@ -224,6 +371,8 @@ impl<'a> Surface3Tessellator<'a> {
      */
 
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+        return 0.5;
+
         let du = self.surface.der1(u, v).0;
         let duu = self.surface.der2(u, v).0;
 
@@ -234,6 +383,8 @@ impl<'a> Surface3Tessellator<'a> {
     }
 
     pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+        return 0.5;
+
         let dv = self.surface.der1(u, v).1;
         let dvv = self.surface.der2(u, v).2;
 

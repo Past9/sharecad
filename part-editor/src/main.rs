@@ -19,7 +19,11 @@ use render::{
     scene::Scene,
 };
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
-use std::{f64::consts::TAU, sync::Arc, time::Instant};
+use std::{
+    f64::consts::{PI, TAU},
+    sync::Arc,
+    time::Instant,
+};
 use tessellate::{Curve3Tesselator, Surface3Tessellator};
 
 fn main() -> Result<(), eframe::Error> {
@@ -77,6 +81,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
+            .transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4)) //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
             .metallic_rgb(rgb(0.1, 0.1, 0.1)),
     );
@@ -101,13 +106,14 @@ fn build_scene() -> Scene {
     //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
     let profile = Curve3::arc(
         1.0,
-        deg(360.0),
+        deg(180.0),
         //Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
-        Quat::ZERO,
+        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+        //Quat::ZERO,
         //Vec3::ZERO,
-        vec3(1.0, 0.0, 0.0),
+        vec3(0.0, 0.0, 0.0),
     );
-    //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 0.0, 1.0));
+    //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 1.0, 0.0));
     /*
     let path = Curve3::helix(
         1.0,
@@ -121,29 +127,53 @@ fn build_scene() -> Scene {
         1.0,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-1.0, 0.0, 0.0),
+        vec3(0.0, 0.0, 0.0),
     );
 
     let line = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 5.0));
 
-    //let path = line;
-
-    //let profile = Curve3::line(point3(0.0, 0.0, 0.0), point3(30.0, 0.0, 0.0));
-
-    //let sweep = Surface3::sweep(profile.clone(), path.clone());
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    let mut points = vec![Point3::ZERO];
-    /*
-    const MAX: usize = 20;
-    for i_u in 0..=MAX {
-        let u = (i_u as f64 / MAX as f64) * profile.u_len();
-        for i_v in 0..=MAX {
-            let v = (i_v as f64 / MAX as f64) * path.u_len();
-            points.push(sweep.eval(u, v));
-        }
-    }
-     */
+    //let uv = (PI, 2.0 * PI);
+    let uv = (0.0, 0.0);
+    let test_point = sweep.eval(uv.0, uv.1);
+    let n = sweep.normal(uv.0, uv.1).normalize();
+    let (du, dv) = sweep.der1(uv.0, uv.1);
+    let du_norm = du.normalize();
+    let dv_norm = dv.normalize();
+
+    let correct_normal = du.cross(dv)
+        / (du.magnitude().powi(2) * dv.magnitude().powi(2) - du.dot(dv).powi(2)).sqrt();
+    println!("correct_normal = {}", correct_normal);
+
+    println!("test_point = {}", test_point);
+    println!("n = {}", n);
+    println!("du = {}", du);
+    println!("dv = {}", dv);
+    println!("du_norm = {}", du_norm);
+    println!("dv_norm = {}", dv_norm);
+
+    println!("dv_fixed = {}", n.cross(du_norm));
+    println!("du_fixed = {}", dv_norm.cross(n));
+
+    let normal_line = Curve3::line(test_point, test_point + n);
+    let du_line = Curve3::line(test_point, test_point + du_norm);
+    let dv_line = Curve3::line(test_point, test_point + dv_norm);
+
+    const TOLERANCE: f64 = 0.01;
+
+    let mut tess = Surface3Tessellator::new(&sweep);
+    let param_points = tess
+        .tess_uvs(TOLERANCE)
+        .into_iter()
+        .flat_map(|row| row.into_iter())
+        .map(|uv| point3(uv.x, uv.y, 3.0))
+        .collect::<Vec<_>>();
+
+    let points = vec![Point3::ZERO, test_point]
+        .into_iter()
+        .chain(param_points.into_iter())
+        .collect();
 
     let surfaces = vec![sweep];
 
@@ -151,17 +181,21 @@ fn build_scene() -> Scene {
         //helix,
         profile,
         path,
-        // Axes
-        Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
-        Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
-        Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
+        normal_line,
+        du_line,
+        dv_line, // Axes
+                 /*
+                 Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
+                 Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
+                 Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
+                  */
     ];
 
     // Build part
     let part = PartModel::new(surfaces, curves, points);
 
     scene.add_model(part.scene_model_by_dist_tolerance(
-        0.001,
+        TOLERANCE,
         surface_material,
         curve_material,
         point_material,
@@ -194,6 +228,8 @@ impl PartModel {
     ) -> SceneModel {
         let mut scene_model = SceneModel::new();
 
+        let mut normal_lines = Vec::new();
+
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
             let start = Instant::now();
@@ -201,8 +237,19 @@ impl PartModel {
             let end = Instant::now();
             println!("tess surface in {}us", (end - start).as_micros());
 
+            for vert in tess.mesh().vertices().iter() {
+                let nl = Curve3::line(vert.position, vert.position + vert.normal);
+                normal_lines.push(nl);
+            }
+
             //tess.tessellate(0.02);
             scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
+        }
+
+        for curve in normal_lines.iter() {
+            let mut tess = Curve3Tesselator::new(curve);
+            tess.tessellate(tolerance);
+            scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 1.0));
         }
 
         for curve in self.curves.iter() {

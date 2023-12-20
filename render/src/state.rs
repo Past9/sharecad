@@ -181,7 +181,7 @@ impl ViewState {
             InputEvent::CursorMoved(point) => {
                 let id = self.get_instance_id_at(point);
                 if let Some(id) = id {
-                    println!("hover {:?}", id);
+                    //println!("hover {:?}", id);
                 }
             }
             _ => {}

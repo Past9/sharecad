@@ -61,6 +61,10 @@ impl SurfaceMesh {
         }
     }
 
+    pub fn vertices(&self) -> &[SurfaceVertex] {
+        &self.vertices
+    }
+
     fn vertex_buffer(&self, id: &SurfaceId, device: &wgpu::Device) -> &wgpu::Buffer {
         self.vertex_buffer.get_or_init(|| {
             let vertex_data = self

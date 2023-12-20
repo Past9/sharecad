@@ -8,7 +8,7 @@ pub use revolution::*;
 pub use sweep::*;
 pub use translation::*;
 
-use space::{Angle, Point3, Vec2, Vec3};
+use space::{Angle, Coincidence, Point3, Vec2, Vec3};
 
 use crate::Curve3;
 
@@ -223,13 +223,30 @@ pub trait Surface3Impl {
     fn der2(&self, u: f64, v: f64) -> (Vec3, Vec3, Vec3);
 
     fn tangents(&self, u: f64, v: f64) -> (Vec3, Vec3) {
-        let (der1_u, der1_v) = self.der1(u, v);
+        let (mut der1_u, mut der1_v) = self.der1(u, v);
+
+        /*
+        if der1_v.magnitude().cc(0.0) {
+            let normal = der1_u.normalize().cross(der1_v.normalize());
+            let fixed = normal.cross(der1_u).normalize();
+            println!("fix dv {} -> {}", der1_v, fixed);
+            der1_v = fixed;
+        }
+
+        if der1_u.magnitude().cc(0.0) {
+            let normal = der1_u.normalize().cross(der1_v.normalize());
+            let fixed = der1_v.cross(normal).normalize();
+            println!("fix du {} -> {}", der1_u, fixed);
+            der1_u = fixed;
+        }
+         */
+
         (der1_u.normalize(), der1_v.normalize())
     }
 
     fn normal(&self, u: f64, v: f64) -> Vec3 {
         let tangent = self.tangents(u, v);
-        tangent.0.cross(tangent.1)
+        tangent.0.cross(tangent.1).normalize()
     }
 
     /// Returns the coefficients of the First Fundamental Form of
