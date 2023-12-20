@@ -81,7 +81,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            .transmit_rgb(rgb(0.5, 0.5, 0.5))
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4)) //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
             .metallic_rgb(rgb(0.1, 0.1, 0.1)),
     );
@@ -134,33 +134,7 @@ fn build_scene() -> Scene {
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    //let uv = (PI, 2.0 * PI);
-    let uv = (0.0, 0.0);
-    let test_point = sweep.eval(uv.0, uv.1);
-    let n = sweep.normal(uv.0, uv.1).normalize();
-    let (du, dv) = sweep.der1(uv.0, uv.1);
-    let du_norm = du.normalize();
-    let dv_norm = dv.normalize();
-
-    let correct_normal = du.cross(dv)
-        / (du.magnitude().powi(2) * dv.magnitude().powi(2) - du.dot(dv).powi(2)).sqrt();
-    println!("correct_normal = {}", correct_normal);
-
-    println!("test_point = {}", test_point);
-    println!("n = {}", n);
-    println!("du = {}", du);
-    println!("dv = {}", dv);
-    println!("du_norm = {}", du_norm);
-    println!("dv_norm = {}", dv_norm);
-
-    println!("dv_fixed = {}", n.cross(du_norm));
-    println!("du_fixed = {}", dv_norm.cross(n));
-
-    let normal_line = Curve3::line(test_point, test_point + n);
-    let du_line = Curve3::line(test_point, test_point + du_norm);
-    let dv_line = Curve3::line(test_point, test_point + dv_norm);
-
-    const TOLERANCE: f64 = 0.01;
+    const TOLERANCE: f64 = 0.001;
 
     let mut tess = Surface3Tessellator::new(&sweep);
     let param_points = tess
@@ -170,7 +144,7 @@ fn build_scene() -> Scene {
         .map(|uv| point3(uv.x, uv.y, 3.0))
         .collect::<Vec<_>>();
 
-    let points = vec![Point3::ZERO, test_point]
+    let points = vec![Point3::ZERO]
         .into_iter()
         .chain(param_points.into_iter())
         .collect();
@@ -181,14 +155,9 @@ fn build_scene() -> Scene {
         //helix,
         profile,
         path,
-        normal_line,
-        du_line,
-        dv_line, // Axes
-                 /*
-                 Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
-                 Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
-                 Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
-                  */
+        Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
+        Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
+        Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
     ];
 
     // Build part
@@ -246,11 +215,13 @@ impl PartModel {
             scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
         }
 
+        /*
         for curve in normal_lines.iter() {
             let mut tess = Curve3Tesselator::new(curve);
             tess.tessellate(tolerance);
             scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 1.0));
         }
+         */
 
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);

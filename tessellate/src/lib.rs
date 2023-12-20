@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use geometry::{Curve3, Curve3Impl, Helix, Surface3, Surface3Impl};
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
-use space::{point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
+use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
 
 #[derive(Clone, Debug)]
 pub struct CurvePoint {
@@ -187,6 +187,70 @@ impl<'a> Surface3Tessellator<'a> {
         params
     }
 
+    pub fn find_dv(&self, u: f64, v: f64) -> Option<Vec3> {
+        let func = |u: f64, v: f64| -> Vec3 {
+            let (_, dv) = self.surface.der1(u, v);
+            dv.normalize()
+        };
+
+        let u_max = self.surface.u_max();
+        let u_min = self.surface.u_min();
+        const START_DIST: f64 = 0.1;
+
+        let max_rows = 40;
+
+        let end_u = u;
+        let start_u = {
+            let dist_to_max = (u_max - end_u).abs();
+            let dist_to_min = (u_min - end_u).abs();
+
+            //end_u + START_DIST
+
+            if dist_to_max < dist_to_min {
+                // If closer to top of U range, start from below
+                end_u - START_DIST
+            } else {
+                // Otherwise start from above
+                end_u + START_DIST
+            }
+        };
+
+        let initial_h = (end_u - start_u).abs();
+        let mut h = initial_h;
+
+        let mut a = vec![vec![Vec3::ZERO; max_rows]; max_rows];
+
+        let test_u = lerp(start_u, end_u, 1.0 - h);
+        a[0][0] = func(test_u, v);
+
+        let mut solution = None;
+
+        for i in 0..max_rows - 1 {
+            h = h / 2.0;
+
+            let test_u = lerp(start_u, end_u, 1.0 - h);
+
+            a[i + 1][0] = func(test_u, v);
+
+            for j in 0..=i {
+                let num = 4f64.powi(j as i32 + 1) * a[i + 1][j] - a[i][j];
+                let den = 4f64.powi(j as i32 + 1) - 1.0;
+                a[i + 1][j + 1] = num / den;
+            }
+
+            let latest = a[i + 1][i + 1];
+            let previous = a[i][i];
+
+            if (latest - previous).magnitude() < 0.0001 {
+                println!("fixed dv in {} = {}", i + 1, latest);
+                solution = Some(latest);
+                break;
+            }
+        }
+
+        solution
+    }
+
     pub fn tess(&mut self, tolerance: f64) {
         let params = self.tess_uvs(tolerance);
 
@@ -227,99 +291,10 @@ impl<'a> Surface3Tessellator<'a> {
         self.points = uv_flat
             .into_iter()
             .filter_map(|uv| {
-                //
-
-                //let normal = self.surface.normal(uv.x, uv.y).normalize();
                 let (du, dv) = self.surface.der1(uv.x, uv.y);
 
                 let dv = if dv.cc(Vec3::ZERO) {
-                    /*
-                    let func = |u: f64, v: f64| -> Vec3 {
-                        let (du, dv) = self.surface.der1(u, v);
-                        du.cross(dv).normalize()
-                    };
-                    */
-                    let func = |u: f64, v: f64| -> Vec3 {
-                        let (_, dv) = self.surface.der1(u, v);
-                        dv.normalize()
-                    };
-
-                    let u = uv.x;
-                    let v = uv.y;
-
-                    let u_max = self.surface.u_max();
-                    let u_min = self.surface.u_min();
-                    const START_DIST: f64 = 0.1;
-
-                    let max_rows = 40;
-
-                    let end_u = u;
-                    let start_u = {
-                        let dist_to_max = (self.surface.u_max() - end_u).abs();
-                        let dist_to_min = (self.surface.u_min() - end_u).abs();
-
-                        if u_max < u_min {
-                            // If closer to top of U range, start from below
-                            end_u - START_DIST
-                        } else {
-                            // Otherwise start from above
-                            end_u + START_DIST
-                        }
-                    };
-
-                    let initial_h = start_u - end_u;
-                    let mut found_solution = false;
-
-                    let mut h = initial_h;
-
-                    let mut a = vec![vec![Vec3::ZERO; max_rows]; max_rows];
-
-                    //a[0][0] = self.surface.der1(h, v).1;
-                    a[0][0] = func(h, v);
-
-                    let mut solution = None;
-
-                    for i in 0..max_rows - 1 {
-                        h = h / 2.0;
-
-                        //a[i + 1][0] = self.surface.der1(h, v).1;
-                        a[i + 1][0] = func(h, v);
-
-                        for j in 0..=i {
-                            let num = 4f64.powi(j as i32 + 1) * a[i + 1][j] - a[i][j];
-                            let den = 4f64.powi(j as i32 + 1) - 1.0;
-                            a[i + 1][j + 1] = num / den;
-                        }
-
-                        let latest = a[i + 1][i + 1];
-                        let previous = a[i][i];
-
-                        /*
-                        println!("");
-                        println!("i = {}", i);
-                        println!("latest = {}", latest);
-                        println!("previous = {}", previous);
-                        println!("latest - previous = {}", latest - previous);
-                        println!("magnitude = {}", (latest - previous).magnitude());
-                        */
-
-                        if (latest - previous).magnitude() < 0.001 {
-                            //println!("solved dv = {}", a[i + 1][i + 1]);
-                            solution = Some(latest);
-                        } else {
-                            //println!("searching dv = {}", a[i + 1][i + 1]);
-                        }
-                    }
-
-                    //panic!("a = {:#?}", a);
-
-                    /*
-                    if !found_solution {
-                        panic!("NO SOLUTION");
-                    }
-                     */
-
-                    solution
+                    self.find_dv(uv.x, uv.y)
                 } else {
                     Some(dv)
                 };
@@ -327,36 +302,19 @@ impl<'a> Surface3Tessellator<'a> {
                 if let Some(dv) = dv {
                     let tangent = du.normalize();
                     let bitangent = dv.normalize();
+                    //let normal = du.cross(dv).normalize();
                     let normal = du.cross(dv).normalize();
                     Some(SurfacePoint {
                         u: uv.x,
                         v: uv.y,
                         pos: self.surface.eval(uv.x, uv.y),
                         tangents: (tangent, bitangent),
-                        normal: normal, //tangents: self.surface.tangents(uv.x, uv.y),
-                                        //normal: self.surface.normal(uv.x, uv.y),
+                        normal: normal,
                     })
                 } else {
+                    panic!("no solution");
                     None
                 }
-
-                //let tangent = du.normalize();
-                //let bitangent = normal.cross(tangent).normalize();
-
-                //let normal = Vec3::UNIT_Z;
-                /*
-                let tangent = Vec3::UNIT_X;
-                let bitangent = Vec3::UNIT_Z;
-
-                Some(SurfacePoint {
-                    u: uv.x,
-                    v: uv.y,
-                    pos: self.surface.eval(uv.x, uv.y),
-                    tangents: (tangent, bitangent),
-                    normal: normal, //tangents: self.surface.tangents(uv.x, uv.y),
-                                    //normal: self.surface.normal(uv.x, uv.y),
-                })
-                 */
             })
             .collect();
     }
@@ -371,8 +329,6 @@ impl<'a> Surface3Tessellator<'a> {
      */
 
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
-        return 0.5;
-
         let du = self.surface.der1(u, v).0;
         let duu = self.surface.der2(u, v).0;
 
@@ -383,8 +339,6 @@ impl<'a> Surface3Tessellator<'a> {
     }
 
     pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
-        return 0.5;
-
         let dv = self.surface.der1(u, v).1;
         let dvv = self.surface.der2(u, v).2;
 
