@@ -81,7 +81,7 @@ fn build_scene() -> Scene {
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
-            .metallic_rgb(rgb(0.1, 0.1, 0.1)),
+            .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
 
     let curve_material = scene
