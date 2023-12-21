@@ -1,8 +1,12 @@
+mod bsp;
+
 use std::collections::BTreeSet;
 
 use geometry::{Curve3, Curve3Impl, Helix, Surface3, Surface3Impl};
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
 use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
+
+use crate::bsp::{BspTree, TreeSplit};
 
 #[derive(Clone, Debug)]
 pub struct CurvePoint {
@@ -132,7 +136,151 @@ impl<'a> Surface3Tessellator<'a> {
         )
     }
 
-    pub fn tess_uvs(&mut self, tolerance: f64) -> Vec<Vec<Point2>> {
+    pub fn tess_uvs3(&self, tolerance: f64) -> Vec<Point2> {
+        let u_min = self.surface.u_min();
+        let v_min = self.surface.v_min();
+        let u_max = self.surface.u_max();
+        let v_max = self.surface.v_max();
+
+        let mut bsp = BspTree::new(v_max, v_min, u_min, u_max);
+
+        bsp.visit_spaces(&|n: f64, s: f64, w: f64, e: f64| {
+            //
+            let nw = point2(w, n);
+            let ne = point2(e, n);
+            let sw = point2(w, s);
+            let se = point2(e, s);
+
+            // U curvature
+            if self.delta_u(nw.x, nw.y, tolerance) < (ne - nw).magnitude() {
+                return TreeSplit::Ew;
+            }
+
+            if self.delta_u(ne.x, ne.y, tolerance) < (nw - ne).magnitude() {
+                return TreeSplit::Ew;
+            }
+
+            if self.delta_u(sw.x, sw.y, tolerance) < (se - sw).magnitude() {
+                return TreeSplit::Ew;
+            }
+
+            if self.delta_u(se.x, se.y, tolerance) < (sw - se).magnitude() {
+                return TreeSplit::Ew;
+            }
+
+            // V curvature
+            if self.delta_v(nw.x, nw.y, tolerance) < (nw - sw).magnitude() {
+                return TreeSplit::Ns;
+            }
+
+            if self.delta_v(sw.x, sw.y, tolerance) < (sw - nw).magnitude() {
+                return TreeSplit::Ns;
+            }
+
+            if self.delta_v(ne.x, ne.y, tolerance) < (ne - se).magnitude() {
+                return TreeSplit::Ns;
+            }
+
+            if self.delta_v(se.x, se.y, tolerance) < (se - ne).magnitude() {
+                return TreeSplit::Ns;
+            }
+
+            TreeSplit::None
+        });
+
+        println!("{:#?}", bsp);
+
+        todo!()
+    }
+
+    pub fn tess_uvs2(&self, tolerance: f64) -> Vec<Point2> {
+        let u_min = self.surface.u_min();
+        let v_min = self.surface.v_min();
+        let u_max = self.surface.u_max();
+        let v_max = self.surface.v_max();
+
+        let mut params = vec![
+            delaunator::Point { x: u_min, y: v_min },
+            delaunator::Point { x: u_min, y: v_max },
+            delaunator::Point { x: u_max, y: v_min },
+            delaunator::Point { x: u_max, y: v_max },
+        ];
+
+        for i in 0..1000 {
+            let triangulation = delaunator::triangulate(&params);
+
+            'tri: for i in 0..triangulation.triangles.len() / 3 {
+                let t = i * 3;
+                let edges = [
+                    (triangulation.triangles[t], triangulation.triangles[t + 1]),
+                    (
+                        triangulation.triangles[t + 1],
+                        triangulation.triangles[t + 2],
+                    ),
+                    (triangulation.triangles[t + 2], triangulation.triangles[t]),
+                ];
+
+                for edge in edges {
+                    let p0 = &params[edge.0];
+                    let p1 = &params[edge.1];
+
+                    let p0 = point2(p0.x, p0.y);
+                    let p1 = point2(p1.x, p1.y);
+
+                    let edge_vec = p1 - p0;
+                    let delta = self.delta(p0, edge_vec.normalize(), tolerance);
+
+                    if !delta.x.is_nan()
+                        && !delta.y.is_nan()
+                        && delta.magnitude() < edge_vec.magnitude()
+                    {
+                        println!("edge_vec.magnitude() = {}", edge_vec.magnitude());
+                        println!("delta.magnitude() = {}", delta.magnitude());
+                        /*
+                        let mut new_point = p0 + delta;
+
+                        if new_point.x < u_min {
+                            new_point.x = u_min;
+                        }
+
+                        if new_point.x > u_max {
+                            new_point.x = u_max;
+                        }
+
+                        if new_point.y < v_min {
+                            new_point.y = v_min;
+                        }
+
+                        if new_point.y > v_max {
+                            new_point.y = v_max;
+                        }
+                         */
+
+                        /*
+                        if !params.iter().any(|p| point2(p.x, p.y).cc(new_point)) {
+                            params.push(delaunator::Point {
+                                x: new_point.x,
+                                y: new_point.y,
+                            });
+                            println!("params.len() = {}", params.len());
+                            break 'tri;
+                        }
+                          */
+
+                        let np = (p0.into_vec() + p1.into_vec()) / 2.0;
+
+                        params.push(delaunator::Point { x: np.x, y: np.y });
+                        println!("params.len() = {}", params.len());
+                        break 'tri;
+                    }
+                }
+            }
+        }
+
+        params.iter().map(|p| point2(p.x, p.y)).collect()
+    }
+
+    pub fn tess_uvs(&self, tolerance: f64) -> Vec<Vec<Point2>> {
         let u_min = self.surface.u_min();
         let v_min = self.surface.v_min();
         let u_max = self.surface.u_max();
@@ -242,7 +390,6 @@ impl<'a> Surface3Tessellator<'a> {
             let previous = a[i][i];
 
             if (latest - previous).magnitude() < 0.0001 {
-                println!("fixed dv in {} = {}", i + 1, latest);
                 solution = Some(latest);
                 break;
             }
@@ -319,6 +466,31 @@ impl<'a> Surface3Tessellator<'a> {
             .collect();
     }
 
+    pub fn delta(&self, position: Point2, direction: Vec2, tolerance: f64) -> Vec2 {
+        /*
+        let c_num = self
+            .surface
+            .normal_curvature_num(position.u(), position.v(), direction);
+
+        let c_den = self
+            .surface
+            .normal_curvature_den(position.u(), position.v(), direction);
+        */
+        let curvature = self
+            .surface
+            .normal_curvature(position.u(), position.v(), direction);
+
+        let p = 1.0 / curvature;
+
+        let (du, dv) = self.surface.der1(position.u(), position.v());
+        let num = 2.0 * (tolerance * (2.0 * p - tolerance)).sqrt();
+
+        let delta_u_den = (du + dv * (direction.v() / direction.u())).magnitude();
+        let delta_v_den = (du * (direction.u() / direction.v()) + dv).magnitude();
+
+        vec2(num / delta_u_den, num / delta_v_den)
+    }
+
     /*
     pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
         let (e, _f, _g) = self.surface.ff1(u, v);
@@ -328,7 +500,7 @@ impl<'a> Surface3Tessellator<'a> {
     }
      */
 
-    pub fn delta_u(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+    pub fn delta_u(&self, u: f64, v: f64, tolerance: f64) -> f64 {
         let du = self.surface.der1(u, v).0;
         let duu = self.surface.der2(u, v).0;
 
@@ -338,7 +510,7 @@ impl<'a> Surface3Tessellator<'a> {
         2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / du.magnitude()
     }
 
-    pub fn delta_v(&mut self, u: f64, v: f64, tolerance: f64) -> f64 {
+    pub fn delta_v(&self, u: f64, v: f64, tolerance: f64) -> f64 {
         let dv = self.surface.der1(u, v).1;
         let dvv = self.surface.der2(u, v).2;
 

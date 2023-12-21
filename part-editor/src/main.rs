@@ -134,9 +134,12 @@ fn build_scene() -> Scene {
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    const TOLERANCE: f64 = 0.001;
+    const TOLERANCE: f64 = 0.1;
 
     let mut tess = Surface3Tessellator::new(&sweep);
+
+    tess.tess_uvs3(TOLERANCE);
+
     let param_points = tess
         .tess_uvs(TOLERANCE)
         .into_iter()
@@ -144,9 +147,16 @@ fn build_scene() -> Scene {
         .map(|uv| point3(uv.x, uv.y, 3.0))
         .collect::<Vec<_>>();
 
+    let param_points2 = tess
+        .tess_uvs2(TOLERANCE)
+        .into_iter()
+        .map(|uv| point3(uv.x, uv.y, 3.0))
+        .collect::<Vec<_>>();
+
     let points = vec![Point3::ZERO]
         .into_iter()
         .chain(param_points.into_iter())
+        .chain(param_points2.into_iter().map(|p| p + vec3(4.0, 0.0, 0.0)))
         .collect();
 
     let surfaces = vec![sweep];
