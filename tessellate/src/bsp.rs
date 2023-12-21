@@ -65,7 +65,6 @@ impl Tree {
         p_e: f64,
         visitor: &mut F,
     ) {
-        println!("self = {:?}", self);
         match self {
             Tree::Ew { e, w } => {
                 visitor(p_n, p_s, p_w, p_e, TreeSplit::Ew);

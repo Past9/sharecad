@@ -106,14 +106,14 @@ fn build_scene() -> Scene {
     //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
     let profile = Curve3::arc(
         1.0,
-        deg(180.0),
+        deg(360.0),
         //Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
         //Quat::ZERO,
         //Vec3::ZERO,
         vec3(0.0, 0.0, 0.0),
     );
-    //let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 1.0, 0.0));
+    let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 1.0, 0.0));
     /*
     let path = Curve3::helix(
         1.0,
@@ -129,12 +129,19 @@ fn build_scene() -> Scene {
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
         vec3(0.0, 0.0, 0.0),
     );
+    let path = Curve3::arc(
+        1.0,
+        deg(360.0),
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+        Vec3::ZERO,
+    );
+    let path = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 10.0));
 
     let line = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 5.0));
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    const TOLERANCE: f64 = 0.01;
+    const TOLERANCE: f64 = 0.005;
 
     let mut tess = Surface3Tessellator::new(&sweep);
 
@@ -155,8 +162,8 @@ fn build_scene() -> Scene {
 
     let points = vec![Point3::ZERO]
         .into_iter()
-        .chain(param_points.into_iter())
-        .chain(param_points2.into_iter().map(|p| p + vec3(4.0, 0.0, 0.0)))
+        //.chain(param_points.into_iter())
+        //.chain(param_points2.into_iter().map(|p| p + vec3(4.0, 0.0, 0.0)))
         .collect();
 
     let surfaces = vec![sweep];
