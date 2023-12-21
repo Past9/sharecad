@@ -1,6 +1,6 @@
 mod bsp;
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, time::Instant};
 
 use geometry::{Curve3, Curve3Impl, Helix, Surface3, Surface3Impl};
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
@@ -144,7 +144,8 @@ impl<'a> Surface3Tessellator<'a> {
 
         let mut bsp = BspTree::new(v_max, v_min, u_min, u_max);
 
-        bsp.visit_spaces(&|n: f64, s: f64, w: f64, e: f64| {
+        let start = Instant::now();
+        bsp.split_spaces(&|n: f64, s: f64, w: f64, e: f64| {
             //
             let nw = point2(w, n);
             let ne = point2(e, n);
@@ -153,44 +154,66 @@ impl<'a> Surface3Tessellator<'a> {
 
             // U curvature
             if self.delta_u(nw.x, nw.y, tolerance) < (ne - nw).magnitude() {
-                return TreeSplit::Ew;
+                return Some(TreeSplit::Ew);
             }
 
             if self.delta_u(ne.x, ne.y, tolerance) < (nw - ne).magnitude() {
-                return TreeSplit::Ew;
+                return Some(TreeSplit::Ew);
             }
 
             if self.delta_u(sw.x, sw.y, tolerance) < (se - sw).magnitude() {
-                return TreeSplit::Ew;
+                return Some(TreeSplit::Ew);
             }
 
             if self.delta_u(se.x, se.y, tolerance) < (sw - se).magnitude() {
-                return TreeSplit::Ew;
+                return Some(TreeSplit::Ew);
             }
 
             // V curvature
             if self.delta_v(nw.x, nw.y, tolerance) < (nw - sw).magnitude() {
-                return TreeSplit::Ns;
+                return Some(TreeSplit::Ns);
             }
 
             if self.delta_v(sw.x, sw.y, tolerance) < (sw - nw).magnitude() {
-                return TreeSplit::Ns;
+                return Some(TreeSplit::Ns);
             }
 
             if self.delta_v(ne.x, ne.y, tolerance) < (ne - se).magnitude() {
-                return TreeSplit::Ns;
+                return Some(TreeSplit::Ns);
             }
 
             if self.delta_v(se.x, se.y, tolerance) < (se - ne).magnitude() {
-                return TreeSplit::Ns;
+                return Some(TreeSplit::Ns);
             }
 
-            TreeSplit::None
+            None
         });
+        let end = Instant::now();
+        println!("BSP tree in {}us", (end - start).as_micros());
 
-        println!("{:#?}", bsp);
+        let mut params = vec![
+            point2(u_min, v_min),
+            point2(u_min, v_max),
+            point2(u_max, v_min),
+            point2(u_max, v_max),
+        ];
 
-        todo!()
+        bsp.visit_splits(
+            &mut |n: f64, s: f64, w: f64, e: f64, split: TreeSplit| match split {
+                TreeSplit::Ew => {
+                    let u = (w + e) / 2.0;
+                    params.push(point2(u, n));
+                    params.push(point2(u, s));
+                }
+                TreeSplit::Ns => {
+                    let v = (n + s) / 2.0;
+                    params.push(point2(w, v));
+                    params.push(point2(e, v));
+                }
+            },
+        );
+
+        params
     }
 
     pub fn tess_uvs2(&self, tolerance: f64) -> Vec<Point2> {
@@ -399,23 +422,8 @@ impl<'a> Surface3Tessellator<'a> {
     }
 
     pub fn tess(&mut self, tolerance: f64) {
-        let params = self.tess_uvs(tolerance);
-
         /*
-        for row in params.iter() {
-            for uv in row.iter() {
-                let (du, dv) = self.surface.der1(uv.u(), uv.v());
-
-                println!("du.dv = {}", du.dot(dv));
-
-                let normal = self.surface.normal(uv.u(), uv.v());
-                //println!("{}, {}", normal, normal.magnitude());
-                if normal.cc(Vec3::ZERO) {
-                    //println!("zero normal @ {}", uv);
-                }
-            }
-        }
-         */
+        let params = self.tess_uvs(tolerance);
 
         // Flatten the UV points
         let uv_flat = params
@@ -426,6 +434,13 @@ impl<'a> Surface3Tessellator<'a> {
                     y: uv.v(),
                 })
             })
+            .collect::<Vec<_>>();
+         */
+
+        let uv_flat = self
+            .tess_uvs3(tolerance)
+            .into_iter()
+            .map(|p| delaunator::Point { x: p.x, y: p.y })
             .collect::<Vec<_>>();
 
         // Compute the Delaunay triangulation in UV space
