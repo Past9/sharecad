@@ -75,14 +75,12 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
         DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
-        //DirectionalLight::new(vec3(0.0, 0.0, 1.0), rgb(1.0, 0.0, 0.0)),
     ]);
 
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
-            .roughness_rgb(rgb(0.4, 0.4, 0.4)) //.roughness_rgb(rgb(0.8, 0.8, 0.8)),
+            .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.1, 0.1, 0.1)),
     );
 
@@ -94,82 +92,28 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
 
-    let helix = Curve3::helix(
+    let path = Curve3::helix(
         1.0,
         0.1 + 2.0 / TAU,
         20.0,
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-2.0, 0.0, 0.0), //Quat::from_axis_angle(vec3(1.0, 1.0, 1.0).normalize(), deg(32.7)),
-                              //vec3(-2.0, 0.0, -5.0),
+        vec3(-2.0, 0.0, 0.0),
     );
 
-    //let profile = Curve3::helix(1.0, 0.4, 0.25, Quat::ZERO, Vec3::ZERO);
     let profile = Curve3::arc(
         1.0,
         deg(360.0),
-        //Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        //Quat::ZERO,
-        //Vec3::ZERO,
         vec3(0.0, 0.0, 0.0),
     );
-    let profile = Curve3::line(point3(1.0, 0.0, 0.0), point3(1.0, 1.0, 0.0));
-    /*
-    let path = Curve3::helix(
-        1.0,
-        0.4,
-        0.25,
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-1.0, 0.0, 0.0),
-    );
-    */
-    let path = Curve3::arc(
-        1.0,
-        deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(0.0, 0.0, 0.0),
-    );
-    let path = Curve3::arc(
-        1.0,
-        deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        Vec3::ZERO,
-    );
-    let path = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 10.0));
-
-    let line = Curve3::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 5.0));
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    const TOLERANCE: f64 = 0.005;
+    const TOLERANCE: f64 = 0.001;
 
-    let mut tess = Surface3Tessellator::new(&sweep);
-
-    //tess.tess_uvs3(TOLERANCE);
-
-    let param_points = tess
-        .tess_uvs(TOLERANCE)
-        .into_iter()
-        .flat_map(|row| row.into_iter())
-        .map(|uv| point3(uv.x, uv.y, 3.0))
-        .collect::<Vec<_>>();
-
-    let param_points2 = tess
-        .tess_uvs3(TOLERANCE)
-        .into_iter()
-        .map(|uv| point3(uv.x, uv.y, 3.0))
-        .collect::<Vec<_>>();
-
-    let points = vec![Point3::ZERO]
-        .into_iter()
-        //.chain(param_points.into_iter())
-        //.chain(param_points2.into_iter().map(|p| p + vec3(4.0, 0.0, 0.0)))
-        .collect();
-
+    let points = vec![Point3::ZERO];
     let surfaces = vec![sweep];
-
     let curves = vec![
-        //helix,
         profile,
         path,
         Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
@@ -219,26 +163,21 @@ impl PartModel {
         for surface in self.surfaces.iter() {
             let mut tess = Surface3Tessellator::new(surface);
             let start = Instant::now();
-            tess.tess(tolerance);
+            tess.tessellate(tolerance);
             let end = Instant::now();
-            println!("tess surface in {}us", (end - start).as_micros());
+            println!(
+                "tessellated surface in {}us with {} vertices",
+                (end - start).as_micros(),
+                tess.num_points()
+            );
 
             for vert in tess.mesh().vertices().iter() {
                 let nl = Curve3::line(vert.position, vert.position + vert.normal);
                 normal_lines.push(nl);
             }
 
-            //tess.tessellate(0.02);
             scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
         }
-
-        /*
-        for curve in normal_lines.iter() {
-            let mut tess = Curve3Tesselator::new(curve);
-            tess.tessellate(tolerance);
-            scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 1.0));
-        }
-         */
 
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
