@@ -18,14 +18,19 @@ pub trait ISurface<'a> {
 }
 
 pub enum Surface {
-    Sweep(Sweep),
+    Sweep(SweepSurface),
 }
 
-pub struct Sweep {
+pub struct SweepSurface {
     profile: Curve3,
     path: Curve3,
 }
-impl<'a> ISurface<'a> for Sweep {
+impl SweepSurface {
+    pub fn new(profile: Curve3, path: Curve3) -> Self {
+        Self { profile, path }
+    }
+}
+impl<'a> ISurface<'a> for SweepSurface {
     type Point = SweepPoint<'a>;
 
     fn domain(&self) -> (Point2, Point2) {
@@ -73,7 +78,7 @@ pub struct SweepPoint<'a> {
     profile_der2: OnceCell<Vec3>,
     path_der2: OnceCell<Vec3>,
 
-    sweep: &'a Sweep,
+    sweep: &'a SweepSurface,
     uv: Point2,
     path_axes: OnceCell<(Mat33, Mat33, Mat33)>,
     eval: OnceCell<Point3>,
@@ -87,7 +92,7 @@ pub struct SweepPoint<'a> {
     principal_curvatures: OnceCell<(f64, f64)>,
 }
 impl<'a> SweepPoint<'a> {
-    pub fn new(sweep: &'a Sweep, uv: Point2) -> Self {
+    pub fn new(sweep: &'a SweepSurface, uv: Point2) -> Self {
         Self {
             path_start: OnceCell::new(),
             path_axes_start: OnceCell::new(),

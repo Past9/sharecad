@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Impl, Surface3, Surface3Impl};
+use geometry::{Curve3, Curve3Impl, Surface3, Surface3Impl, SweepSurface};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
     time::Instant,
 };
-use tessellate::{Curve3Tesselator, Surface3Tessellator};
+use tessellate::{Curve3Tesselator, Surface3Tessellator, SurfacePointTessellator};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -109,7 +109,21 @@ fn build_scene() -> Scene {
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    const TOLERANCE: f64 = 0.005;
+    const TOLERANCE: f64 = 0.001;
+
+    // Test new tessellator
+    {
+        let sweep2 = SweepSurface::new(profile.clone(), path.clone());
+        let mut tessellator = SurfacePointTessellator::new(&sweep2);
+        let start = Instant::now();
+        tessellator.tessellate(TOLERANCE);
+        let end = Instant::now();
+        println!(
+            "tessellated POINT surface in {}us with {} vertices",
+            (end - start).as_micros(),
+            tessellator.num_points()
+        );
+    }
 
     let points = vec![Point3::ZERO];
     let surfaces = vec![sweep];
