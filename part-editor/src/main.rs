@@ -109,7 +109,7 @@ fn build_scene() -> Scene {
 
     let sweep = Surface3::sweep(profile.clone(), path.clone());
 
-    const TOLERANCE: f64 = 0.001;
+    const TOLERANCE: f64 = 0.005;
 
     let points = vec![Point3::ZERO];
     let surfaces = vec![sweep];
