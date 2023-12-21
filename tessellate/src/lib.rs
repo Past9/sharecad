@@ -6,7 +6,8 @@ use std::{
 };
 
 use geometry::{
-    Curve3, Curve3Impl, ISurface, ISurfacePoint, Surface3, Surface3Impl, SweepPoint, SweepSurface,
+    Curve3, Curve3Impl, ISurface, ISurfacePoint, Surface, Surface3, Surface3Impl, SurfacePoint,
+    SweepPoint, SweepSurface,
 };
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
 use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
@@ -111,12 +112,12 @@ pub struct SurfaceVert {
 }
 
 pub struct SurfacePointTessellator<'a> {
-    surface: &'a SweepSurface,
+    surface: &'a Surface,
     points: Vec<SurfaceVert>,
     indices: Vec<u32>,
 }
 impl<'a> SurfacePointTessellator<'a> {
-    pub fn new(surface: &'a SweepSurface) -> Self {
+    pub fn new(surface: &'a Surface) -> Self {
         Self {
             surface,
             points: vec![],
@@ -168,34 +169,35 @@ impl<'a> SurfacePointTessellator<'a> {
                 return Some(TreeSplit::Ew);
             }
 
-            if self.delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
-                return Some(TreeSplit::Ew);
-            }
-
-            if self.delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
-                return Some(TreeSplit::Ew);
-            }
-
-            if self.delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
-                return Some(TreeSplit::Ew);
-            }
-
-            // V curvature
             if self.delta_v(&sp_nw, tolerance) < (nw - sw).magnitude() {
                 return Some(TreeSplit::Ns);
+            }
+
+            if self.delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
+                return Some(TreeSplit::Ew);
             }
 
             if self.delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
+            if self.delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
+                return Some(TreeSplit::Ew);
+            }
+
             if self.delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
                 return Some(TreeSplit::Ns);
+            }
+
+            if self.delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
+                return Some(TreeSplit::Ew);
             }
 
             if self.delta_v(&sp_se, tolerance) < (se - ne).magnitude() {
                 return Some(TreeSplit::Ns);
             }
+
+            //
 
             None
         });
@@ -336,7 +338,7 @@ impl<'a> SurfacePointTessellator<'a> {
             .collect();
     }
 
-    pub fn delta_u(&self, point: &SweepPoint, tolerance: f64) -> f64 {
+    pub fn delta_u(&self, point: &SurfacePoint, tolerance: f64) -> f64 {
         let du = point.der1().0;
         let duu = point.der2().0;
 
@@ -346,7 +348,7 @@ impl<'a> SurfacePointTessellator<'a> {
         2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / du.magnitude()
     }
 
-    pub fn delta_v(&self, point: &SweepPoint, tolerance: f64) -> f64 {
+    pub fn delta_v(&self, point: &SurfacePoint, tolerance: f64) -> f64 {
         let dv = point.der1().1;
         let dvv = point.der2().2;
 

@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Impl, Surface3, Surface3Impl, SweepSurface};
+use geometry::{Curve3, Curve3Impl, Surface, Surface3, Surface3Impl, SweepSurface};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -112,21 +112,19 @@ fn build_scene() -> Scene {
     const TOLERANCE: f64 = 0.001;
 
     // Test new tessellator
-    {
-        let sweep2 = SweepSurface::new(profile.clone(), path.clone());
-        let mut tessellator = SurfacePointTessellator::new(&sweep2);
-        let start = Instant::now();
-        tessellator.tessellate(TOLERANCE);
-        let end = Instant::now();
-        println!(
-            "tessellated POINT surface in {}us with {} vertices",
-            (end - start).as_micros(),
-            tessellator.num_points()
-        );
-    }
+    let sweep2 = geometry::Surface::Sweep(SweepSurface::new(profile.clone(), path.clone()));
+    let mut tessellator = SurfacePointTessellator::new(&sweep2);
+    let start = Instant::now();
+    tessellator.tessellate(TOLERANCE);
+    let end = Instant::now();
+    println!(
+        "tessellated POINT surface in {}us with {} vertices",
+        (end - start).as_micros(),
+        tessellator.num_points()
+    );
 
     let points = vec![Point3::ZERO];
-    let surfaces = vec![sweep];
+    let surfaces = vec![sweep2];
     let curves = vec![
         profile,
         path,
@@ -150,12 +148,12 @@ fn build_scene() -> Scene {
 
 // BREP model
 struct PartModel {
-    surfaces: Vec<Surface3>,
+    surfaces: Vec<Surface>,
     curves: Vec<Curve3>,
     points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(surfaces: Vec<Surface3>, curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
+    pub fn new(surfaces: Vec<Surface>, curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
         Self {
             surfaces,
             curves,
@@ -175,7 +173,7 @@ impl PartModel {
         let mut normal_lines = Vec::new();
 
         for surface in self.surfaces.iter() {
-            let mut tess = Surface3Tessellator::new(surface);
+            let mut tess = SurfacePointTessellator::new(surface);
             let start = Instant::now();
             tess.tessellate(tolerance);
             let end = Instant::now();
