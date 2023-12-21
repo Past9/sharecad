@@ -222,7 +222,7 @@ impl std::fmt::Debug for Mat33 {
     }
 }
 
-impl_op_ex!(*|m: Mat33, v: Vec3| -> Vec3 {
+impl_op_ex!(*|m: &Mat33, v: &Vec3| -> Vec3 {
     Vec3::new(
         m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
         m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
@@ -230,7 +230,7 @@ impl_op_ex!(*|m: Mat33, v: Vec3| -> Vec3 {
     )
 });
 
-impl_op_ex!(*|v: Vec3, m: Mat33| -> Vec3 {
+impl_op_ex!(*|v: &Vec3, m: &Mat33| -> Vec3 {
     Vec3::new(
         m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z,
         m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z,
@@ -238,8 +238,8 @@ impl_op_ex!(*|v: Vec3, m: Mat33| -> Vec3 {
     )
 });
 
-impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
-    Self([
+impl_op_ex!(*|a: &Mat33, b: &Mat33| -> Mat33 {
+    Mat33([
         [
             a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0],
             a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1],
@@ -258,23 +258,23 @@ impl_op_ex!(*|a: Mat33, b: Mat33| -> Self {
     ])
 });
 
-impl_op_ex!(-|a: Mat33, b: Mat33| -> Self {
-    Self([
+impl_op_ex!(-|a: &Mat33, b: &Mat33| -> Mat33 {
+    Mat33([
         [a[0][0] - b[0][0], a[0][1] - b[0][1], a[0][2] - b[0][2]],
         [a[1][0] - b[1][0], a[1][1] - b[1][1], a[1][2] - b[1][2]],
         [a[2][0] - b[2][0], a[2][1] - b[2][1], a[2][2] - b[2][2]],
     ])
 });
 
-impl_op_ex!(+|a: Mat33, b: Mat33| -> Self {
-    Self([
+impl_op_ex!(+|a: &Mat33, b: &Mat33| -> Mat33 {
+    Mat33([
         [a[0][0] + b[0][0], a[0][1] + b[0][1], a[0][2] + b[0][2]],
         [a[1][0] + b[1][0], a[1][1] + b[1][1], a[1][2] + b[1][2]],
         [a[2][0] + b[2][0], a[2][1] + b[2][1], a[2][2] + b[2][2]],
     ])
 });
 
-impl_op_ex_commutative!(*|s: f64, m: Mat33| -> Mat33 {
+impl_op_ex_commutative!(*|s: f64, m: &Mat33| -> Mat33 {
     Mat33::new(
         m[0][0] * s,
         m[0][1] * s,

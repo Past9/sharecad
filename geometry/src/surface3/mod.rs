@@ -276,26 +276,6 @@ pub trait Surface3Impl {
         (l, m, n)
     }
 
-    fn normal_curvature_num(&self, u: f64, v: f64, direction: Vec2) -> f64 {
-        let (l, m, n) = self.ff2(u, v);
-
-        let du2 = direction.u().powi(2);
-        let dudv = direction.u() * direction.v();
-        let dv2 = direction.v().powi(2);
-
-        l * du2 + 2.0 * m * dudv + n * dv2
-    }
-
-    fn normal_curvature_den(&self, u: f64, v: f64, direction: Vec2) -> f64 {
-        let (e, f, g) = self.ff1(u, v);
-
-        let du2 = direction.u().powi(2);
-        let dudv = direction.u() * direction.v();
-        let dv2 = direction.v().powi(2);
-
-        e * du2 + 2.0 * f * dudv + g * dv2
-    }
-
     fn normal_curvature(&self, u: f64, v: f64, direction: Vec2) -> f64 {
         let (e, f, g) = self.ff1(u, v);
         let (l, m, n) = self.ff2(u, v);
@@ -328,20 +308,6 @@ pub trait Surface3Impl {
         let root = (h.powi(2) - k).sqrt();
 
         (h + root, h - root)
-    }
-
-    fn normal_der1(&self, u: f64, v: f64) -> (Vec3, Vec3) {
-        let d1 = self.der1(u, v);
-        let (e, f, g) = self.ff1(u, v);
-        let (l, m, n) = self.ff2(u, v);
-
-        let nu = ((m * f - l * g) / (e * g - f.powi(2))) * d1.0
-            + ((l * f - m * e) / (e * g - f.powi(2))) * d1.1;
-
-        let nv = ((n * f - m * g) / (e * g - f.powi(2))) * d1.0
-            + ((m * f - n * e) / (e * g - f.powi(2))) * d1.1;
-
-        (nu, nv)
     }
 }
 
