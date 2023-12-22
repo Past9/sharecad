@@ -67,9 +67,10 @@ impl<'a> SweepPoint<'a> {
         Self {
             profile_u: sweep.profile.point(uv.u()),
             path_v: sweep.path.point(uv.v()),
-            path_start: sweep.path.point(sweep.domain().0.y),
 
+            path_start: sweep.path.point(sweep.domain().0.y),
             path_axes_start_inverse_mat: OnceCell::new(),
+
             path_axes: OnceCell::new(),
             path_axes_mat: OnceCell::new(),
             path_axes_der1: OnceCell::new(),

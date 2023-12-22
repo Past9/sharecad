@@ -110,7 +110,7 @@ fn build_scene() -> Scene {
         vec3(0.0, 0.0, 0.0),
     );
 
-    const TOLERANCE: f64 = 0.001;
+    const TOLERANCE: f64 = 0.005;
 
     //let sweep = geometry::Surface::Sweep(SweepSurface::new(profile.clone(), path.clone()));
     let sweep = Surface::sweep(profile.clone(), path.clone());
