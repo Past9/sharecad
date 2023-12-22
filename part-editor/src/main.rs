@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Impl, Surface, SweepSurface};
+use geometry::{Curve3, Curve3Impl, Surface, Sweep, SweepSurface};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
