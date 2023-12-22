@@ -1,9 +1,10 @@
-use std::cell::OnceCell;
+use std::{cell::OnceCell, f64::consts::TAU};
 
 use space::{point3, vec3, Point3, Quat, Vec3};
 
-use crate::{ICurve, ICurvePoint};
+use crate::{CurvePointAxes, ICurve, ICurvePoint};
 
+#[derive(Clone)]
 pub struct HelixCurve {
     /// Radius of the helix
     r: f64,
@@ -15,6 +16,8 @@ pub struct HelixCurve {
 
     orientation: Quat,
     translation: Vec3,
+
+    never_tangent: OnceCell<Vec3>,
 }
 impl HelixCurve {
     pub fn new(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
@@ -24,6 +27,8 @@ impl HelixCurve {
             n,
             orientation,
             translation,
+
+            never_tangent: OnceCell::new(),
         }
     }
 
@@ -45,11 +50,16 @@ impl<'a> ICurve<'a> for HelixCurve {
     type Point = HelixPoint<'a>;
 
     fn domain(&self) -> (f64, f64) {
-        todo!()
+        (0.0, self.n * TAU)
     }
 
     fn point(&'a self, u: f64) -> Self::Point {
-        todo!()
+        HelixPoint::new(self, u)
+    }
+
+    fn never_tangent(&self) -> &Vec3 {
+        self.never_tangent
+            .get_or_init(|| self.orientation * Vec3::UNIT_Z)
     }
 }
 
@@ -61,7 +71,7 @@ pub struct HelixPoint<'a> {
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
-    never_tangent: OnceCell<Vec3>,
+    axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> HelixPoint<'a> {
     pub fn new(helix: &'a HelixCurve, u: f64) -> Self {
@@ -73,13 +83,18 @@ impl<'a> HelixPoint<'a> {
             der1: OnceCell::new(),
             der2: OnceCell::new(),
             der3: OnceCell::new(),
-            never_tangent: OnceCell::new(),
+            axes: OnceCell::new(),
         }
     }
+
+    fn axes(&'a self) -> &crate::CurvePointAxes<'a> {
+        self.axes
+            .get_or_init(|| CurvePointAxes::new(self, *self.helix.never_tangent()))
+    }
 }
-impl<'a> ICurvePoint for HelixPoint<'a> {
+impl<'a> ICurvePoint<'a> for HelixPoint<'a> {
     fn u(&self) -> f64 {
-        todo!()
+        self.u
     }
 
     fn eval(&self) -> &Point3 {
@@ -126,8 +141,15 @@ impl<'a> ICurvePoint for HelixPoint<'a> {
         })
     }
 
-    fn never_tangent(&self) -> &Vec3 {
-        self.never_tangent
-            .get_or_init(|| self.helix.orientation * Vec3::UNIT_Z)
+    fn axes(&'a self) -> &space::Mat33 {
+        self.axes().axes_mat()
+    }
+
+    fn axes_der1(&'a self) -> &space::Mat33 {
+        self.axes().axes_der1_mat()
+    }
+
+    fn axes_der2(&'a self) -> &space::Mat33 {
+        self.axes().axes_der2_mat()
     }
 }

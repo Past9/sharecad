@@ -2,15 +2,22 @@ use std::cell::OnceCell;
 
 use space::{vec3, Coincidence, Point3, Vec3};
 
-use crate::{ICurve, ICurvePoint};
+use crate::{CurvePointAxes, ICurve, ICurvePoint};
 
+#[derive(Clone)]
 pub struct LineCurve {
     start: Point3,
     end: Point3,
+
+    never_tangent: OnceCell<Vec3>,
 }
 impl LineCurve {
     pub fn new(start: Point3, end: Point3) -> Self {
-        Self { start, end }
+        Self {
+            start,
+            end,
+            never_tangent: OnceCell::new(),
+        }
     }
 }
 impl<'a> ICurve<'a> for LineCurve {
@@ -23,6 +30,17 @@ impl<'a> ICurve<'a> for LineCurve {
     fn point(&'a self, u: f64) -> Self::Point {
         LinePoint::new(self, u)
     }
+
+    fn never_tangent(&self) -> &Vec3 {
+        self.never_tangent.get_or_init(|| {
+            let tangent = (self.end - self.start).normalize();
+            if tangent.z.abs().cc(1.0) {
+                vec3(0.0, tangent.z, 0.0)
+            } else {
+                vec3(-tangent.y, tangent.x, tangent.z)
+            }
+        })
+    }
 }
 
 pub struct LinePoint<'a> {
@@ -33,7 +51,7 @@ pub struct LinePoint<'a> {
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
-    never_tangent: OnceCell<Vec3>,
+    axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> LinePoint<'a> {
     pub fn new(line: &'a LineCurve, u: f64) -> Self {
@@ -45,11 +63,16 @@ impl<'a> LinePoint<'a> {
             der1: OnceCell::new(),
             der2: OnceCell::new(),
             der3: OnceCell::new(),
-            never_tangent: OnceCell::new(),
+            axes: OnceCell::new(),
         }
     }
+
+    fn axes(&'a self) -> &crate::CurvePointAxes<'a> {
+        self.axes
+            .get_or_init(|| CurvePointAxes::new(self, *self.line.never_tangent()))
+    }
 }
-impl<'a> ICurvePoint for LinePoint<'a> {
+impl<'a> ICurvePoint<'a> for LinePoint<'a> {
     fn u(&self) -> f64 {
         self.u
     }
@@ -71,14 +94,15 @@ impl<'a> ICurvePoint for LinePoint<'a> {
         self.der3.get_or_init(|| Vec3::ZERO)
     }
 
-    fn never_tangent(&self) -> &Vec3 {
-        self.never_tangent.get_or_init(|| {
-            let tangent = (self.line.end - self.line.start).normalize();
-            if tangent.z.abs().cc(1.0) {
-                vec3(0.0, tangent.z, 0.0)
-            } else {
-                vec3(-tangent.y, tangent.x, tangent.z)
-            }
-        })
+    fn axes(&'a self) -> &space::Mat33 {
+        self.axes().axes_mat()
+    }
+
+    fn axes_der1(&'a self) -> &space::Mat33 {
+        self.axes().axes_der1_mat()
+    }
+
+    fn axes_der2(&'a self) -> &space::Mat33 {
+        self.axes().axes_der2_mat()
     }
 }

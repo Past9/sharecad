@@ -2,18 +2,21 @@ use std::cell::OnceCell;
 
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
-use crate::{Curve3, Curve3Impl, ISurface, ISurfacePoint};
+use crate::{
+    axes, axes_der1, axes_der2, Curve, Curve3, Curve3Impl, CurvePoint, CurvePointAxes, ISurface,
+    ISurfacePoint,
+};
 
 use super::helpers::{
     ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
 };
 
 pub struct SweepSurface {
-    profile: Curve3,
-    path: Curve3,
+    profile: Curve,
+    path: Curve,
 }
 impl SweepSurface {
-    pub fn new(profile: Curve3, path: Curve3) -> Self {
+    pub fn new(profile: Curve, path: Curve) -> Self {
         Self { profile, path }
     }
 }
@@ -21,10 +24,9 @@ impl<'a> ISurface<'a> for SweepSurface {
     type Point = SweepPoint<'a>;
 
     fn domain(&self) -> (Point2, Point2) {
-        (
-            point2(self.profile.u_min(), self.path.u_min()),
-            point2(self.profile.u_max(), self.path.u_max()),
-        )
+        let (u_min, u_max) = self.profile.domain();
+        let (v_min, v_max) = self.path.domain();
+        (point2(u_min, v_min), point2(u_max, v_max))
     }
 
     fn point(&'a self, uv: Point2) -> Self::Point {
@@ -33,6 +35,7 @@ impl<'a> ISurface<'a> for SweepSurface {
 }
 
 pub struct SweepPoint<'a> {
+    /*
     // These should go away once we implement curve points
     path_start: OnceCell<Point3>,
     path_axes_start: OnceCell<(Mat33, Mat33, Mat33)>,
@@ -43,10 +46,25 @@ pub struct SweepPoint<'a> {
     path_der1: OnceCell<Vec3>,
     profile_der2: OnceCell<Vec3>,
     path_der2: OnceCell<Vec3>,
+    */
+    profile_u: CurvePoint<'a>,
+    path_v: CurvePoint<'a>,
+    path_start: CurvePoint<'a>,
+
+    path_axes_start_inverse_mat: OnceCell<Mat33>,
+
+    path_axes: OnceCell<(Vec3, Vec3, Vec3)>,
+    path_axes_mat: OnceCell<Mat33>,
+
+    path_axes_der1: OnceCell<(Vec3, Vec3, Vec3)>,
+    path_axes_der1_mat: OnceCell<Mat33>,
+
+    path_axes_der2: OnceCell<(Vec3, Vec3, Vec3)>,
+    path_axes_der2_mat: OnceCell<Mat33>,
 
     sweep: &'a SweepSurface,
     uv: Point2,
-    path_axes: OnceCell<(Mat33, Mat33, Mat33)>,
+    //path_axes: OnceCell<(Mat33, Mat33, Mat33)>,
     eval: OnceCell<Point3>,
     der1: OnceCell<(Vec3, Vec3)>,
     der2: OnceCell<(Vec3, Vec3, Vec3)>,
@@ -60,19 +78,31 @@ pub struct SweepPoint<'a> {
 impl<'a> SweepPoint<'a> {
     pub fn new(sweep: &'a SweepSurface, uv: Point2) -> Self {
         Self {
+            /*
             path_start: OnceCell::new(),
             path_axes_start: OnceCell::new(),
-            path_axes_start_inverse: OnceCell::new(),
             profile_pos: OnceCell::new(),
             path_pos: OnceCell::new(),
             profile_der1: OnceCell::new(),
             path_der1: OnceCell::new(),
             profile_der2: OnceCell::new(),
             path_der2: OnceCell::new(),
+             */
+            profile_u: sweep.profile.point(uv.u()),
+            path_v: sweep.path.point(uv.v()),
+            path_start: sweep.path.point(sweep.domain().0.y),
+
+            path_axes_start_inverse_mat: OnceCell::new(),
+            path_axes: OnceCell::new(),
+            path_axes_mat: OnceCell::new(),
+            path_axes_der1: OnceCell::new(),
+            path_axes_der1_mat: OnceCell::new(),
+            path_axes_der2: OnceCell::new(),
+            path_axes_der2_mat: OnceCell::new(),
 
             sweep,
             uv,
-            path_axes: OnceCell::new(),
+            //path_axes: OnceCell::new(),
             eval: OnceCell::new(),
             der1: OnceCell::new(),
             der2: OnceCell::new(),
@@ -85,16 +115,69 @@ impl<'a> SweepPoint<'a> {
         }
     }
 
-    pub fn profile_der1(&self) -> &Vec3 {
-        self.profile_der1
-            .get_or_init(|| self.sweep.profile.der1(self.u()))
+    pub fn path_axes(&self) -> &(Vec3, Vec3, Vec3) {
+        self.path_axes
+            .get_or_init(|| axes(&self.path_v, &self.sweep.path.never_tangent()))
     }
 
-    pub fn profile_der2(&self) -> &Vec3 {
-        self.profile_der2
-            .get_or_init(|| self.sweep.profile.der2(self.u()))
+    pub fn path_axes_mat(&self) -> &Mat33 {
+        self.path_axes_mat.get_or_init(|| {
+            let (x, y, z) = *self.path_axes();
+            Mat33::from_axes(x, y, z)
+        })
     }
 
+    pub fn path_axes_der1(&self) -> &(Vec3, Vec3, Vec3) {
+        self.path_axes_der1.get_or_init(|| {
+            axes_der1(
+                &self.path_v,
+                &self.sweep.path.never_tangent(),
+                self.path_axes(),
+            )
+        })
+    }
+
+    pub fn path_axes_der1_mat(&self) -> &Mat33 {
+        self.path_axes_der1_mat.get_or_init(|| {
+            let (x, y, z) = *self.path_axes_der1();
+            Mat33::from_axes(x, y, z)
+        })
+    }
+
+    pub fn path_axes_der2(&self) -> &(Vec3, Vec3, Vec3) {
+        self.path_axes_der2.get_or_init(|| {
+            axes_der2(
+                &self.path_v,
+                &self.sweep.path.never_tangent(),
+                self.path_axes(),
+                self.path_axes_der1(),
+            )
+        })
+    }
+
+    pub fn path_axes_der2_mat(&self) -> &Mat33 {
+        self.path_axes_der2_mat.get_or_init(|| {
+            let (x, y, z) = *self.path_axes_der2();
+            Mat33::from_axes(x, y, z)
+        })
+    }
+
+    pub fn path_axes_start_inverse_mat(&self) -> &Mat33 {
+        self.path_axes_start_inverse_mat.get_or_init(|| {
+            let (x, y, z) = axes(&self.path_start, self.sweep.path.never_tangent());
+            let matrix = Mat33::from_axes(x, y, z);
+            matrix.inverse().unwrap()
+        })
+    }
+
+    /*
+    pub fn path_axes_start_inverse(&'a self) -> &Mat33 {
+        self.path_axes_start_inverse
+            .get_or_init(|| self.path_start.axes().clone().inverse().unwrap())
+    }
+     */
+
+    /*
     pub fn path_der1(&self) -> &Vec3 {
         self.path_der1
             .get_or_init(|| self.sweep.path.der1(self.v()))
@@ -137,7 +220,9 @@ impl<'a> SweepPoint<'a> {
         self.path_axes
             .get_or_init(|| self.calc_path_axes(self.uv.v()))
     }
+    */
 
+    /*
     fn calc_path_axes(&self, v: f64) -> (Mat33, Mat33, Mat33) {
         let der1 = self.sweep.path.der1(v);
         let d = self.sweep.path.never_tangent();
@@ -191,6 +276,7 @@ impl<'a> SweepPoint<'a> {
             Mat33::from_axes(i1_der2, i2_der2, i3_der2),
         )
     }
+    */
 }
 impl<'a> ISurfacePoint for SweepPoint<'a> {
     fn uv(&self) -> Point2 {
@@ -199,18 +285,18 @@ impl<'a> ISurfacePoint for SweepPoint<'a> {
 
     fn eval(&self) -> &Point3 {
         self.eval.get_or_init(|| {
-            let m = self.path_axes().0 * self.path_axes_start_inverse();
-            self.path_pos() + m * (self.profile_pos() - self.path_start())
+            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
+            self.path_v.eval() + m * (self.profile_u.eval() - self.path_start.eval())
         })
     }
 
     fn der1(&self) -> &(Vec3, Vec3) {
         self.der1.get_or_init(|| {
-            let m = self.path_axes().0 * self.path_axes_start_inverse();
-            let du = m * self.profile_der1();
+            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
+            let du = m * self.profile_u.der1();
 
-            let m_der1 = self.path_axes().1 * self.path_axes_start_inverse();
-            let dv = self.path_der1() + m_der1 * (self.profile_pos() - self.path_start());
+            let m_der1 = self.path_axes_der1_mat() * self.path_axes_start_inverse_mat();
+            let dv = self.path_v.der1() + m_der1 * (self.profile_u.eval() - self.path_start.eval());
 
             (du, dv)
         })
@@ -218,14 +304,15 @@ impl<'a> ISurfacePoint for SweepPoint<'a> {
 
     fn der2(&self) -> &(Vec3, Vec3, Vec3) {
         self.der2.get_or_init(|| {
-            let m = self.path_axes().0 * self.path_axes_start_inverse();
-            let duu = m * self.profile_der2();
+            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
+            let duu = m * self.profile_u.der2();
 
-            let m_der1 = self.path_axes().1 * self.path_axes_start_inverse();
-            let duv = m_der1 * self.profile_der1();
+            let m_der1 = self.path_axes_der1_mat() * self.path_axes_start_inverse_mat();
+            let duv = m_der1 * self.profile_u.der1();
 
-            let m_der2 = self.path_axes().2 * self.path_axes_start_inverse();
-            let dvv = self.path_der2() + m_der2 * (self.profile_pos() - self.path_start());
+            let m_der2 = self.path_axes_der2_mat() * self.path_axes_start_inverse_mat();
+            let dvv =
+                self.path_v.der2() + m_der2 * (self.profile_u.eval() - self.path_start.eval());
 
             (duu, duv, dvv)
         })

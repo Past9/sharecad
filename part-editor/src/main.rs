@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve3, Curve3Impl, Surface, Sweep, SweepSurface};
+use geometry::{Curve, Curve3, Curve3Impl, Surface, Sweep, SweepSurface};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -88,7 +88,7 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
 
-    let path = Curve3::helix(
+    let path = Curve::helix(
         1.0,
         0.1 + 2.0 / TAU,
         20.0,
@@ -96,32 +96,35 @@ fn build_scene() -> Scene {
         vec3(-2.0, 0.0, 0.0),
     );
 
-    let profile = Curve3::arc(
+    let profile = Curve::arc(
         1.0,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
         vec3(0.0, 0.0, 0.0),
     );
 
-    let profile2 = Curve3::arc(
+    let profile2 = Curve::arc(
         1.1,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
         vec3(0.0, 0.0, 0.0),
     );
 
-    const TOLERANCE: f64 = 0.005;
+    const TOLERANCE: f64 = 0.001;
 
-    let sweep = geometry::Surface::Sweep(SweepSurface::new(profile.clone(), path.clone()));
+    //let sweep = geometry::Surface::Sweep(SweepSurface::new(profile.clone(), path.clone()));
+    let sweep = Surface::sweep(profile.clone(), path.clone());
 
     let points = vec![Point3::ZERO];
     let surfaces = vec![sweep];
     let curves = vec![
+        /*
         profile,
         path,
-        Curve3::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
-        Curve3::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
-        Curve3::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
+        Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
+        Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
+        Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
+         */
     ];
 
     // Build part

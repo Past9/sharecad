@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
-use crate::{Curve3, Curve3Impl};
+use crate::{Curve, Curve3, Curve3Impl};
 
 pub trait ISurface<'a> {
     type Point: ISurfacePoint;
@@ -25,6 +25,10 @@ pub enum Surface {
     Sweep(SweepSurface),
 }
 impl Surface {
+    pub fn sweep(profile: Curve, path: Curve) -> Self {
+        SweepSurface::new(profile, path).into()
+    }
+
     pub fn domain(&self) -> (Point2, Point2) {
         match self {
             Surface::Sweep(sweep) => sweep.domain(),
@@ -35,6 +39,11 @@ impl Surface {
         match self {
             Surface::Sweep(sweep) => SurfacePoint::from(sweep.point(uv)),
         }
+    }
+}
+impl From<SweepSurface> for Surface {
+    fn from(sweep: SweepSurface) -> Self {
+        Self::Sweep(sweep)
     }
 }
 
