@@ -35,18 +35,6 @@ impl<'a> ISurface<'a> for SweepSurface {
 }
 
 pub struct SweepPoint<'a> {
-    /*
-    // These should go away once we implement curve points
-    path_start: OnceCell<Point3>,
-    path_axes_start: OnceCell<(Mat33, Mat33, Mat33)>,
-    path_axes_start_inverse: OnceCell<Mat33>,
-    profile_pos: OnceCell<Point3>,
-    path_pos: OnceCell<Point3>,
-    profile_der1: OnceCell<Vec3>,
-    path_der1: OnceCell<Vec3>,
-    profile_der2: OnceCell<Vec3>,
-    path_der2: OnceCell<Vec3>,
-    */
     profile_u: CurvePoint<'a>,
     path_v: CurvePoint<'a>,
     path_start: CurvePoint<'a>,
@@ -64,7 +52,6 @@ pub struct SweepPoint<'a> {
 
     sweep: &'a SweepSurface,
     uv: Point2,
-    //path_axes: OnceCell<(Mat33, Mat33, Mat33)>,
     eval: OnceCell<Point3>,
     der1: OnceCell<(Vec3, Vec3)>,
     der2: OnceCell<(Vec3, Vec3, Vec3)>,
@@ -78,16 +65,6 @@ pub struct SweepPoint<'a> {
 impl<'a> SweepPoint<'a> {
     pub fn new(sweep: &'a SweepSurface, uv: Point2) -> Self {
         Self {
-            /*
-            path_start: OnceCell::new(),
-            path_axes_start: OnceCell::new(),
-            profile_pos: OnceCell::new(),
-            path_pos: OnceCell::new(),
-            profile_der1: OnceCell::new(),
-            path_der1: OnceCell::new(),
-            profile_der2: OnceCell::new(),
-            path_der2: OnceCell::new(),
-             */
             profile_u: sweep.profile.point(uv.u()),
             path_v: sweep.path.point(uv.v()),
             path_start: sweep.path.point(sweep.domain().0.y),
@@ -169,114 +146,6 @@ impl<'a> SweepPoint<'a> {
             matrix.inverse().unwrap()
         })
     }
-
-    /*
-    pub fn path_axes_start_inverse(&'a self) -> &Mat33 {
-        self.path_axes_start_inverse
-            .get_or_init(|| self.path_start.axes().clone().inverse().unwrap())
-    }
-     */
-
-    /*
-    pub fn path_der1(&self) -> &Vec3 {
-        self.path_der1
-            .get_or_init(|| self.sweep.path.der1(self.v()))
-    }
-
-    pub fn path_der2(&self) -> &Vec3 {
-        self.path_der2
-            .get_or_init(|| self.sweep.path.der2(self.v()))
-    }
-
-    pub fn path_axes_start_inverse(&self) -> &Mat33 {
-        self.path_axes_start_inverse
-            .get_or_init(|| self.path_axes_start().0.inverse().unwrap())
-    }
-
-    pub fn profile_pos(&self) -> &Point3 {
-        self.profile_pos
-            .get_or_init(|| self.sweep.profile.eval(self.u()))
-    }
-
-    pub fn path_pos(&self) -> &Point3 {
-        self.path_pos.get_or_init(|| self.sweep.path.eval(self.v()))
-    }
-
-    pub fn path_axes_start(&self) -> &(Mat33, Mat33, Mat33) {
-        self.path_axes_start.get_or_init(|| {
-            let (Point2 { y: v_min, .. }, _) = self.sweep.domain();
-            self.calc_path_axes(v_min)
-        })
-    }
-
-    pub fn path_start(&self) -> &Point3 {
-        self.path_start.get_or_init(|| {
-            let (Point2 { y: v_min, .. }, _) = self.sweep.domain();
-            self.sweep.path.eval(v_min)
-        })
-    }
-
-    pub fn path_axes(&self) -> &(Mat33, Mat33, Mat33) {
-        self.path_axes
-            .get_or_init(|| self.calc_path_axes(self.uv.v()))
-    }
-    */
-
-    /*
-    fn calc_path_axes(&self, v: f64) -> (Mat33, Mat33, Mat33) {
-        let der1 = self.sweep.path.der1(v);
-        let d = self.sweep.path.never_tangent();
-
-        // Compute axes of local coordinate system
-        let (i1, i2, i3, d2) = {
-            let i1 = der1.normalize();
-
-            let d2 = d - (i1.dot(d)) * i1;
-
-            let i2 = d2.normalize();
-            let i3 = i1.cross(i2);
-
-            (i1, i2, i3, d2)
-        };
-
-        let der2 = self.sweep.path.der2(v);
-
-        // Compute first derivatives of axes
-        let (i1_der1, i2_der1, i3_der1, d2_der1) = {
-            let i1_der1 = der1.norm_der1(der2);
-
-            //let d2_der1 = -i1 * (i1_der1.dot(d));
-            let d2_der1 = (-i1_der1.dot(d) * i1) - (i1.dot(d) * i1_der1);
-            let i2_der1 = d2.norm_der1(d2_der1);
-
-            let i3_der1 = i1.cross(i2_der1) + i1_der1.cross(i2);
-
-            (i1_der1, i2_der1, i3_der1, d2_der1)
-        };
-
-        // Compute second derivatives of axes
-        let (i1_der2, i2_der2, i3_der2) = {
-            let der3 = self.sweep.path.der3(v);
-
-            let i1_der2 = der1.norm_der2(der2, der3);
-
-            //let d2_der2 = -i1 * (i1_der2.dot(d));
-            let d2_der2 =
-                (-i1_der2.dot(d) * i1) - 2.0 * (i1_der1.dot(d) * i1_der1) - (i1.dot(d) * i1_der2);
-            let i2_der2 = d2.norm_der2(d2_der1, d2_der2);
-
-            let i3_der2 = i1.cross(i2_der2) + 2.0 * i1_der1.cross(i2_der1) + i1_der2.cross(i2);
-
-            (i1_der2, i2_der2, i3_der2)
-        };
-
-        (
-            Mat33::from_axes(i1, i2, i3),
-            Mat33::from_axes(i1_der1, i2_der1, i3_der1),
-            Mat33::from_axes(i1_der2, i2_der2, i3_der2),
-        )
-    }
-    */
 }
 impl<'a> ISurfacePoint for SweepPoint<'a> {
     fn uv(&self) -> Point2 {
