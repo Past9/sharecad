@@ -4,7 +4,9 @@ use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
 use crate::{Curve3, Curve3Impl, ISurface, ISurfacePoint};
 
-use super::{ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures};
+use super::helpers::{
+    ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
+};
 
 pub struct SweepSurface {
     profile: Curve3,
