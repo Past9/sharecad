@@ -4,9 +4,9 @@ pub use sweep::*;
 
 use std::cell::OnceCell;
 
-use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
+use space::{point2, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
 
-use crate::{Curve, Curve3, Curve3Impl};
+use crate::Curve;
 
 pub trait ISurface<'a> {
     type Point: ISurfacePoint;
@@ -209,5 +209,88 @@ mod helpers {
         let root = (h.powi(2) - k).sqrt();
 
         (h + root, h - root)
+    }
+}
+
+pub struct SurfaceIntersection<'a> {
+    s0: &'a Surface,
+    s1: &'a Surface,
+}
+impl<'a> SurfaceIntersection<'a> {
+    pub fn new(s0: &'a Surface, s1: &'a Surface) -> Self {
+        Self { s0, s1 }
+    }
+
+    fn hessian(&self, uv0: Point2, uv1: Point2) -> Mat44 {
+        let s0_point = self.s0.point(uv0);
+        let s0_pos = *s0_point.eval();
+        let (s0_du, s0_dv) = *s0_point.der1();
+        let (s0_duu, s0_duv, s0_dvv) = *s0_point.der2();
+
+        let s1_point = self.s1.point(uv1);
+        let s1_pos = *s1_point.eval();
+        let (s1_du, s1_dv) = *s1_point.der1();
+        let (s1_duu, s1_duv, s1_dvv) = *s1_point.der2();
+
+        // Row 0
+        let aa =
+            (s0_pos - s1_pos).dot(s0_duu) + 2.0 * s0_du.dot(s0_du) + s0_duu.dot(s0_pos - s1_pos);
+
+        let ab = (s0_pos - s1_pos).dot(s0_duv)
+            + s0_dv.dot(s0_du)
+            + s0_du.dot(s0_dv)
+            + s0_duv.dot(s0_pos - s1_pos);
+
+        let ac = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
+
+        let ad = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
+
+        // Row 1
+        let ba = (s0_pos - s1_pos).dot(s0_duv)
+            + s0_dv.dot(s0_du)
+            + s0_du.dot(s0_dv)
+            + s0_duv.dot(s0_pos - s1_pos);
+
+        let bb =
+            (s0_pos - s1_pos).dot(s0_dvv) + 2.0 * s0_dv.dot(s0_dv) + s0_dvv.dot(s0_pos - s1_pos);
+
+        let bc = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
+
+        let bd = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
+
+        // Row 2
+        let ca = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
+
+        let cb = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
+
+        let cc = (s0_pos - s1_pos).dot(-s1_duu)
+            + 2.0 * (-s1_du).dot(-s1_du)
+            + (-s1_duu).dot(s0_pos - s1_pos);
+
+        let cd = (s0_pos - s1_pos).dot(-s1_duv)
+            + (-s1_dv).dot(-s1_du)
+            + (-s1_du).dot(-s1_dv)
+            + (-s1_duv).dot(s0_pos - s1_pos);
+
+        // Row 3
+        let da = (-s1_du).dot(s0_du) + s0_du.dot(-s1_dv);
+
+        let db = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
+
+        let dc = (s0_pos - s1_pos).dot(-s1_duv)
+            + (-s1_dv).dot(-s1_du)
+            + (-s1_du).dot(-s1_dv)
+            + (-s1_duv).dot(s0_pos - s1_pos);
+
+        let dd = (s0_pos - s1_pos).dot(-s1_dvv)
+            + 2.0 * (-s1_dv).dot(-s1_dv)
+            + (-s1_dvv).dot(s0_pos - s1_pos);
+
+        Mat44::new(
+            aa, ab, ac, ad, //
+            ba, bb, bc, bd, //
+            ca, cb, cc, cd, //
+            da, db, dc, dd, //
+        )
     }
 }

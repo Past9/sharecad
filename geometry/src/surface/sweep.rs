@@ -2,10 +2,7 @@ use std::cell::OnceCell;
 
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
-use crate::{
-    axes, axes_der1, axes_der2, Curve, Curve3, Curve3Impl, CurvePoint, CurvePointAxes, ISurface,
-    ISurfacePoint,
-};
+use crate::{axes, axes_der1, axes_der2, Curve, CurvePoint, ISurface, ISurfacePoint};
 
 use super::helpers::{
     ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
