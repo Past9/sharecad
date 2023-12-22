@@ -159,12 +159,8 @@ impl<'a> SurfacePointTessellator<'a> {
             let sw = point2(w, s);
             let se = point2(e, s);
 
+            // Fron NW corner, right and down
             let sp_nw = self.surface.point(nw);
-            let sp_ne = self.surface.point(ne);
-            let sp_sw = self.surface.point(sw);
-            let sp_se = self.surface.point(se);
-
-            // U curvature
             if self.delta_u(&sp_nw, tolerance) < (ne - nw).magnitude() {
                 return Some(TreeSplit::Ew);
             }
@@ -173,22 +169,8 @@ impl<'a> SurfacePointTessellator<'a> {
                 return Some(TreeSplit::Ns);
             }
 
-            if self.delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
-                return Some(TreeSplit::Ew);
-            }
-
-            if self.delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
-                return Some(TreeSplit::Ns);
-            }
-
-            if self.delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
-                return Some(TreeSplit::Ew);
-            }
-
-            if self.delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
-                return Some(TreeSplit::Ns);
-            }
-
+            // Fron SE corner, left and up
+            let sp_se = self.surface.point(se);
             if self.delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
                 return Some(TreeSplit::Ew);
             }
@@ -197,7 +179,25 @@ impl<'a> SurfacePointTessellator<'a> {
                 return Some(TreeSplit::Ns);
             }
 
-            //
+            // Fron NE corner, left and down
+            let sp_ne = self.surface.point(ne);
+            if self.delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
+                return Some(TreeSplit::Ew);
+            }
+
+            if self.delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
+                return Some(TreeSplit::Ns);
+            }
+
+            // Fron SW corner, right and up
+            let sp_sw = self.surface.point(sw);
+            if self.delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
+                return Some(TreeSplit::Ew);
+            }
+
+            if self.delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
+                return Some(TreeSplit::Ns);
+            }
 
             None
         });
