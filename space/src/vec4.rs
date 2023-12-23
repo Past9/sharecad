@@ -76,14 +76,7 @@ impl Vec4 {
     }
 }
 
-impl_op_ex!(-|a: &Vec4| -> Vec4 {
-    Vec4 {
-        x: -a.x,
-        y: -a.y,
-        z: -a.z,
-        w: -a.w,
-    }
-});
+impl_op_ex!(-|a: &Vec4| -> Vec4 { vec4(-a.x, -a.y, -a.z, -a.w,) });
 
 impl_op_ex_commutative!(*|v: &Vec4, s: f64| -> Vec4 { vec4(v.x * s, v.y * s, v.z * s, v.w * s,) });
 impl_op_ex!(/|v: &Vec4, s: f64| -> Vec4 { vec4(v.x / s, v.y / s, v.z / s, v.w / s,) });

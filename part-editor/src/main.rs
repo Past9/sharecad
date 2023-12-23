@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve, Curve3, Curve3Impl, Surface, Sweep, SweepSurface};
+use geometry::{Curve, Curve3, Curve3Impl, Surface, SurfaceIntersection, Sweep, SweepSurface};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
@@ -18,8 +18,12 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, vec3, Point3, Quat, Vec3};
-use std::{f64::consts::TAU, sync::Arc, time::Instant};
+use space::{deg, point2, point3, vec3, Point3, Quat, Vec3};
+use std::{
+    f64::consts::{PI, TAU},
+    sync::Arc,
+    time::Instant,
+};
 use tessellate::{Curve3Tesselator, SurfacePointTessellator};
 
 fn main() -> Result<(), eframe::Error> {
@@ -76,7 +80,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            .transmit_rgb(rgb(0.5, 0.5, 0.5))
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
@@ -89,43 +93,68 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
 
-    let arc1 = Curve::arc(
+    /*
+    let profile0 = Curve::arc(
         1.0,
         deg(180.0),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
         vec3(0.0, 3.0, 0.0),
     );
-    let revolve1 = Curve::arc(
+    let path0 = Curve::arc(
         1.0,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
         vec3(0.0, 3.0, 0.0),
     );
-    let sphere1 = Surface::sweep(arc1.clone(), revolve1.clone());
+    */
+    let profile0 = Curve::line(point3(0.0, 0.0, 0.0), point3(0.0, 1.0, 0.0));
+    let path0 = Curve::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 3.0));
+    let surf0 = Surface::sweep(profile0.clone(), path0.clone());
 
-    let arc2 = Curve::arc(
+    /*
+    let profile1 = Curve::arc(
         1.0,
         deg(180.0),
         Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        vec3(3.0, 4.0, 1.0),
+        vec3(1.0, 4.0, 1.0),
     );
-    let revolve2 = Curve::arc(
+    let path1 = Curve::arc(
         1.0,
         deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(3.0, 4.0, 1.0),
+        vec3(1.0, 4.0, 1.0),
     );
-    let sphere2 = Surface::sweep(arc2.clone(), revolve2.clone());
+     */
+    let profile1 = Curve::line(point3(2.0, 0.0, 2.0), point3(2.0, 1.0, 2.0));
+    let path1 = Curve::line(point3(2.0, 0.0, 2.0), point3(-1.0, 0.0, 2.0));
+    let surf1 = Surface::sweep(profile1.clone(), path1.clone());
 
-    let points = vec![Point3::ZERO];
-    let surfaces = vec![sphere1, sphere2];
+    let intersection = SurfaceIntersection::new(&surf0, &surf1);
+    let mut s0_params = vec![point2(2.0, 0.0)];
+    let mut s1_params = vec![point2(1.4, PI + 0.5)];
+    /*
+    let mut s0_points = vec![*sphere1.point(point2(2.0, 0.0)).eval()];
+    let mut s1_points = vec![*sphere2.point(point2(1.4, PI + 0.5)).eval()];
+     */
+
+    for i in 0..30 {
+        let (new_s0_param, new_s1_param) =
+            intersection.next(*s0_params.last().unwrap(), *s1_params.last().unwrap());
+        s0_params.push(new_s0_param);
+        s1_params.push(new_s1_param);
+    }
+
+    let points = vec![Point3::ZERO]
+        .into_iter()
+        .chain(s0_params.into_iter().map(|uv| *surf0.point(uv).eval()))
+        .chain(s1_params.into_iter().map(|uv| *surf1.point(uv).eval()))
+        .collect();
+    let surfaces = vec![surf0, surf1];
     let curves = vec![
-        /*
-        arc1,
-        revolve1,
-        arc2,
-        revolve2,
-         */
+        profile0,
+        path0,
+        profile1,
+        path1,
         Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
@@ -134,7 +163,7 @@ fn build_scene() -> Scene {
     // Build part
     let part = PartModel::new(surfaces, curves, points);
 
-    const TOLERANCE: f64 = 0.001;
+    const TOLERANCE: f64 = 0.0001;
 
     scene.add_model(part.scene_model_by_dist_tolerance(
         TOLERANCE,
