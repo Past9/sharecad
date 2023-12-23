@@ -107,6 +107,8 @@ impl Mat44 {
 
     pub fn inverse(&self) -> Option<Self> {
         let det = self.determinant();
+        println!("mat44 = {:?}", self);
+        println!("mat44 det = {}", det);
         if det == 0.0 {
             None
         } else {
@@ -393,19 +395,19 @@ mod tests {
                 0.25,
                 0.0,
                 -0.075,
-                -0.275, 
+                -0.275,
                 0.0,
                 0.0,
                 -0.1,
-                0.3, 
+                0.3,
                 0.0,
                 -1.0 / 6.0,
                 1.0 / 7.5,
-                0.1, 
+                0.1,
                 0.0,
                 1.0 / 6.0,
                 1.0 / 6.0,
-                0.0, 
+                0.0,
             ),
             mat.inverse().unwrap()
         );

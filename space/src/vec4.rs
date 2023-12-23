@@ -75,6 +75,22 @@ impl Vec4 {
         self / mag
     }
 }
+impl std::fmt::Display for Vec4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "[{}, {}, {}, {}]",
+            self.x, self.y, self.z, self.w
+        ))
+    }
+}
+impl std::fmt::Debug for Vec4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "[{}, {}, {}, {}]",
+            self.x, self.y, self.z, self.w
+        ))
+    }
+}
 
 impl_op_ex!(-|a: &Vec4| -> Vec4 { vec4(-a.x, -a.y, -a.z, -a.w,) });
 

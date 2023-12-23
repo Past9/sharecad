@@ -130,12 +130,10 @@ fn build_scene() -> Scene {
     let surf1 = Surface::sweep(profile1.clone(), path1.clone());
 
     let intersection = SurfaceIntersection::new(&surf0, &surf1);
-    let mut s0_params = vec![point2(2.0, 0.0)];
-    let mut s1_params = vec![point2(1.4, PI + 0.5)];
-    /*
-    let mut s0_points = vec![*sphere1.point(point2(2.0, 0.0)).eval()];
-    let mut s1_points = vec![*sphere2.point(point2(1.4, PI + 0.5)).eval()];
-     */
+    //let mut s0_params = vec![point2(2.0, 0.0)];
+    //let mut s1_params = vec![point2(1.4, PI + 0.5)];
+    let mut s0_params = vec![point2(0.5, 0.5)];
+    let mut s1_params = vec![point2(0.5, 0.5)];
 
     for i in 0..30 {
         let (new_s0_param, new_s1_param) =

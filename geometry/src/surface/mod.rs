@@ -223,8 +223,15 @@ impl<'a> SurfaceIntersection<'a> {
 
     pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
         let params = vec4(uv0.u(), uv0.v(), uv1.u(), uv1.v());
+        println!("params = {}", params);
         println!("dist = {}", self.dist2(uv0, uv1).sqrt());
-        let Vec4 { x, y, z, w } = params - self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        println!("gradient = {}", self.gradient(uv0, uv1));
+        //let Vec4 { x, y, z, w } = params - self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        //let sub = self.hessian(uv0, uv1).inverse().unwrap() * self.gradient(uv0, uv1);
+        //let sub = self.hessian(uv0, uv1).inverse().unwrap() * self.gradient(uv0, uv1);
+        let sub = self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        println!("sub = {}", sub);
+        let Vec4 { x, y, z, w } = params - sub;
         (point2(x, y), point2(z, w))
     }
 
@@ -301,7 +308,7 @@ impl<'a> SurfaceIntersection<'a> {
             + (-s1_duv).dot(s0_pos - s1_pos);
 
         // Row 3
-        let da = (-s1_du).dot(s0_du) + s0_du.dot(-s1_dv);
+        let da = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
 
         let db = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
 
