@@ -4,7 +4,7 @@ pub use sweep::*;
 
 use std::cell::OnceCell;
 
-use space::{point2, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
+use space::{point2, vec4, Mat33, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
 
 use crate::Curve;
 
@@ -219,6 +219,33 @@ pub struct SurfaceIntersection<'a> {
 impl<'a> SurfaceIntersection<'a> {
     pub fn new(s0: &'a Surface, s1: &'a Surface) -> Self {
         Self { s0, s1 }
+    }
+
+    fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
+        let params = vec4(uv0.u(), uv0.v(), uv1.u(), uv1.v());
+        let Vec4 { x, y, z, w } = params - self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        (point2(x, y), point2(z, w))
+    }
+
+    fn dist2(&self, uv0: Point2, uv1: Point2) -> f64 {
+        (self.s0.point(uv0).eval() - self.s1.point(uv1).eval()).magnitude2()
+    }
+
+    fn gradient(&self, uv0: Point2, uv1: Point2) -> Vec4 {
+        let s0_point = self.s0.point(uv0);
+        let s0_pos = s0_point.eval();
+        let (s0_du, s0_dv) = *s0_point.der1();
+
+        let s1_point = self.s1.point(uv1);
+        let s1_pos = s1_point.eval();
+        let (s1_du, s1_dv) = *s1_point.der1();
+
+        let d_u0 = (s0_pos - s1_pos).dot(s0_du) + s0_du.dot(s0_pos - s1_pos);
+        let d_v0 = (s0_pos - s1_pos).dot(s0_dv) + s0_dv.dot(s0_pos - s1_pos);
+        let d_u1 = (s0_pos - s1_pos).dot(-s1_du) + (-s1_du).dot(s0_pos - s1_pos);
+        let d_v1 = (s0_pos - s1_pos).dot(-s1_dv) + (-s1_dv).dot(s0_pos - s1_pos);
+
+        vec4(d_u0, d_v0, d_u1, d_v1)
     }
 
     fn hessian(&self, uv0: Point2, uv1: Point2) -> Mat44 {

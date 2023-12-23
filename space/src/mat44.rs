@@ -1,8 +1,8 @@
 use std::ops::Index;
 
-use auto_ops::impl_op_ex;
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
-use crate::{Point3, Quat, Vec3, Mat33};
+use crate::{Mat33, Point3, Quat, Vec3, Vec4};
 
 #[derive(Copy, Clone)]
 pub struct Mat44(pub [[f64; 4]; 4]);
@@ -89,7 +89,7 @@ impl Mat44 {
             0.0, 0.0, 1.0, -eye.z,
             0.0, 0.0, 0.0, 1.0,
         );
-    
+
         translation
     }
 
@@ -103,6 +103,53 @@ impl Mat44 {
 
     pub fn look_at_rh_rotation(eye: Point3, center: Point3, up: Vec3) -> Self {
         Self::look_to_rh_rotation(center - eye, up)
+    }
+
+    pub fn inverse(&self) -> Option<Self> {
+        let det = self.determinant();
+        if det == 0.0 {
+            None
+        } else {
+            Some(det.recip() * self.adjoint())
+        }
+    }
+
+    pub fn adjoint(&self) -> Self {
+        let a = self[0][0];
+        let b = self[0][1];
+        let c = self[0][2];
+        let d = self[0][3];
+        let e = self[1][0];
+        let f = self[1][1];
+        let g = self[1][2];
+        let h = self[1][3];
+        let i = self[2][0];
+        let j = self[2][1];
+        let k = self[2][2];
+        let l = self[2][3];
+        let m = self[3][0];
+        let n = self[3][1];
+        let o = self[3][2];
+        let p = self[3][3];
+
+        Self::new(
+            -h * k * n + g * l * n + h * j * o - f * l * o - g * j * p + f * k * p,
+            d * k * n - c * l * n - d * j * o + b * l * o + c * j * p - b * k * p,
+            -d * g * n + c * h * n + d * f * o - b * h * o - c * f * p + b * g * p,
+            d * g * j - c * h * j - d * f * k + b * h * k + c * f * l - b * g * l,
+            h * k * m - g * l * m - h * i * o + e * l * o + g * i * p - e * k * p,
+            -d * k * m + c * l * m + d * i * o - a * l * o - c * i * p + a * k * p,
+            d * g * m - c * h * m - d * e * o + a * h * o + c * e * p - a * g * p,
+            -d * g * i + c * h * i + d * e * k - a * h * k - c * e * l + a * g * l,
+            -h * j * m + f * l * m + h * i * n - e * l * n - f * i * p + e * j * p,
+            d * j * m - b * l * m - d * i * n + a * l * n + b * i * p - a * j * p,
+            -d * f * m + b * h * m + d * e * n - a * h * n - b * e * p + a * f * p,
+            d * f * i - b * h * i - d * e * j + a * h * j + b * e * l - a * f * l,
+            g * j * m - f * k * m - g * i * n + e * k * n + f * i * o - e * j * o,
+            -c * j * m + b * k * m + c * i * n - a * k * n - b * i * o + a * j * o,
+            c * f * m - b * g * m - c * e * n + a * g * n + b * e * o - a * f * o,
+            -c * f * i + b * g * i + c * e * j - a * g * j - b * e * k + a * f * k,
+        )
     }
 
     pub fn determinant(&self) -> f64 {
@@ -123,15 +170,17 @@ impl Mat44 {
         let o = self[3][2];
         let p = self[3][3];
 
-        a * Mat33::new(f, g, h, j, k, l, n, o, p).determinant()
-        - b * Mat33::new(e, g, h, i, k, l, m, o, p).determinant()
-        + c * Mat33::new(e, f, h, i, j, l, m, n, p).determinant()
-        - d * Mat33::new(e, g, h, i, j, k, m, n, o).determinant()
+        let det1 = Mat33::new(f, g, h, j, k, l, n, o, p).determinant();
+        let det2 = Mat33::new(b, c, d, j, k, l, n, o, p).determinant();
+        let det3 = Mat33::new(b, c, d, f, g, h, n, o, p).determinant();
+        let det4 = Mat33::new(b, c, d, f, g, h, i, j, k).determinant();
+
+        a * det1 - e * det2 + i * det3 - m * det4
     }
 
     pub fn powi(&self, power: u32) -> Self {
         let mut result = Self::IDENTITY;
-        for i in 0..power {
+        for _ in 0..power {
             result = result * *self;
         }
         result
@@ -145,7 +194,7 @@ impl Mat44 {
                     equal = false;
                 }
             }
-        } 
+        }
         equal
     }
 }
@@ -255,7 +304,110 @@ impl_op_ex!(*|a: Mat44, b: Mat44| -> Self {
     ])
 });
 
+impl_op_ex!(*|m: &Mat44, v: &Vec4| -> Vec4 {
+    Vec4 {
+        x: m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z + m[0][3] * v.w,
+        y: m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z + m[1][3] * v.w,
+        z: m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z + m[2][3] * v.w,
+        w: m[3][0] * v.x + m[3][1] * v.y + m[3][2] * v.z + m[3][3] * v.w,
+    }
+});
+
+impl_op_ex!(*|v: &Vec4, m: &Mat44| -> Vec4 {
+    Vec4 {
+        x: m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0] * v.w,
+        y: m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1] * v.w,
+        z: m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2] * v.w,
+        w: m[0][3] * v.x + m[1][3] * v.y + m[2][3] * v.z + m[3][3] * v.w,
+    }
+});
+
+impl_op_ex_commutative!(*|s: f64, m: &Mat44| -> Mat44 {
+    Mat44::new(
+        m[0][0] * s,
+        m[0][1] * s,
+        m[0][2] * s,
+        m[0][3] * s,
+        m[1][0] * s,
+        m[1][1] * s,
+        m[1][2] * s,
+        m[1][3] * s,
+        m[2][0] * s,
+        m[2][1] * s,
+        m[2][2] * s,
+        m[2][3] * s,
+        m[3][0] * s,
+        m[3][1] * s,
+        m[3][2] * s,
+        m[3][3] * s,
+    )
+});
+
 #[cfg(test)]
 mod tests {
-    //
+    use crate::Mat44;
+
+    #[test]
+    fn determinant() {
+        let mat = Mat44::new(
+            4.0, 3.0, 2.0, 2.0, //
+            0.0, 1.0, -3.0, 3.0, //
+            0.0, -1.0, 3.0, 3.0, //
+            0.0, 3.0, 1.0, 1.0, //
+        );
+
+        assert_eq!(-240.0, mat.determinant());
+    }
+
+    #[test]
+    fn adjoint() {
+        let mat = Mat44::new(
+            4.0, 3.0, 2.0, 2.0, //
+            0.0, 1.0, -3.0, 3.0, //
+            0.0, -1.0, 3.0, 3.0, //
+            0.0, 3.0, 1.0, 1.0, //
+        );
+
+        assert_cc!(
+            Mat44::new(
+                -60.0, 0.0, 18.0, 66.0, //
+                0.0, 0.0, 24.0, -72.0, //
+                0.0, 40.0, -32.0, -24.0, //
+                0.0, -40.0, -40.0, 0.0, //
+            ),
+            mat.adjoint()
+        );
+    }
+
+    #[test]
+    fn inverse() {
+        let mat = Mat44::new(
+            4.0, 3.0, 2.0, 2.0, //
+            0.0, 1.0, -3.0, 3.0, //
+            0.0, -1.0, 3.0, 3.0, //
+            0.0, 3.0, 1.0, 1.0, //
+        );
+
+        assert_cc!(
+            Mat44::new(
+                0.25,
+                0.0,
+                -0.075,
+                -0.275, 
+                0.0,
+                0.0,
+                -0.1,
+                0.3, 
+                0.0,
+                -1.0 / 6.0,
+                1.0 / 7.5,
+                0.1, 
+                0.0,
+                1.0 / 6.0,
+                1.0 / 6.0,
+                0.0, 
+            ),
+            mat.inverse().unwrap()
+        );
+    }
 }

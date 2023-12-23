@@ -76,6 +76,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
+            .transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
@@ -88,47 +89,52 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default());
 
-    let path = Curve::helix(
+    let arc1 = Curve::arc(
         1.0,
-        0.1 + 2.0 / TAU,
-        20.0,
+        deg(180.0),
+        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+        vec3(0.0, 3.0, 0.0),
+    );
+    let revolve1 = Curve::arc(
+        1.0,
+        deg(360.0),
         Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(-2.0, 0.0, 0.0),
+        vec3(0.0, 3.0, 0.0),
     );
+    let sphere1 = Surface::sweep(arc1.clone(), revolve1.clone());
 
-    let profile = Curve::arc(
+    let arc2 = Curve::arc(
+        1.0,
+        deg(180.0),
+        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+        vec3(3.0, 4.0, 1.0),
+    );
+    let revolve2 = Curve::arc(
         1.0,
         deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        vec3(0.0, 0.0, 0.0),
+        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+        vec3(3.0, 4.0, 1.0),
     );
-
-    let profile2 = Curve::arc(
-        1.1,
-        deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        vec3(0.0, 0.0, 0.0),
-    );
-
-    const TOLERANCE: f64 = 0.005;
-
-    //let sweep = geometry::Surface::Sweep(SweepSurface::new(profile.clone(), path.clone()));
-    let sweep = Surface::sweep(profile.clone(), path.clone());
+    let sphere2 = Surface::sweep(arc2.clone(), revolve2.clone());
 
     let points = vec![Point3::ZERO];
-    let surfaces = vec![sweep];
+    let surfaces = vec![sphere1, sphere2];
     let curves = vec![
         /*
-        profile,
-        path,
+        arc1,
+        revolve1,
+        arc2,
+        revolve2,
+         */
         Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
-         */
     ];
 
     // Build part
     let part = PartModel::new(surfaces, curves, points);
+
+    const TOLERANCE: f64 = 0.001;
 
     scene.add_model(part.scene_model_by_dist_tolerance(
         TOLERANCE,
@@ -143,11 +149,11 @@ fn build_scene() -> Scene {
 // BREP model
 struct PartModel {
     surfaces: Vec<Surface>,
-    curves: Vec<Curve3>,
+    curves: Vec<Curve>,
     points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(surfaces: Vec<Surface>, curves: Vec<Curve3>, points: Vec<Point3>) -> Self {
+    pub fn new(surfaces: Vec<Surface>, curves: Vec<Curve>, points: Vec<Point3>) -> Self {
         Self {
             surfaces,
             curves,
@@ -223,12 +229,11 @@ impl PartModel {
     }
 }
 
-fn tessellate_curve(curve: &Curve3) -> CurveMesh {
+fn tessellate_curve(curve: &Curve) -> CurveMesh {
     const NUM_SEGMENTS: u32 = 500;
 
-    let u_min = curve.u_min();
-    let u_max = curve.u_max();
-    let param_interval = curve.u_len() / NUM_SEGMENTS as f64;
+    let (u_min, u_max) = curve.domain();
+    let param_interval = (u_max - u_min) / NUM_SEGMENTS as f64;
 
     let mut points = Vec::with_capacity(NUM_SEGMENTS as usize + 1);
     for i in 0..=NUM_SEGMENTS {
@@ -238,7 +243,7 @@ fn tessellate_curve(curve: &Curve3) -> CurveMesh {
             i => u_min + param_interval * i as f64,
         };
 
-        points.push(curve.eval(u));
+        points.push(*curve.point(u).eval());
     }
 
     CurveMesh::new(points)

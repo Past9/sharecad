@@ -71,12 +71,7 @@ impl Vec3 {
     }
 
     pub fn normalize(&self) -> Self {
-        let mag = self.magnitude();
-        Self {
-            x: self.x / mag,
-            y: self.y / mag,
-            z: self.z / mag,
-        }
+        self / self.magnitude()
     }
 
     pub fn into_point(&self) -> Point3 {

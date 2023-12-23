@@ -1,4 +1,4 @@
-use crate::{Angle, Mat33, Point2, Point3, Vec2, Vec3};
+use crate::{Angle, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 pub const NEWTON_TOL: f64 = COINCIDENT_TOL * 0.1;
@@ -73,6 +73,20 @@ impl Coincidence<Mat33> for Mat33 {
     fn coincident(&self, other: Mat33, tolerance: f64) -> bool {
         for row in 0..3 {
             for col in 0..3 {
+                if !within_tolerance_f64(self[row][col], other[row][col], tolerance) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
+
+impl Coincidence<Mat44> for Mat44 {
+    fn coincident(&self, other: Mat44, tolerance: f64) -> bool {
+        for row in 0..4 {
+            for col in 0..4 {
                 if !within_tolerance_f64(self[row][col], other[row][col], tolerance) {
                     return false;
                 }

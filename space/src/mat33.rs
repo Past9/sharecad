@@ -1,6 +1,6 @@
-use std::ops::Index;
+use crate::{rad, vec2, vec3, Angle, Point3, Quat, Vec2, Vec3};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use crate::{rad, vec2, Angle, Quat, Vec2, Point3, Vec3, vec3};
+use std::ops::Index;
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -16,11 +16,7 @@ impl Mat33 {
     }
 
     pub fn from_axes(x: Vec3, y: Vec3, z: Vec3) -> Self {
-        Self([
-            [x.x, y.x, z.x],
-            [x.y, y.y, z.y],
-            [x.z, y.z, z.z],
-        ])
+        Self([[x.x, y.x, z.x], [x.y, y.y, z.y], [x.z, y.z, z.z]])
     }
 
     pub fn into_axes(&self) -> (Vec3, Vec3, Vec3) {
@@ -107,7 +103,7 @@ impl Mat33 {
         let h = self[2][1];
         let i = self[2][2];
 
-        (a*e*i) + (b*f*g) + (c*d*h) - (c*e*g) - (b*d*i) - (a*f*h) 
+        (a * e * i) + (b * f * g) + (c * d * h) - (c * e * g) - (b * d * i) - (a * f * h)
     }
 
     pub fn inverse(&self) -> Option<Self> {
@@ -125,21 +121,18 @@ impl Mat33 {
             let h = self[2][1];
             let i = self[2][2];
 
-            let i_a = e*i - f*h;
-            let i_b = -(d*i - f * g);
-            let i_c = d*h - e*g;
-            let i_d = -(b*i - c*h);
-            let i_e = a*i - c*g;
-            let i_f = -(a*h - b*g);
-            let i_g = b*f - c*e;
-            let i_h = -(a*f - c*d);
-            let i_i = a*e - b*d;
+            let i_a = e * i - f * h;
+            let i_b = -(d * i - f * g);
+            let i_c = d * h - e * g;
+            let i_d = -(b * i - c * h);
+            let i_e = a * i - c * g;
+            let i_f = -(a * h - b * g);
+            let i_g = b * f - c * e;
+            let i_h = -(a * f - c * d);
+            let i_i = a * e - b * d;
 
-            let inv = self.determinant().recip() * Self::new(
-                i_a, i_d, i_g, 
-                i_b, i_e, i_h, 
-                i_c, i_f, i_i
-            );
+            let inv =
+                self.determinant().recip() * Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i);
 
             Some(inv)
         }
@@ -153,7 +146,7 @@ impl Mat33 {
                     equal = false;
                 }
             }
-        } 
+        }
         equal
     }
 
@@ -302,16 +295,18 @@ mod tests {
 
     #[test]
     fn inverts_matrix() {
-        let m = Mat33::new(
-            1.0, 2.0, -1.0, 
-            2.0, 1.0, 2.0, 
-            -1.0, 2.0, 1.0
-        );
+        let m = Mat33::new(1.0, 2.0, -1.0, 2.0, 1.0, 2.0, -1.0, 2.0, 1.0);
 
         let inv = Mat33::new(
-            3.0 / 16.0, 1.0 / 4.0, -5.0 / 16.0,
-            1.0 / 4.0, 0.0, 1.0 / 4.0,
-            -5.0 / 16.0, 1.0 / 4.0, 3.0 / 16.0
+            3.0 / 16.0,
+            1.0 / 4.0,
+            -5.0 / 16.0,
+            1.0 / 4.0,
+            0.0,
+            1.0 / 4.0,
+            -5.0 / 16.0,
+            1.0 / 4.0,
+            3.0 / 16.0,
         );
 
         approx_eq(m.inverse().unwrap(), inv);

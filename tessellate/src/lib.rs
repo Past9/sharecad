@@ -6,8 +6,8 @@ use std::{
 };
 
 use geometry::{
-    Curve3, Curve3Impl, ISurface, ISurfacePoint, Surface, Surface3, Surface3Impl, SurfacePoint,
-    SweepPoint, SweepSurface,
+    Curve, Curve3, Curve3Impl, ISurface, ISurfacePoint, Surface, Surface3, Surface3Impl,
+    SurfacePoint, SweepPoint, SweepSurface,
 };
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
 use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
@@ -15,41 +15,41 @@ use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
 use crate::bsp::{BspTree, TreeSplit};
 
 #[derive(Clone, Debug)]
-pub struct CurvePoint {
+pub struct CurveVert {
     pub u: f64,
     pub pos: Point3,
 }
-impl PartialEq for CurvePoint {
+impl PartialEq for CurveVert {
     fn eq(&self, other: &Self) -> bool {
         self.u == other.u
     }
 }
-impl Eq for CurvePoint {}
-impl PartialOrd for CurvePoint {
+impl Eq for CurveVert {}
+impl PartialOrd for CurveVert {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.u.partial_cmp(&other.u)
     }
 }
-impl Ord for CurvePoint {
+impl Ord for CurveVert {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.u.total_cmp(&other.u)
     }
 }
 
 pub struct Curve3Tesselator<'a> {
-    curve: &'a Curve3,
-    points: BTreeSet<CurvePoint>,
+    curve: &'a Curve,
+    points: BTreeSet<CurveVert>,
 }
 impl<'a> Curve3Tesselator<'a> {
-    pub fn new(curve: &'a Curve3) -> Self {
+    pub fn new(curve: &'a Curve) -> Self {
         let points = BTreeSet::from_iter([
-            CurvePoint {
-                u: curve.u_min(),
-                pos: curve.eval(curve.u_min()),
+            CurveVert {
+                u: curve.domain().0,
+                pos: *curve.point(curve.domain().0).eval(),
             },
-            CurvePoint {
-                pos: curve.eval(curve.u_max()),
-                u: curve.u_max(),
+            CurveVert {
+                u: curve.domain().1,
+                pos: *curve.point(curve.domain().1).eval(),
             },
         ]);
 
@@ -60,25 +60,24 @@ impl<'a> Curve3Tesselator<'a> {
         CurveMesh::new(self.points.iter().map(|v| v.pos).collect())
     }
 
-    pub fn curve(&self) -> &Curve3 {
+    pub fn curve(&self) -> &Curve {
         &self.curve
     }
 
-    pub fn vertices(&self) -> &BTreeSet<CurvePoint> {
+    pub fn vertices(&self) -> &BTreeSet<CurveVert> {
         &self.points
     }
 
     pub fn insert_with_pos(&mut self, u: f64, pos: Point3) {
-        self.points.insert(CurvePoint { u, pos });
+        self.points.insert(CurveVert { u, pos });
     }
 
     pub fn insert(&mut self, u: f64) {
-        self.insert_with_pos(u, self.curve.eval(u));
+        self.insert_with_pos(u, *self.curve.point(u).eval());
     }
 
     pub fn tessellate(&mut self, tolerance: f64) {
-        let u_max = self.curve.u_max();
-        let mut u = self.curve.u_min();
+        let (mut u, u_max) = self.curve.domain();
         let mut params = vec![];
 
         while u < u_max {
@@ -94,8 +93,9 @@ impl<'a> Curve3Tesselator<'a> {
     }
 
     pub fn delta_u(&mut self, u: f64, tolerance: f64) -> f64 {
-        let der1 = self.curve.der1(u);
-        let der2 = self.curve.der2(u);
+        let point = self.curve.point(u);
+        let der1 = *point.der1();
+        let der2 = *point.der2();
 
         let p = der1.magnitude().powi(3) / (der1.cross(der2)).magnitude();
 
