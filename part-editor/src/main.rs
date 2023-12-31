@@ -232,48 +232,4 @@ impl PartModel {
 
         scene_model
     }
-
-    pub fn scene_model(
-        &self,
-        curve_material: CurveMaterialId,
-        point_material: PointMaterialId,
-    ) -> SceneModel {
-        let mut scene_model = SceneModel::new();
-
-        // TODO Surfaces
-
-        for curve in self.curves.iter() {
-            scene_model.add_curve(SceneCurve::new(
-                tessellate_curve(&curve),
-                curve_material,
-                1.5,
-            ));
-        }
-
-        for point in self.points.iter() {
-            scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
-        }
-
-        scene_model
-    }
-}
-
-fn tessellate_curve(curve: &Curve) -> CurveMesh {
-    const NUM_SEGMENTS: u32 = 500;
-
-    let (u_min, u_max) = curve.domain();
-    let param_interval = (u_max - u_min) / NUM_SEGMENTS as f64;
-
-    let mut points = Vec::with_capacity(NUM_SEGMENTS as usize + 1);
-    for i in 0..=NUM_SEGMENTS {
-        let u = match i {
-            0 => u_min,
-            i if i == NUM_SEGMENTS => u_max,
-            i => u_min + param_interval * i as f64,
-        };
-
-        points.push(*curve.point(u).eval());
-    }
-
-    CurveMesh::new(points)
 }
