@@ -80,7 +80,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
+            .transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
@@ -153,6 +153,8 @@ fn build_scene() -> Scene {
         path0,
         profile1,
         path1,
+        Curve::line(point3(0.0, 0.0, 1.0), point3(0.0, 1.0, 1.0)),
+        Curve::line(point3(0.0, 0.5, 0.0), point3(0.0, 0.5, 3.0)),
         Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),

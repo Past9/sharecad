@@ -95,9 +95,8 @@ struct PointVertexOut {
     @builtin(position) clip_position: vec4<f32>,
     // Half the width of the point in screen space
     @location(0) ss_half_width: vec2<f32>,
-    @location(1) ss_pixel_size: vec2<f32>,
-    @location(2) uv: vec2<f32>,
-    @location(3) width: f32,
+    @location(1) uv: vec2<f32>,
+    @location(2) width: f32,
 }
 
 @group(1) @binding(0)
@@ -145,8 +144,6 @@ fn vs_surface(
     out.world_tangent = world_tangent;
     out.world_bitangent = world_bitangent;
 
-    // Apply logarithmic depth buffer 
-    out.clip_position.z = log(LOG_DEPTH_C * out.clip_position.z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * out.clip_position.w;
 
     return out;
 }
@@ -234,16 +231,13 @@ fn vs_curve(
 
     // Move the vertex along those vectors
     var final_pos = vec2(0.0);
-    var world_pos = vec3(0.0);
     var clip_z = 0.0;
     var clip_w = 0.0;
     if is_start {
-        world_pos = start_world_pos.xyz;
         final_pos = start_screen_pos;
         clip_z = start_clip_pos.z;
         clip_w = start_clip_pos.w;
     } else {
-        world_pos = end_world_pos.xyz;
         final_pos = end_screen_pos;
         clip_z = end_clip_pos.z;
         clip_w = end_clip_pos.w;
@@ -291,8 +285,6 @@ fn vs_point(
     // Transform the start and end points into screen space
     let screen_pos = clip_pos.xy / clip_pos.w;
 
-    let aspect = globals.viewport_dims.x / globals.viewport_dims.y;
-
     let ss_pixel_size = vec2(2.0, 2.0) / globals.viewport_dims;
     let ss_half_width = ss_pixel_size * half_width;
 
@@ -300,11 +292,11 @@ fn vs_point(
     var v = 1.0;
 
     if index == 0 || index == 1 {
-        u *= -1.0;
+        u = -1.0;
     }
 
     if index == 1 || index == 3 {
-        v *= -1.0;
+        v = -1.0;
     }
 
     let uv = vec2(u, v);
@@ -317,9 +309,8 @@ fn vs_point(
     // is only necessarily equal to length(x_vec) if the aspect ratio is 1.0.
     // This needs to be adjusted to somehow account for both directions, or
     // allow the fragment shader to account for it.
-
     out.ss_half_width = ss_half_width;
-    out.ss_pixel_size = ss_pixel_size;
+
     out.uv = uv;
     out.width = in.width;
 
@@ -407,10 +398,7 @@ fn fs_opaque_curve(
     var scale = 2.0 * globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
 
     // Move the Z by `half_width` "pixels" towards the camera
-    z -= in.ss_half_width * scale * w;
-
-    // Apply logarithmic depth buffer 
-    z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
+    z -= in.ss_half_width * scale;
 
     var color = vec3(0.0, 0.0, 0.0);
 
@@ -460,10 +448,8 @@ fn fs_opaque_point(
     scale *= sqrt(1.0 - pow(length(in.uv), 2.0));
 
     // Move the Z by `half_width` "pixels" towards the camera
-    z -= length(in.ss_half_width) * scale * w;
+    z -= length(in.ss_half_width) * scale;
 
-    // Apply logarithmic depth buffer 
-    z = log(LOG_DEPTH_C * z + 1.0) / log(LOG_DEPTH_C * globals.camera.zfar + 1.0) * w;
 
     // Feather the edges for anti-aliasing
     let FEATHER_RADIUS: f32 = 1.0;
