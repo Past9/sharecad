@@ -220,7 +220,7 @@ impl ObjectRenderer {
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
                         format: TextureResources::DEPTH_FORMAT,
-                        depth_write_enabled: false,
+                        depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),

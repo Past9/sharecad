@@ -1,16 +1,10 @@
 mod bsp;
 
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    time::Instant,
-};
+use std::{collections::BTreeSet, time::Instant};
 
-use geometry::{
-    Curve, Curve3, Curve3Impl, ISurface, ISurfacePoint, Surface, Surface3, Surface3Impl,
-    SurfacePoint, SweepPoint, SweepSurface,
-};
+use geometry::{Curve, Surface, Surface3, Surface3Impl, SurfacePoint};
 use render::model::{CurveMesh, SurfaceMesh, SurfaceVertex};
-use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec2, Vec3};
+use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec3};
 
 use crate::bsp::{BspTree, TreeSplit};
 

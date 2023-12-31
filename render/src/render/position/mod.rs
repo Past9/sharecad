@@ -2,7 +2,7 @@ use super::{
     pad_u32, texture::TextureResources, GlobalsRaw, MsaaSamples, RenderTarget, VertexBuffer,
 };
 use crate::{
-    camera::{Camera, CameraRaw},
+    camera::Camera,
     model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
@@ -223,7 +223,7 @@ impl PositionRenderer {
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
                         format: TextureResources::DEPTH_FORMAT,
-                        depth_write_enabled: false,
+                        depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
@@ -237,65 +237,6 @@ impl PositionRenderer {
                 });
 
             opaque_point_pipeline
-        };
-
-        let point_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("object-point-pipeline-layout"),
-                bind_group_layouts: &[&globals_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("object-point-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            });
-
-            let _point_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("position-point-pipeline"),
-                layout: Some(&layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "vs_point",
-                    buffers: &[PointVertexRaw::desc(), ModelInstanceRaw::point_desc()],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: target.format(),
-                        // Unlike the other opaque pipelines, this one uses
-                        // alpha blending so we can feather the edges for cheap
-                        // anti-aliasing.
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None,
-                    unclipped_depth: false,
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: TextureResources::DEPTH_FORMAT,
-                    depth_write_enabled: false,
-                    depth_compare: wgpu::CompareFunction::Less,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-            });
-
-            point_pipeline
         };
 
         Self {
