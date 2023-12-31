@@ -376,6 +376,11 @@ fn fs_opaque_surface(
     return vec4<f32>(color, 1.0);
 }
 
+@group(0) @binding(0)
+var t_curve_color: texture_2d<f32>;
+@group(0) @binding(1)
+var s_curve_color: sampler;
+
 struct FsOpaqueCurveOut {
     @location(0) color: vec4<f32>,
     @builtin(frag_depth) depth: f32,
@@ -400,7 +405,7 @@ fn fs_opaque_curve(
     // Move the Z by `half_width` "pixels" towards the camera
     z -= in.ss_half_width * scale;
 
-    var color = vec3(0.0, 0.0, 0.0);
+    var color: vec3<f32> = textureSample(t_curve_color, s_curve_color, vec2(0.5, 0.5)).rgb;
 
     // Apply tint
     color = (1.0 - in.tint.a) * color + (in.tint.rgb * in.tint.a);

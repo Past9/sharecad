@@ -87,7 +87,7 @@ fn build_scene() -> Scene {
 
     let curve_material = scene
         .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default());
+        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
 
     let point_material = scene
         .materials_mut()
