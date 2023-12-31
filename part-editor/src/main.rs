@@ -91,7 +91,7 @@ fn build_scene() -> Scene {
 
     let point_material = scene
         .materials_mut()
-        .insert_point_material(PointMaterialSpec::default());
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
 
     /*
     let profile0 = Curve::arc(

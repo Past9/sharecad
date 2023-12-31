@@ -413,6 +413,11 @@ fn fs_opaque_curve(
     return out;
 }
 
+@group(0) @binding(0)
+var t_point_color: texture_2d<f32>;
+@group(0) @binding(1)
+var s_point_color: sampler;
+
 struct FsOpaquePointOut {
     @location(0) color: vec4<f32>,
     @builtin(frag_depth) depth: f32,
@@ -432,6 +437,7 @@ fn fs_opaque_point(
     // quads to make them circular, then feathers the edges for some cheap
     // anti-aliasing.
 
+    var color: vec3<f32> = textureSample(t_point_color, s_point_color, in.uv).rgb;
 
     if length(in.uv) > 1.0 {
         discard;
@@ -458,7 +464,8 @@ fn fs_opaque_point(
     let full_alpha_radius = 1.0 - (FEATHER_RADIUS / half_width);
     let alpha = 1.0 - (distance - full_alpha_radius) / (1.0 - full_alpha_radius);
 
-    var color = vec3(0.0, 0.0, 0.0);
+
+    //var color = vec3(0.0, 0.0, 0.0);
 
     // Apply tint
     let tint = vec4(0.0, 0.0, 0.0, 0.0);
