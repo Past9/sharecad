@@ -318,33 +318,33 @@ fn vs_point(
 }
 
 @group(0) @binding(0)
-var t_albedo: texture_2d<f32>;
+var t_surface_albedo: texture_2d<f32>;
 @group(0) @binding(1)
-var s_albedo: sampler;
+var s_surface_albedo: sampler;
 @group(0) @binding(2)
-var t_normal: texture_2d<f32>;
+var t_surface_normal: texture_2d<f32>;
 @group(0) @binding(3)
-var s_normal: sampler;
+var s_surface_normal: sampler;
 @group(0) @binding(4)
-var t_emissive: texture_2d<f32>;
+var t_surface_emissive: texture_2d<f32>;
 @group(0) @binding(5)
-var s_emissive: sampler;
+var s_surface_emissive: sampler;
 @group(0) @binding(6)
-var t_roughness: texture_2d<f32>;
+var t_surface_roughness: texture_2d<f32>;
 @group(0) @binding(7)
-var s_roughness: sampler;
+var s_surface_roughness: sampler;
 @group(0) @binding(8)
-var t_metallic: texture_2d<f32>;
+var t_surface_metallic: texture_2d<f32>;
 @group(0) @binding(9)
-var s_metallic: sampler;
+var s_surface_metallic: sampler;
 @group(0) @binding(10)
-var t_ambient: texture_2d<f32>;
+var t_surface_ambient: texture_2d<f32>;
 @group(0) @binding(11)
-var s_ambient: sampler;
+var s_surface_ambient: sampler;
 @group(0) @binding(12)
-var t_transmit: texture_2d<f32>;
+var t_surface_transmit: texture_2d<f32>;
 @group(0) @binding(13)
-var s_transmit: sampler;
+var s_surface_transmit: sampler;
 
 @group(2) @binding(0) 
 var<storage, read> directional_lights: array<DirectionalLight>;
@@ -491,7 +491,7 @@ fn fs_translucent_surface(
     in: SurfaceVertexOut,
 ) -> TranslucentOutput {
 
-    let transmit: vec3<f32> = textureSample(t_transmit, s_transmit, in.tex_coords).rgb;
+    let transmit: vec3<f32> = textureSample(t_surface_transmit, s_surface_transmit, in.tex_coords).rgb;
     var reflected = compute_reflected(front_facing, in, transmit);
 
     var surface_color = vec4(reflected, 1.0);
@@ -524,12 +524,12 @@ fn compute_reflected(
         in.world_normal,
     );
 
-    let albedo: vec3<f32> = textureSample(t_albedo, s_albedo, in.tex_coords).rgb;
-    let surface_normal: vec3<f32> = textureSample(t_normal, s_normal, in.tex_coords).xyz * 2.0 - 1.0;
-    let emissive: vec3<f32> = textureSample(t_emissive, s_emissive, in.tex_coords).rgb;
-    let roughness: vec3<f32> = textureSample(t_roughness, s_roughness, in.tex_coords).rgb;
-    let metallic: vec3<f32> = textureSample(t_metallic, s_metallic, in.tex_coords).rgb;
-    let ambient_occlusion: vec3<f32> = textureSample(t_ambient, s_ambient, in.tex_coords).rgb;
+    let albedo: vec3<f32> = textureSample(t_surface_albedo, s_surface_albedo, in.tex_coords).rgb;
+    let surface_normal: vec3<f32> = textureSample(t_surface_normal, s_surface_normal, in.tex_coords).xyz * 2.0 - 1.0;
+    let emissive: vec3<f32> = textureSample(t_surface_emissive, s_surface_emissive, in.tex_coords).rgb;
+    let roughness: vec3<f32> = textureSample(t_surface_roughness, s_surface_roughness, in.tex_coords).rgb;
+    let metallic: vec3<f32> = textureSample(t_surface_metallic, s_surface_metallic, in.tex_coords).rgb;
+    let ambient_occlusion: vec3<f32> = textureSample(t_surface_ambient, s_surface_ambient, in.tex_coords).rgb;
 
     var reflected = vec3(0.0);
 
@@ -664,9 +664,9 @@ var t_accum_target: texture_multisampled_2d<f32>;
 @group(0) @binding(3)
 var s_accum_target: sampler;
 @group(0) @binding(4)
-var t_transmit_target: texture_multisampled_2d<f32>;
+var t_surface_transmit_target: texture_multisampled_2d<f32>;
 @group(0) @binding(5)
-var s_transmit_target: sampler;
+var s_surface_transmit_target: sampler;
 
 fn max_component3(v: vec3<f32>) -> f32 {
     return max(max(v.x, v.y), v.z);
@@ -685,7 +685,7 @@ fn fs_composite(
     var tc2: vec2<i32> = vec2<i32>(i32(tc.x), i32(tc.y));
     var si = i32(sample_index);
     var color_background = textureLoad(t_opaque_target, tc2, si).rgb;
-    var color_transmit = textureLoad(t_transmit_target, tc2, si).r;
+    var color_transmit = textureLoad(t_surface_transmit_target, tc2, si).r;
     var color_accum = textureLoad(t_accum_target, tc2, si).rgba;
 
     let avg_color = color_accum.rgb / max(color_accum.a, 0.00001);
