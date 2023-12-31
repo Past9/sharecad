@@ -80,18 +80,18 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            .transmit_rgb(rgb(0.5, 0.5, 0.5))
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
 
     let curve_material = scene
         .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
+        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
 
     let point_material = scene
         .materials_mut()
-        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.2, 0.0)));
 
     /*
     let profile0 = Curve::arc(
@@ -154,7 +154,12 @@ fn build_scene() -> Scene {
         profile1,
         path1,
         Curve::line(point3(0.0, 0.0, 1.0), point3(0.0, 1.0, 1.0)),
+        Curve::line(point3(0.0, 0.0, 2.0), point3(0.0, 1.0, 2.0)),
         Curve::line(point3(0.0, 0.5, 0.0), point3(0.0, 0.5, 3.0)),
+        Curve::line(point3(0.0, 1.0, 0.0), point3(0.0, 1.0, 3.0)),
+        Curve::line(point3(0.0, 0.0, 3.0), point3(0.0, 1.0, 3.0)),
+        Curve::line(point3(-1.0, 0.0, 2.0), point3(-1.0, 1.0, 2.0)),
+        Curve::line(point3(-1.0, 1.0, 2.0), point3(2.0, 1.0, 2.0)),
         Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
         Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
