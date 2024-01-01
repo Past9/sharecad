@@ -6,6 +6,7 @@ use crate::{
     model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
+use render_macros::shader_src;
 use space::{vec3, Point3, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
@@ -76,7 +77,9 @@ impl PositionRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("position-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/position/shaders/surface.wgsl").into(),
+                ),
             });
 
             let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -89,7 +92,7 @@ impl PositionRenderer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_main",
+                    entry_point: "fs_surface",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
                         blend: None,
@@ -132,7 +135,9 @@ impl PositionRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("position-curve-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/position/shaders/curve.wgsl").into(),
+                ),
             });
 
             let curve_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -145,7 +150,7 @@ impl PositionRenderer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_main",
+                    entry_point: "fs_curve",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target.format(),
                         blend: None,

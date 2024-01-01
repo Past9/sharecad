@@ -472,8 +472,8 @@ impl VisualRenderer {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("opaque-surface-pipeline-layout"),
                 bind_group_layouts: &[
-                    &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
+                    &surface_texture_bind_group_layout,
                     &light_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -535,7 +535,7 @@ impl VisualRenderer {
         let opaque_curve_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("opaque-curve-pipeline-layout"),
-                bind_group_layouts: &[&curve_texture_bind_group_layout, &globals_bind_group_layout],
+                bind_group_layouts: &[&globals_bind_group_layout, &curve_texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -594,7 +594,7 @@ impl VisualRenderer {
         let opaque_point_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("opaque-point-pipeline-layout"),
-                bind_group_layouts: &[&point_texture_bind_group_layout, &globals_bind_group_layout],
+                bind_group_layouts: &[&globals_bind_group_layout, &point_texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -657,8 +657,8 @@ impl VisualRenderer {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("translucent-surface-pipeline-layout"),
                 bind_group_layouts: &[
-                    &surface_texture_bind_group_layout,
                     &globals_bind_group_layout,
+                    &surface_texture_bind_group_layout,
                     &light_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -887,7 +887,7 @@ impl VisualRenderer {
         let compositing_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("compositing-pipeline-layout"),
-                bind_group_layouts: &[&compositing_bind_group_layout, &globals_bind_group_layout],
+                bind_group_layouts: &[&globals_bind_group_layout, &compositing_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -1123,7 +1123,7 @@ impl VisualRenderer {
                 {
                     render_pass.set_pipeline(&self.opaque_surface_pipeline);
 
-                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
                     for (_model_id, model) in scene.models().iter() {
@@ -1149,7 +1149,7 @@ impl VisualRenderer {
                             );
 
                             render_pass.set_bind_group(
-                                0,
+                                1,
                                 self.surface_material_bind_groups
                                     .get(&surface.material_id())
                                     .unwrap(),
@@ -1169,7 +1169,7 @@ impl VisualRenderer {
                 {
                     render_pass.set_pipeline(&self.opaque_curve_pipeline);
 
-                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
                     for (_model_id, model) in scene.models().iter() {
                         for (curve_id, curve) in model.curves().iter() {
@@ -1185,7 +1185,7 @@ impl VisualRenderer {
                             );
 
                             render_pass.set_bind_group(
-                                0,
+                                1,
                                 self.curve_material_bind_groups
                                     .get(&curve.material_id())
                                     .unwrap(),
@@ -1205,7 +1205,7 @@ impl VisualRenderer {
                 {
                     render_pass.set_pipeline(&self.opaque_point_pipeline);
 
-                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
 
                     for (_model_id, model) in scene.models().iter() {
                         for (point_id, point) in model.points().iter() {
@@ -1221,7 +1221,7 @@ impl VisualRenderer {
                             );
 
                             render_pass.set_bind_group(
-                                0,
+                                1,
                                 self.point_material_bind_groups
                                     .get(&point.material_id())
                                     .unwrap(),
@@ -1295,7 +1295,7 @@ impl VisualRenderer {
                 {
                     render_pass.set_pipeline(&self.translucent_surface_pipeline);
 
-                    render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
                     render_pass.set_bind_group(2, &self.light_bind_group(), &[]);
 
                     for (_model_id, model) in scene.models().iter() {
@@ -1321,7 +1321,7 @@ impl VisualRenderer {
                             );
 
                             render_pass.set_bind_group(
-                                0,
+                                1,
                                 self.surface_material_bind_groups
                                     .get(&surface.material_id())
                                     .unwrap(),
@@ -1361,11 +1361,11 @@ impl VisualRenderer {
                 render_pass.set_pipeline(&self.compositing_pipeline);
                 render_pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
                 render_pass.set_bind_group(
-                    0,
+                    1,
                     &self.compositing_bind_group(opaque_view, accum_view, transmit_view),
                     &[],
                 );
-                render_pass.set_bind_group(1, &self.globals_bind_group, &[]);
+                render_pass.set_bind_group(0, &self.globals_bind_group, &[]);
                 render_pass.draw(0..QUAD_VERTS.len() as u32, 0..1);
             }
         }

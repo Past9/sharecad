@@ -1,5 +1,5 @@
-//#include "includes/globals.wgsl"
-//#include "includes/vs-surface.wgsl"
+//#include "../../shader-includes/globals.wgsl"
+//#include "../../shader-includes/vs-surface.wgsl"
 //#include "includes/pi.wgsl"
 //#include "includes/surface-material.wgsl"
 //#include "includes/lights.wgsl"

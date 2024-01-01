@@ -1,4 +1,4 @@
-//#include "includes/globals.wgsl"
+//#include "../../shader-includes/globals.wgsl"
 
 struct ScreenVertexIn {
     @location(0) position: vec2<f32>,
@@ -20,17 +20,17 @@ fn vs_composite(
     return out;
 }
 
-@group(0) @binding(0)
+@group(1) @binding(0)
 var t_opaque_target: texture_multisampled_2d<f32>;
-@group(0) @binding(1)
+@group(1) @binding(1)
 var s_opaque_target: sampler;
-@group(0) @binding(2)
+@group(1) @binding(2)
 var t_accum_target: texture_multisampled_2d<f32>;
-@group(0) @binding(3)
+@group(1) @binding(3)
 var s_accum_target: sampler;
-@group(0) @binding(4)
+@group(1) @binding(4)
 var t_surface_transmit_target: texture_multisampled_2d<f32>;
-@group(0) @binding(5)
+@group(1) @binding(5)
 var s_surface_transmit_target: sampler;
 
 @fragment

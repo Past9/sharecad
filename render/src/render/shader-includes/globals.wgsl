@@ -13,5 +13,5 @@ struct Camera {
     scale: vec3<f32>,
 };
 
-@group(1) @binding(0)
+@group(0) @binding(0)
 var<uniform> globals: Globals;
