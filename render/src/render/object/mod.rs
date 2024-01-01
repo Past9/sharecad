@@ -6,6 +6,7 @@ use crate::{
     model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
+use render_macros::shader_src;
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
@@ -73,7 +74,9 @@ impl ObjectRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("object-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/object/shaders/surface.wgsl").into(),
+                ),
             });
 
             let surface_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -97,7 +100,7 @@ impl ObjectRenderer {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None,
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,

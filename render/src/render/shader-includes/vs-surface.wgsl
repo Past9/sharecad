@@ -28,6 +28,8 @@ struct SurfaceVertexOut {
     @location(2) world_normal: vec3<f32>,
     @location(3) world_tangent: vec3<f32>,
     @location(4) world_bitangent: vec3<f32>,
+    @location(5) surface_id: u32,
+    @location(6) model_id: u32,
 };
 
 @vertex
@@ -69,6 +71,8 @@ fn vs_surface(
     out.world_tangent = world_tangent;
     out.world_bitangent = world_bitangent;
 
+    out.surface_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }

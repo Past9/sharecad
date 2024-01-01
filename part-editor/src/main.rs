@@ -235,6 +235,8 @@ impl PartModel {
             scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
         }
 
+        println!("scene_model = {:#?}", scene_model.surfaces());
+
         scene_model
     }
 }
