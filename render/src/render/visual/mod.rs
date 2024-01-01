@@ -13,6 +13,7 @@ use crate::{
     texture::{Texture, TextureId},
     vertex::Vertex2,
 };
+use render_macros::shader_src;
 use std::{cell::OnceCell, collections::HashMap};
 use wgpu::util::DeviceExt;
 
@@ -150,6 +151,8 @@ impl VisualRenderer {
         msaa_samples: MsaaSamples,
         pixels_per_point: f32,
     ) -> Self {
+        //println!(shader_src!("render/visual/top-shader.wgsl"));
+
         let device = output_target.device();
 
         let max_msaa_samples = MsaaSamples::max_from_flags(
@@ -478,9 +481,16 @@ impl VisualRenderer {
                 push_constant_ranges: &[],
             });
 
+            println!(
+                "###### SHADER ######\n\n{}\n\n##################",
+                shader_src!("render/visual/opaque-surface.wgsl"),
+            );
+
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-surface-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/visual/opaque-surface.wgsl").into(),
+                ),
             });
 
             let opaque_surface_pipeline =

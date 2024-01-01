@@ -223,14 +223,7 @@ impl<'a> SurfaceIntersection<'a> {
 
     pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
         let params = vec4(uv0.u(), uv0.v(), uv1.u(), uv1.v());
-        println!("params = {}", params);
-        println!("dist = {}", self.dist2(uv0, uv1).sqrt());
-        println!("gradient = {}", self.gradient(uv0, uv1));
-        //let Vec4 { x, y, z, w } = params - self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
-        //let sub = self.hessian(uv0, uv1).inverse().unwrap() * self.gradient(uv0, uv1);
-        //let sub = self.hessian(uv0, uv1).inverse().unwrap() * self.gradient(uv0, uv1);
         let sub = self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
-        println!("sub = {}", sub);
         let Vec4 { x, y, z, w } = params - sub;
         (point2(x, y), point2(z, w))
     }

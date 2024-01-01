@@ -1,0 +1,12 @@
+[package]
+name = "render-macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.44", features = ["parsing"] }
+quote = { version = "1.0.34" }
+proc-macro2 = { version = "1.0.73" }

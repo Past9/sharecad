@@ -80,7 +80,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
+            .transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
@@ -228,7 +228,7 @@ impl PartModel {
         for curve in self.curves.iter() {
             let mut tess = Curve3Tesselator::new(curve);
             tess.tessellate(tolerance);
-            scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 1.0));
+            scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 2.0));
         }
 
         for point in self.points.iter() {

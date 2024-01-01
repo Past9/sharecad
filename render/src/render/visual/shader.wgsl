@@ -103,7 +103,6 @@ struct PointVertexOut {
 var<uniform> globals: Globals;
 
 const PI = 3.14159265359;
-const LOG_DEPTH_C = 1.0;
 
 @vertex
 fn vs_surface(
