@@ -1,4 +1,4 @@
-//#include "shader-deps/globals.wgsl"
+//#include "includes/globals.wgsl"
 
 struct ScreenVertexIn {
     @location(0) position: vec2<f32>,

@@ -1,9 +1,9 @@
-//#include "shader-deps/globals.wgsl"
-//#include "shader-deps/vs-surface.wgsl"
-//#include "shader-deps/pi.wgsl"
-//#include "shader-deps/surface-material.wgsl"
-//#include "shader-deps/lights.wgsl"
-//#include "shader-deps/compute-reflected.wgsl"
+//#include "includes/globals.wgsl"
+//#include "includes/vs-surface.wgsl"
+//#include "includes/pi.wgsl"
+//#include "includes/surface-material.wgsl"
+//#include "includes/lights.wgsl"
+//#include "includes/compute-reflected.wgsl"
 
 struct TranslucentOutput {
     @location(0) accum: vec4<f32>,

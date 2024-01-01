@@ -1,4 +1,4 @@
-//#include "shader-deps/globals.wgsl"
+//#include "includes/globals.wgsl"
 
 struct CurveVertexIn {
     @location(0) id: u32,

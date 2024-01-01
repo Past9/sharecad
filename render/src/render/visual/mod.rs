@@ -151,8 +151,6 @@ impl VisualRenderer {
         msaa_samples: MsaaSamples,
         pixels_per_point: f32,
     ) -> Self {
-        //println!(shader_src!("render/visual/top-shader.wgsl"));
-
         let device = output_target.device();
 
         let max_msaa_samples = MsaaSamples::max_from_flags(
@@ -484,7 +482,7 @@ impl VisualRenderer {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-surface-shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    shader_src!("render/visual/opaque-surface.wgsl").into(),
+                    shader_src!("render/visual/shaders/opaque-surface.wgsl").into(),
                 ),
             });
 
@@ -544,7 +542,7 @@ impl VisualRenderer {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-curve-shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    shader_src!("render/visual/opaque-curve.wgsl").into(),
+                    shader_src!("render/visual/shaders/opaque-curve.wgsl").into(),
                 ),
             });
 
@@ -603,7 +601,7 @@ impl VisualRenderer {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-point-shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    shader_src!("render/visual/opaque-point.wgsl").into(),
+                    shader_src!("render/visual/shaders/opaque-point.wgsl").into(),
                 ),
             });
 
@@ -669,7 +667,7 @@ impl VisualRenderer {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("translucent-surface-shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    shader_src!("render/visual/translucent-surface.wgsl").into(),
+                    shader_src!("render/visual/shaders/translucent-surface.wgsl").into(),
                 ),
             });
 
@@ -896,7 +894,7 @@ impl VisualRenderer {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("compositing-shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    shader_src!("render/visual/composite.wgsl").into(),
+                    shader_src!("render/visual/shaders/composite.wgsl").into(),
                 ),
             });
 
