@@ -3,10 +3,14 @@ use super::{
 };
 use crate::{
     camera::Camera,
-    model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
+    model::{
+        CurveId, CurveVertexRaw, GeometryId, ModelInstanceRaw, PointId, PointVertexRaw, SurfaceId,
+        SurfaceVertexRaw,
+    },
     scene::Scene,
 };
 use render_macros::shader_src;
+use space::{point2, vec2};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
@@ -439,16 +443,38 @@ impl ObjectRenderer {
         pad_u32(self.target.size().0 * PIXEL_BYTES, 256)
     }
 
-    pub async fn get_id_at(&self, coords: (u32, u32)) -> u32 {
+    pub async fn get_id_at(&self, coords: (u32, u32)) -> Option<GeometryId> {
+        const SURFACE_RADIUS: i32 = 1;
+        const CURVE_RADIUS: i32 = 5;
+        const POINT_RADIUS: i32 = 10;
+        let search_radius = SURFACE_RADIUS.max(CURVE_RADIUS).max(POINT_RADIUS);
+
+        let mut id: Option<GeometryId> = None;
         let (x, y) = coords;
 
         if x >= self.target.size().0 {
-            return 0;
+            return id;
         }
 
         if y >= self.target.size().1 {
-            return 0;
+            return id;
         }
+
+        // Get the coordinates of the box of pixels we'll search in
+        let (min_x, min_y, max_x, max_y) = {
+            let coords = (coords.0 as i32, coords.1 as i32);
+            let min_x = coords.0 - search_radius;
+            let min_y = coords.1 - search_radius;
+            let max_x = coords.0 + search_radius;
+            let max_y = coords.1 + search_radius;
+
+            (
+                min_x.max(0) as u32,
+                min_y.max(0) as u32,
+                max_x.min(self.target.size().0 as i32) as u32,
+                max_y.min(self.target.size().1 as i32) as u32,
+            )
+        };
 
         let output: u32;
         let output_buffer = self.output_buffer();
@@ -475,14 +501,76 @@ impl ObjectRenderer {
                 panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
             }
 
-            let (x, y) = coords;
-            let index = y * (self.bytes_per_row() / PIXEL_BYTES) + x;
+            //println!("size = {:?}", self.target.size());
 
-            output = pixels[index as usize];
+            let f_surface_radius = SURFACE_RADIUS as f64;
+            let f_curve_radius = CURVE_RADIUS as f64;
+            let f_point_radius = POINT_RADIUS as f64;
+            let f_search_radius = search_radius as f64;
+
+            let mut closest_surface: Option<(SurfaceId, f64)> = None;
+            let mut closest_curve: Option<(CurveId, f64)> = None;
+            let mut closest_point: Option<(PointId, f64)> = None;
+
+            for x in min_x..max_x {
+                for y in min_y..max_y {
+                    let index = y * (self.bytes_per_row() / PIXEL_BYTES) + x;
+                    let value = pixels[index as usize];
+
+                    if let Some(id) = GeometryId::from_shader_value(value) {
+                        let pix_coords = point2(x as f64, y as f64);
+                        let center_coords = point2(coords.0 as f64, coords.1 as f64);
+                        let dist = (center_coords - pix_coords).magnitude();
+                        match id {
+                            GeometryId::Surface(id) => {
+                                if dist <= f_surface_radius {
+                                    closest_surface =
+                                        closest_surface.map_or(Some((id, dist)), |existing| {
+                                            if dist < existing.1 {
+                                                Some((id, dist))
+                                            } else {
+                                                Some(existing)
+                                            }
+                                        });
+                                }
+                            }
+                            GeometryId::Curve(id) => {
+                                if dist <= f_curve_radius {
+                                    closest_curve =
+                                        closest_curve.map_or(Some((id, dist)), |existing| {
+                                            if dist < existing.1 {
+                                                Some((id, dist))
+                                            } else {
+                                                Some(existing)
+                                            }
+                                        });
+                                }
+                            }
+                            GeometryId::Point(id) => {
+                                if dist <= f_point_radius {
+                                    closest_point =
+                                        closest_point.map_or(Some((id, dist)), |existing| {
+                                            if dist < existing.1 {
+                                                Some((id, dist))
+                                            } else {
+                                                Some(existing)
+                                            }
+                                        });
+                                }
+                            }
+                        }
+                    };
+                }
+            }
+
+            id = closest_point
+                .map(|p| GeometryId::Point(p.0))
+                .or(closest_curve.map(|c| GeometryId::Curve(c.0)))
+                .or(closest_surface.map(|s| GeometryId::Surface(s.0)));
         }
 
         output_buffer.unmap();
 
-        output
+        id
     }
 }

@@ -179,7 +179,7 @@ impl ViewState {
     pub fn input(&mut self, event: &InputEvent) -> bool {
         match event {
             InputEvent::CursorMoved(point) => {
-                let id = self.get_instance_id_at(point);
+                let id = self.get_object_id_at(point);
                 if let Some(id) = id {
                     println!("hover {:?}", id);
                 }
@@ -265,13 +265,11 @@ impl ViewState {
         }
     }
 
-    fn get_instance_id_at(&mut self, coords: &Point2) -> Option<GeometryId> {
+    fn get_object_id_at(&mut self, coords: &Point2) -> Option<GeometryId> {
         self.render_object().unwrap();
 
         let coords = (coords.x as u32, coords.y as u32);
-        let id = pollster::block_on(self.object_renderer.get_id_at(coords));
-
-        GeometryId::from_shader_value(id)
+        pollster::block_on(self.object_renderer.get_id_at(coords))
     }
 
     fn render_object(&mut self) -> Result<(), wgpu::SurfaceError> {
