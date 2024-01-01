@@ -193,7 +193,9 @@ impl PositionRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("position-point-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/position/shaders/point.wgsl").into(),
+                ),
             });
 
             let opaque_point_pipeline =
@@ -207,7 +209,7 @@ impl PositionRenderer {
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: "fs_main",
+                        entry_point: "fs_point",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: target.format(),
                             // Unlike the other opaque pipelines, this one uses

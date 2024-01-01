@@ -142,7 +142,7 @@ fn build_scene() -> Scene {
         s1_params.push(new_s1_param);
     }
 
-    let points = vec![Point3::ZERO]
+    let points = vec![Point3::ZERO, point3(3.0, 3.0, 3.0)]
         .into_iter()
         .chain(s0_params.into_iter().map(|uv| *surf0.point(uv).eval()))
         .chain(s1_params.into_iter().map(|uv| *surf1.point(uv).eval()))
