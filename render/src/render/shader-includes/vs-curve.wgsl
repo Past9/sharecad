@@ -24,6 +24,8 @@ struct CurveVertexOut {
     @location(0) world_position: vec3<f32>,
     @location(1) ss_half_width: f32,
     @location(2) tint: vec4<f32>,
+    @location(3) curve_id: u32,
+    @location(4) model_id: u32,
 }
 
 @vertex
@@ -136,7 +138,8 @@ fn vs_curve(
     // allow the fragment shader to account for it.
     out.ss_half_width = length(orth);
 
-    //out.tint = model_instance.tint;
+    out.curve_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }

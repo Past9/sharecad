@@ -1,5 +1,6 @@
 //#include "../../shader-includes/globals.wgsl"
 //#include "../../shader-includes/vs-point.wgsl"
+//#include "../../shader-includes/point-adjust-depth.wgsl"
 
 @group(1) @binding(0)
 var t_point_color: texture_2d<f32>;
@@ -31,20 +32,6 @@ fn fs_opaque_point(
         discard;
     }
 
-    let w = 1.0 / in.clip_position.w;
-    var z = in.clip_position.z * w;
-
-    var aspect_ratio = globals.viewport_dims.x / globals.viewport_dims.y;
-
-    // Get a scaling factor that maps pixels to a depth distance
-    var scale = globals.camera.scale.z / sqrt(pow(globals.camera.scale.x, 2.0) + pow(globals.camera.scale.y, 2.0));
-
-    scale *= sqrt(1.0 - pow(length(in.uv), 2.0));
-
-    // Move the Z by `half_width` "pixels" towards the camera
-    z -= length(in.ss_half_width) * scale;
-
-
     // Feather the edges for anti-aliasing
     let FEATHER_RADIUS: f32 = 1.0;
     let distance = length(in.uv);
@@ -61,7 +48,7 @@ fn fs_opaque_point(
 
     var out: FsOpaquePointOut;
 
-    out.depth = z / w;
+    out.depth = point_adjust_depth(in);
     out.color = vec4(color, alpha);
 
     return out;

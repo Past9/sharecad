@@ -24,6 +24,8 @@ struct PointVertexOut {
     @location(1) ss_half_width: vec2<f32>,
     @location(2) uv: vec2<f32>,
     @location(3) width: f32,
+    @location(4) point_id: u32,
+    @location(5) model_id: u32,
 }
 
 @vertex
@@ -83,6 +85,9 @@ fn vs_point(
 
     out.uv = uv;
     out.width = in.width;
+
+    out.point_id = in.id;
+    out.model_id = model_instance.id;
 
     return out;
 }

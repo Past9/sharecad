@@ -132,7 +132,9 @@ impl ObjectRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("object-curve-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/object/shaders/curve.wgsl").into(),
+                ),
             });
 
             let curve_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -188,7 +190,9 @@ impl ObjectRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("object-point-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/object/shaders/point.wgsl").into(),
+                ),
             });
 
             let opaque_point_pipeline =

@@ -135,12 +135,14 @@ fn build_scene() -> Scene {
     let mut s0_params = vec![point2(0.5, 0.5)];
     let mut s1_params = vec![point2(0.5, 0.5)];
 
+    /*
     for i in 0..30 {
         let (new_s0_param, new_s1_param) =
             intersection.next(*s0_params.last().unwrap(), *s1_params.last().unwrap());
         s0_params.push(new_s0_param);
         s1_params.push(new_s1_param);
     }
+    */
 
     let points = vec![Point3::ZERO, point3(3.0, 3.0, 3.0)]
         .into_iter()
@@ -235,7 +237,7 @@ impl PartModel {
             scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
         }
 
-        println!("scene_model = {:#?}", scene_model.surfaces());
+        println!("scene_model = {:#?}", scene_model.points().len());
 
         scene_model
     }
