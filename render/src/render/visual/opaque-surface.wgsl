@@ -1,5 +1,4 @@
 //#include "shader-deps/globals.wgsl"
-//#include "shader-deps/camera.wgsl"
 //#include "shader-deps/vs-surface.wgsl"
 //#include "shader-deps/pi.wgsl"
 //#include "shader-deps/surface-material.wgsl"

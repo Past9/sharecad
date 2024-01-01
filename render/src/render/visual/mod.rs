@@ -481,11 +481,6 @@ impl VisualRenderer {
                 push_constant_ranges: &[],
             });
 
-            println!(
-                "###### SHADER ######\n\n{}\n\n##################",
-                shader_src!("render/visual/opaque-surface.wgsl"),
-            );
-
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-surface-shader"),
                 source: wgpu::ShaderSource::Wgsl(
@@ -548,7 +543,9 @@ impl VisualRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-curve-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/visual/opaque-curve.wgsl").into(),
+                ),
             });
 
             let opaque_curve_pipeline =
@@ -605,7 +602,9 @@ impl VisualRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("opaque-point-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/visual/opaque-point.wgsl").into(),
+                ),
             });
 
             let opaque_point_pipeline =
@@ -669,7 +668,9 @@ impl VisualRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("translucent-surface-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/visual/translucent-surface.wgsl").into(),
+                ),
             });
 
             let translucent_surface_pipeline =
@@ -894,7 +895,9 @@ impl VisualRenderer {
 
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("compositing-shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(
+                    shader_src!("render/visual/composite.wgsl").into(),
+                ),
             });
 
             let format = match &msaa_target {

@@ -6,5 +6,12 @@ struct Globals {
     @align(16) camera: Camera
 }
 
+struct Camera {
+    view_pos: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    zfar: f32,
+    scale: vec3<f32>,
+};
+
 @group(1) @binding(0)
 var<uniform> globals: Globals;
