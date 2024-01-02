@@ -3,11 +3,10 @@ use std::cell::OnceCell;
 use bytemuck::{Pod, Zeroable};
 use common::SurfaceId;
 use space::{Point2, Point3, Vec2, Vec3};
+use visual::material::SurfaceMaterialId;
 use wgpu::util::DeviceExt;
 
 use crate::render::VertexBuffer;
-
-use super::SurfaceMaterialId;
 
 #[derive(Debug)]
 pub struct SceneSurface {

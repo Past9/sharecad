@@ -1,13 +1,13 @@
 mod curve;
-mod material;
 mod model;
+mod model2;
 mod point;
 mod surface;
 
 use common::{CurveId, PointId, SurfaceId};
 pub use curve::*;
-pub use material::*;
 pub use model::*;
+pub use model2::*;
 pub use point::*;
 pub use surface::*;
 

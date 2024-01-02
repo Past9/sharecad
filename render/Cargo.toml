@@ -12,6 +12,9 @@ egui = ["dep:egui", "dep:egui-wgpu"]
 
 [dependencies]
 common = { path = "../common" }
+geometry = { path = "../geometry" }
+visual = { path = "../visual" }
+model = { path = "../model" }
 space = { path = "../space" }
 render-macros = { path = "../render-macros" }
 log = "0.4.20"

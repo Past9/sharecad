@@ -1,10 +1,11 @@
 use common::IdSeries;
+use visual::material::MaterialLibrary;
 
 use crate::{
     light::{AmbientLight, DirectionalLight},
-    model::{MaterialLibrary, ModelId, SceneModel},
+    model::{ModelId, SceneModel},
 };
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Scene {

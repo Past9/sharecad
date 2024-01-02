@@ -9,18 +9,21 @@ use eframe::{
 };
 use geometry::primitives::{Curve, Surface, SurfaceIntersection};
 use render::{
-    color::rgb,
     light::{AmbientLight, DirectionalLight},
-    model::{
-        CurveMaterialId, CurveMaterialSpec, PointMaterialId, PointMaterialSpec, SceneCurve,
-        SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
-    },
+    model::{SceneCurve, SceneModel, ScenePoint, SceneSurface},
     render::MsaaSamples,
     scene::Scene,
 };
 use space::{point2, point3, vec3, Point3, Vec3};
 use std::{sync::Arc, time::Instant};
 use tessellate::{CurveTesselator, SurfacePointTessellator};
+use visual::{
+    color::rgb,
+    material::{
+        CurveMaterialId, CurveMaterialSpec, PointMaterialId, PointMaterialSpec, SurfaceMaterialId,
+        SurfaceMaterialSpec,
+    },
+};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();

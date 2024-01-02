@@ -5,16 +5,19 @@ use super::{
 use crate::{
     camera::Camera,
     light::{AmbientLightRaw, DirectionalLight, DirectionalLightRaw},
-    model::{
-        CurveMaterial, CurveMaterialId, CurveVertexRaw, ModelInstanceRaw, PointMaterial,
-        PointMaterialId, PointVertexRaw, SurfaceMaterial, SurfaceMaterialId, SurfaceVertexRaw,
-    },
+    model::{CurveVertexRaw, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
-    texture::{Texture, TextureId},
     vertex::Vertex2,
 };
 use render_macros::shader_src;
 use std::{cell::OnceCell, collections::HashMap};
+use visual::{
+    material::{
+        CurveMaterial, CurveMaterialId, PointMaterial, PointMaterialId, SurfaceMaterial,
+        SurfaceMaterialId,
+    },
+    texture::{Texture, TextureId},
+};
 use wgpu::util::DeviceExt;
 
 const DIRECTIONAL_LIGHT_UNIFORM_SIZE: u32 =

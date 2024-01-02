@@ -1,6 +1,6 @@
-use crate::color::Rgb;
 use bytemuck::{Pod, Zeroable};
 use space::Vec3;
+use visual::color::Rgb;
 
 #[derive(Debug, Clone)]
 pub struct DirectionalLight {

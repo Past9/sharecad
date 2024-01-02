@@ -10,4 +10,6 @@ members = [
     "tessellate",
     "render-macros",
     "common",
+    "model",
+    "visual",
 ]

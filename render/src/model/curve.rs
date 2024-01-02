@@ -1,9 +1,9 @@
-use super::CurveMaterialId;
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
 use common::CurveId;
 use space::{Point3, Vec3};
 use std::cell::OnceCell;
+use visual::material::CurveMaterialId;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]

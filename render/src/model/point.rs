@@ -1,9 +1,9 @@
-use super::PointMaterialId;
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
 use common::PointId;
 use space::Point3;
 use std::cell::OnceCell;
+use visual::material::PointMaterialId;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]

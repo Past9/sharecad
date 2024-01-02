@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 space = { path = "../space" }
+visual = { path = "../visual" }
 tessellate = { path = "../tessellate" }
 geometry = { path = "../geometry" }
 render = { path = "../render", features = ["egui"] }
