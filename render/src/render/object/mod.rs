@@ -6,7 +6,7 @@ use crate::{
     model::{CurveVertexRaw, GeometryId, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
-use geometry::{CurveId, PointId, SurfaceId};
+use common::{CurveId, PointId, SurfaceId};
 use render_macros::shader_src;
 use space::point2;
 use std::cell::OnceCell;

@@ -1,7 +1,7 @@
 use super::{CurveId, PointId, SceneCurve, ScenePoint, SceneSurface};
-use crate::scene::IdSeries;
 use bytemuck::{Pod, Zeroable};
-use geometry::SurfaceId;
+use common::IdSeries;
+use common::SurfaceId;
 use space::{rad, Mat33, Mat44, Quat, Vec3};
 use std::{cell::OnceCell, collections::HashMap};
 use wgpu::util::DeviceExt;

@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
-use geometry::SurfaceId;
+use common::SurfaceId;
 use space::{Point2, Point3, Vec2, Vec3};
 use wgpu::util::DeviceExt;
 

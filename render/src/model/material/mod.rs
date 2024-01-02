@@ -4,14 +4,12 @@ mod surface;
 
 use std::collections::HashMap;
 
+use common::IdSeries;
 pub use curve::*;
 pub use point::*;
 pub use surface::*;
 
-use crate::{
-    scene::IdSeries,
-    texture::{ImageTextureKind, Texture, TextureId, TextureImage},
-};
+use crate::texture::{ImageTextureKind, Texture, TextureId, TextureImage};
 
 #[derive(Debug)]
 pub struct MaterialLibrary {
