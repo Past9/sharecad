@@ -1,8 +1,4 @@
-mod curve;
-mod surface;
+pub mod primitives;
 
 //#[cfg(test)]
 //pub(crate) mod test;
-
-pub use curve::*;
-pub use surface::*;

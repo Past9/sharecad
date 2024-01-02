@@ -1,4 +1,4 @@
-use geometry::Curve;
+use geometry::primitives::Curve;
 use render::model::CurveMesh;
 use space::Point3;
 use std::collections::BTreeSet;

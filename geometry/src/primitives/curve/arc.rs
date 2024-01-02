@@ -1,8 +1,7 @@
+use space::{point3, vec3, Angle, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 
-use space::{point3, vec3, Angle, Point3, Quat, Vec3};
-
-use crate::{CurvePointAxes, ICurve, ICurvePoint};
+use super::{CurvePointAxes, ICurve, ICurvePoint};
 
 #[derive(Clone)]
 pub struct ArcCurve {
@@ -66,7 +65,7 @@ impl<'a> ArcPoint<'a> {
         }
     }
 
-    fn axes(&'a self) -> &crate::CurvePointAxes<'a> {
+    fn axes(&'a self) -> &CurvePointAxes<'a> {
         self.axes
             .get_or_init(|| CurvePointAxes::new(self, *self.arc.never_tangent()))
     }

@@ -2,13 +2,12 @@ mod arc;
 mod helix;
 mod line;
 
+use space::{Angle, Mat33, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 
 pub use arc::*;
 pub use helix::*;
 pub use line::*;
-
-use space::{Angle, Mat33, Point3, Quat, Vec3};
 
 pub trait ICurve<'a> {
     type Point: ICurvePoint<'a>;

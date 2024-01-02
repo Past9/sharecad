@@ -1,6 +1,6 @@
 mod sweep;
 
-use crate::Curve;
+use crate::primitives::curve::Curve;
 use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
 
 pub use sweep::*;
@@ -150,7 +150,7 @@ impl<'a> From<SweepPoint<'a>> for SurfacePoint<'a> {
 mod helpers {
     use space::Vec2;
 
-    use crate::ISurfacePoint;
+    use super::ISurfacePoint;
 
     pub fn ff1<P: ISurfacePoint>(point: &P) -> (f64, f64, f64) {
         let (du, dv) = point.der1();

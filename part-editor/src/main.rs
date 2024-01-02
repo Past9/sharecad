@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve, Surface, SurfaceIntersection};
+use geometry::primitives::{Curve, Surface, SurfaceIntersection};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},

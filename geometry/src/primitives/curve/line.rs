@@ -1,8 +1,6 @@
-use std::cell::OnceCell;
-
+use super::{CurvePointAxes, ICurve, ICurvePoint};
 use space::{vec3, Coincidence, Point3, Vec3};
-
-use crate::{CurvePointAxes, ICurve, ICurvePoint};
+use std::cell::OnceCell;
 
 #[derive(Clone)]
 pub struct LineCurve {
@@ -67,7 +65,7 @@ impl<'a> LinePoint<'a> {
         }
     }
 
-    fn axes(&'a self) -> &crate::CurvePointAxes<'a> {
+    fn axes(&'a self) -> &CurvePointAxes<'a> {
         self.axes
             .get_or_init(|| CurvePointAxes::new(self, *self.line.never_tangent()))
     }

@@ -2,10 +2,13 @@ use std::cell::OnceCell;
 
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
-use crate::{axes, axes_der1, axes_der2, Curve, CurvePoint, ISurface, ISurfacePoint};
+use crate::primitives::{axes, axes_der1, axes_der2, Curve, CurvePoint};
 
-use super::helpers::{
-    ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
+use super::{
+    helpers::{
+        ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
+    },
+    ISurface, ISurfacePoint,
 };
 
 pub struct SweepSurface {

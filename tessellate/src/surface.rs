@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::bsp::{BspTree, TreeSplit};
-use geometry::{Surface, SurfacePoint};
+use geometry::primitives::{Surface, SurfacePoint};
 use render::model::{SurfaceMesh, SurfaceVertex};
 use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec3};
 

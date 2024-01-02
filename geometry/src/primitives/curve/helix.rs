@@ -1,8 +1,6 @@
-use std::{cell::OnceCell, f64::consts::TAU};
-
+use super::{CurvePointAxes, ICurve, ICurvePoint};
 use space::{point3, vec3, Point3, Quat, Vec3};
-
-use crate::{CurvePointAxes, ICurve, ICurvePoint};
+use std::{cell::OnceCell, f64::consts::TAU};
 
 #[derive(Clone)]
 pub struct HelixCurve {
@@ -87,7 +85,7 @@ impl<'a> HelixPoint<'a> {
         }
     }
 
-    fn axes(&'a self) -> &crate::CurvePointAxes<'a> {
+    fn axes(&'a self) -> &CurvePointAxes<'a> {
         self.axes
             .get_or_init(|| CurvePointAxes::new(self, *self.helix.never_tangent()))
     }
