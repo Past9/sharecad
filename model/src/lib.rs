@@ -1,14 +1,16 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+use std::collections::HashMap;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use common::{CurveId, PointId, SurfaceId};
+use geometry::Geometry;
+use visual::material::{CurveMaterialId, MaterialLibrary, PointMaterialId, SurfaceMaterialId};
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub struct PrimitiveModel {
+    geometry: Geometry,
+
+    materials: MaterialLibrary,
+
+    surface_materials: HashMap<SurfaceId, SurfaceMaterialId>,
+    curve_materials: HashMap<CurveId, CurveMaterialId>,
+    point_materials: HashMap<PointId, PointMaterialId>,
 }
+impl PrimitiveModel {}

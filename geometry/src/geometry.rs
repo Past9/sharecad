@@ -3,7 +3,42 @@ use std::collections::HashMap;
 use common::{CurveId, IdSeries, PointId, SurfaceId};
 use space::Point3;
 
-use crate::primitives::{Curve, Surface};
+use crate::primitives::{Curve, RefCurve, RefLine, Surface};
+
+pub struct RefGeometry<'a> {
+    points: HashMap<PointId, Point3>,
+    curves: HashMap<CurveId, RefCurve<'a>>,
+
+    curve_ids: IdSeries<CurveId>,
+    point_ids: IdSeries<PointId>,
+}
+impl<'a> RefGeometry<'a> {
+    pub fn new() -> Self {
+        Self {
+            curves: HashMap::new(),
+            points: HashMap::new(),
+
+            curve_ids: IdSeries::new(),
+            point_ids: IdSeries::new(),
+        }
+    }
+
+    pub fn create_point(&mut self, point: Point3) -> PointId {
+        let id = self.point_ids.next();
+        self.points.insert(id, point);
+        id
+    }
+
+    pub fn create_curve(&mut self, curve: RefCurve<'a>) -> CurveId {
+        let id = self.curve_ids.next();
+        self.curves.insert(id, curve);
+        id
+    }
+
+    pub fn get_point(&self, id: PointId) -> Option<&Point3> {
+        self.points.get(&id)
+    }
+}
 
 pub struct Geometry {
     surfaces: HashMap<SurfaceId, Surface>,
@@ -43,6 +78,10 @@ impl Geometry {
         let id = self.point_ids.next();
         self.points.insert(id, point);
         id
+    }
+
+    pub fn curve(&self, id: CurveId) -> Option<&Curve> {
+        self.curves.get(&id)
     }
 
     pub fn surfaces(&self) -> &HashMap<SurfaceId, Surface> {

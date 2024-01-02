@@ -2,7 +2,10 @@ use std::cell::OnceCell;
 
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
-use crate::primitives::{axes, axes_der1, axes_der2, Curve, CurvePoint};
+use crate::{
+    primitives::{axes, axes_der1, axes_der2, Curve, CurvePoint},
+    Geometry,
+};
 
 use super::{
     helpers::{
