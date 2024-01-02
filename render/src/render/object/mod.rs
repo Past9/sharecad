@@ -10,7 +10,7 @@ use crate::{
     scene::Scene,
 };
 use render_macros::shader_src;
-use space::{point2, vec2};
+use space::point2;
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 
@@ -476,7 +476,6 @@ impl ObjectRenderer {
             )
         };
 
-        let output: u32;
         let output_buffer = self.output_buffer();
 
         {
@@ -501,12 +500,9 @@ impl ObjectRenderer {
                 panic!("data len = {}, suffix: {:?}", pixels.len(), suffix);
             }
 
-            //println!("size = {:?}", self.target.size());
-
             let f_surface_radius = SURFACE_RADIUS as f64;
             let f_curve_radius = CURVE_RADIUS as f64;
             let f_point_radius = POINT_RADIUS as f64;
-            let f_search_radius = search_radius as f64;
 
             let mut closest_surface: Option<(SurfaceId, f64)> = None;
             let mut closest_curve: Option<(CurveId, f64)> = None;

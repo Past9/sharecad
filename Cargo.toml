@@ -2,12 +2,8 @@
 resolver = "2"
 
 members = [
-    "app",
     "geometry",
-    #"viewer",
     "space",
-    "view2d",
-    "lines",
     "render",
     "part-editor",
     "tessellate",

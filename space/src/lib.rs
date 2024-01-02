@@ -13,8 +13,6 @@ mod vec2;
 mod vec3;
 mod vec4;
 
-use std::ops::{Add, Mul};
-
 pub use angle::*;
 pub use coord2::*;
 pub use mat22::*;

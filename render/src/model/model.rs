@@ -1,14 +1,9 @@
-use std::{cell::OnceCell, collections::HashMap};
-
-use bytemuck::{Pod, Zeroable};
-use space::{rad, Mat33, Mat44, Point3, Quat, Vec3};
-use wgpu::util::DeviceExt;
-
+use super::{CurveId, PointId, SceneCurve, ScenePoint, SceneSurface, SurfaceId};
 use crate::scene::IdSeries;
-
-use super::{
-    CurveId, CurveMaterialId, CurveMesh, PointId, SceneCurve, ScenePoint, SceneSurface, SurfaceId,
-};
+use bytemuck::{Pod, Zeroable};
+use space::{rad, Mat33, Mat44, Quat, Vec3};
+use std::{cell::OnceCell, collections::HashMap};
+use wgpu::util::DeviceExt;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ModelId(pub u32);

@@ -1,26 +1,15 @@
 use crate::{
     camera::{Camera, CameraController, CameraControllerRequest},
-    color::{rgb, rgba, Rgba},
     input::InputEvent,
-    light::{AmbientLight, DirectionalLight},
-    model::{GeometryId, InstanceId, ModelInstance},
+    light::DirectionalLight,
+    model::GeometryId,
     render::{
         MsaaSamples, ObjectRenderer, PositionRenderer, RenderContext, RenderTarget, VisualRenderer,
     },
     scene::Scene,
 };
-use space::{deg, point3, vec3, Point2, Point3, Quat, Vec3};
-use std::path::Path;
+use space::{deg, point3, Point2, Point3, Vec3};
 use wgpu::Surface;
-
-const NUM_X_INSTANCES: u32 = 3;
-const NUM_Y_INSTANCES: u32 = 3;
-const NUM_Z_INSTANCES: u32 = 1;
-const SPACE_BETWEEN: f64 = 5.0;
-
-const SELECTED_SURFACE_TINT: Rgba = rgba(0.0, 0.6, 0.8, 0.7);
-const SELECTED_CURVE_TINT: Rgba = rgba(0.0, 1.0, 1.0, 1.0);
-const SELECTED_POINT_TINT: Rgba = SELECTED_CURVE_TINT;
 
 pub struct ViewState {
     visual_renderer: VisualRenderer,

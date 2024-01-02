@@ -7,7 +7,6 @@ use crate::{
     scene::Scene,
 };
 use render_macros::shader_src;
-use space::{vec3, Point3, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 

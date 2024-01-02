@@ -1,4 +1,4 @@
-use crate::{rad, vec2, vec3, Angle, Point3, Quat, Vec2, Vec3};
+use crate::{rad, vec2, vec3, Angle, Quat, Vec2, Vec3};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use std::ops::Index;
 
