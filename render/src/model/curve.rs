@@ -1,6 +1,7 @@
 use super::CurveMaterialId;
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
+use geometry::CurveId;
 use space::{Point3, Vec3};
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
@@ -170,13 +171,5 @@ impl VertexBuffer for CurveVertexRaw {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct CurveId(pub u32);
-impl From<u32> for CurveId {
-    fn from(id: u32) -> Self {
-        CurveId(id)
     }
 }

@@ -1,6 +1,7 @@
 use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
+use geometry::SurfaceId;
 use space::{Point2, Point3, Vec2, Vec3};
 use wgpu::util::DeviceExt;
 
@@ -8,17 +9,8 @@ use crate::render::VertexBuffer;
 
 use super::SurfaceMaterialId;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SurfaceId(pub u32);
-impl From<u32> for SurfaceId {
-    fn from(id: u32) -> Self {
-        SurfaceId(id)
-    }
-}
-
 #[derive(Debug)]
 pub struct SceneSurface {
-    //pub id: SurfaceId,
     pub mesh: SurfaceMesh,
     pub material_id: SurfaceMaterialId,
 }

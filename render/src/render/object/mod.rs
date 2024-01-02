@@ -3,12 +3,10 @@ use super::{
 };
 use crate::{
     camera::Camera,
-    model::{
-        CurveId, CurveVertexRaw, GeometryId, ModelInstanceRaw, PointId, PointVertexRaw, SurfaceId,
-        SurfaceVertexRaw,
-    },
+    model::{CurveVertexRaw, GeometryId, ModelInstanceRaw, PointVertexRaw, SurfaceVertexRaw},
     scene::Scene,
 };
+use geometry::{CurveId, PointId, SurfaceId};
 use render_macros::shader_src;
 use space::point2;
 use std::cell::OnceCell;

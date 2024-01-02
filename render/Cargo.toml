@@ -11,6 +11,7 @@ winit = ["dep:winit"]
 egui = ["dep:egui", "dep:egui-wgpu"]
 
 [dependencies]
+geometry = { path = "../geometry" }
 space = { path = "../space" }
 render-macros = { path = "../render-macros" }
 log = "0.4.20"

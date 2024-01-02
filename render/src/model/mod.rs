@@ -5,6 +5,7 @@ mod point;
 mod surface;
 
 pub use curve::*;
+use geometry::{CurveId, PointId, SurfaceId};
 pub use material::*;
 pub use model::*;
 pub use point::*;
