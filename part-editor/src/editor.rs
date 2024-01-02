@@ -6,14 +6,11 @@ use eframe::{
     wgpu,
 };
 use render::{
-    color::rgb,
     input::InputEvent,
-    light::{AmbientLight, DirectionalLight},
     render::{EguiTransfer, MsaaSamples},
     scene::Scene,
     state::ViewState,
 };
-use space::vec3;
 
 struct RenderResources {
     transfer: EguiTransfer,
@@ -115,7 +112,8 @@ impl EditorUi for &mut egui::Ui {
     fn editor(self, state: &mut EditorState) {
         let state = state.clone();
         egui::Frame::canvas(self.style()).show(self, move |ui| {
-            let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+            let (rect, _response) =
+                ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
 
             ui.input(|input| {
                 if input.events.len() > 0 {
