@@ -1,5 +1,5 @@
-//#include ../../shader-includes/globals.wgsl
-//#include ../../shader-includes/vs-point.wgsl
+//# include ../../shader-includes/globals.wgsl
+//# include ../../shader-includes/vs-point.wgsl
 
 @fragment
 fn fs_point(

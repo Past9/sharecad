@@ -1,6 +1,6 @@
-//#include ../../shader-includes/globals.wgsl
-//#include ../../shader-includes/vs-point.wgsl
-//#include ../../shader-includes/point-adjust-depth.wgsl
+//# include ../../shader-includes/globals.wgsl
+//# include ../../shader-includes/vs-point.wgsl
+//# include ../../shader-includes/point-adjust-depth.wgsl
 
 @group(1) @binding(0)
 var t_point_color: texture_2d<f32>;

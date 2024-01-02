@@ -1,6 +1,6 @@
-//#include ../../shader-includes/globals.wgsl
-//#include ../../shader-includes/vs-curve.wgsl
-//#include ../../shader-includes/curve-adjust-depth.wgsl
+//# include ../../shader-includes/globals.wgsl
+//# include ../../shader-includes/vs-curve.wgsl
+//# include ../../shader-includes/curve-adjust-depth.wgsl
 
 struct FsCurveOut {
     @location(0) id: u32,

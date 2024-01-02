@@ -37,7 +37,7 @@ pub fn shader_src(tokens: TokenStream) -> TokenStream {
     TokenStream::from_str(&format!("r#\"{}\"#", content)).unwrap()
 }
 
-const INCLUDE_PREFIX: &'static str = "//#include ";
+const INCLUDE_PREFIX: &'static str = "//# include ";
 
 fn read_file(base_dir: PathBuf, file_name: &str) -> String {
     let file_path = {

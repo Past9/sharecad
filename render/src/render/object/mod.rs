@@ -446,7 +446,7 @@ impl ObjectRenderer {
     pub async fn get_id_at(&self, coords: (u32, u32)) -> Option<GeometryId> {
         const SURFACE_RADIUS: i32 = 1;
         const CURVE_RADIUS: i32 = 5;
-        const POINT_RADIUS: i32 = 10;
+        const POINT_RADIUS: i32 = 5;
         let search_radius = SURFACE_RADIUS.max(CURVE_RADIUS).max(POINT_RADIUS);
 
         let mut id: Option<GeometryId> = None;
