@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, os::windows::ffi::OsStringExt};
 
 use common::{CurveId, IdSeries, PointId, SurfaceId};
-use space::{point3, Point3};
+use space::{point3, Angle, Point3, Quat, Vec3};
 
-use crate::primitives::{Curve, CurveSolver, Line, Surface, SurfaceSolver, Sweep};
+use crate::primitives::{Arc, Curve, CurveSolver, Line, Surface, SurfaceSolver, Sweep};
 
 /*
 fn test_ref_geometry() {
@@ -69,6 +69,7 @@ fn test_geometry() {
     let sweep = geom.create_sweep(profile, path);
 }
 
+#[derive(Debug)]
 pub struct Geometry {
     surfaces: HashMap<SurfaceId, Surface>,
     curves: HashMap<CurveId, Curve>,
@@ -107,6 +108,19 @@ impl Geometry {
         let id = self.curve_ids.next();
         let line = Line::new(start, end);
         self.curves.insert(id, line.into());
+        id
+    }
+
+    pub fn create_arc(
+        &mut self,
+        r: f64,
+        angle: Angle,
+        orientation: Quat,
+        translation: Vec3,
+    ) -> CurveId {
+        let id = self.curve_ids.next();
+        let arc = Arc::new(r, angle, orientation, translation);
+        self.curves.insert(id, arc.into());
         id
     }
 

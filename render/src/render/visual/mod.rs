@@ -514,7 +514,6 @@ impl VisualRenderer {
                         cull_mode: None,
                         unclipped_depth: false,
                         polygon_mode: wgpu::PolygonMode::Fill,
-                        //polygon_mode: wgpu::PolygonMode::Line,
                         conservative: false,
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {

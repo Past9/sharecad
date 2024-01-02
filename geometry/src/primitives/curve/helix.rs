@@ -4,7 +4,7 @@ use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 use space::{point3, vec3, Point3, Quat, Vec3};
 use std::{cell::OnceCell, f64::consts::TAU};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Helix {
     r: f64,
     h: f64,

@@ -5,7 +5,7 @@ use crate::{geometry, Geometry};
 
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Arc {
     r: f64,
     angle: Angle,
@@ -13,6 +13,15 @@ pub struct Arc {
     translation: Vec3,
 }
 impl Arc {
+    pub fn new(r: f64, angle: Angle, orientation: Quat, translation: Vec3) -> Self {
+        Self {
+            r,
+            angle,
+            orientation,
+            translation,
+        }
+    }
+
     pub fn solver(&self, _geometry: &Geometry) -> ArcSolver {
         ArcSolver {
             r: self.r,

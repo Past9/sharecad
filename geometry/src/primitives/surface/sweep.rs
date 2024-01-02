@@ -15,7 +15,7 @@ use super::{
     ISurfacePoint, ISurfaceSolver,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sweep {
     profile: CurveId,
     path: CurveId,

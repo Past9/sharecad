@@ -5,6 +5,7 @@ use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
 
 pub use sweep::*;
 
+#[derive(Debug)]
 pub enum Surface {
     Sweep(Sweep),
 }

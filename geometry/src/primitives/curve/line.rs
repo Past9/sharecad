@@ -5,7 +5,7 @@ use common::PointId;
 use space::{vec3, Coincidence, Point3, Vec3};
 use std::cell::OnceCell;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Line {
     start: PointId,
     end: PointId,

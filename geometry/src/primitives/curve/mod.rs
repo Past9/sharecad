@@ -11,7 +11,7 @@ pub use line::*;
 
 use crate::Geometry;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Curve {
     Line(Line),
     Arc(Arc),

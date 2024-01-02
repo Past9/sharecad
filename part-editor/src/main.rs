@@ -7,14 +7,17 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver};
+use geometry::{
+    primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver},
+    Geometry,
+};
 use render::{
     light::{AmbientLight, DirectionalLight},
     model::{SceneCurve, SceneModel, ScenePoint, SceneSurface},
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{point2, point3, vec3, Point3, Vec3};
+use space::{deg, point2, point3, vec3, Point3, Quat, Vec3};
 use std::{sync::Arc, time::Instant};
 use tessellate::{CurveTesselator, SurfacePointTessellator};
 use visual::{
@@ -79,7 +82,7 @@ fn build_scene() -> Scene {
     // Define materials
     let surface_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            .transmit_rgb(rgb(0.5, 0.5, 0.5))
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
@@ -92,6 +95,7 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.2, 0.0)));
 
+    /*
     /*
     let profile0 = Curve::arc(
         1.0,
@@ -169,7 +173,6 @@ fn build_scene() -> Scene {
     // Build part
     let part = PartModel::new(surfaces, curves, points);
 
-    const TOLERANCE: f64 = 0.0001;
 
     scene.add_model(part.scene_model_by_dist_tolerance(
         TOLERANCE,
@@ -177,64 +180,79 @@ fn build_scene() -> Scene {
         curve_material,
         point_material,
     ));
+    */
+
+    const TOLERANCE: f64 = 0.0001;
+
+    let mut geom = Geometry::new();
+
+    {
+        let profile_start = geom.create_point(Point3::ZERO);
+        let profile_end = geom.create_point(point3(0.0, 1.0, 0.0));
+        let profile = geom.create_line_between(profile_start, profile_end);
+
+        let path_start = geom.create_point(Point3::ZERO);
+        let path_end = geom.create_point(point3(0.0, 0.0, 3.0));
+        let path = geom.create_line_between(path_start, path_end);
+
+        let _sweep1 = geom.create_sweep(profile, path);
+
+        let arc_path = geom.create_arc(
+            1.0,
+            deg(180.0),
+            Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
+            vec3(-1.0, 0.0, 0.0),
+        );
+        let _sweep2 = geom.create_sweep(profile, arc_path);
+    }
+
+    println!("geom {:#?}", geom);
+
+    scene.add_model(make_scene_model(
+        &geom,
+        surface_material,
+        curve_material,
+        point_material,
+        TOLERANCE,
+    ));
 
     scene
 }
 
-// BREP model
-struct PartModel {
-    surfaces: Vec<SurfaceSolver>,
-    curves: Vec<CurveSolver>,
-    points: Vec<Point3>,
-}
-impl PartModel {
-    pub fn new(
-        surfaces: Vec<SurfaceSolver>,
-        curves: Vec<CurveSolver>,
-        points: Vec<Point3>,
-    ) -> Self {
-        Self {
-            surfaces,
-            curves,
-            points,
-        }
+fn make_scene_model(
+    geometry: &Geometry,
+    surface_material: SurfaceMaterialId,
+    curve_material: CurveMaterialId,
+    point_material: PointMaterialId,
+    tolerance: f64,
+) -> SceneModel {
+    let mut scene_model = SceneModel::new();
+
+    for surface_id in geometry.surfaces().keys() {
+        let surface_solver = geometry.surface_solver(*surface_id).unwrap();
+        let mut tess = SurfacePointTessellator::new(&surface_solver);
+        let start = Instant::now();
+        tess.tessellate(tolerance);
+        let end = Instant::now();
+        println!(
+            "tessellated surface in {}us with {} vertices",
+            (end - start).as_micros(),
+            tess.num_points()
+        );
+
+        scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
     }
 
-    pub fn scene_model_by_dist_tolerance(
-        &self,
-        tolerance: f64,
-        surface_material: SurfaceMaterialId,
-        curve_material: CurveMaterialId,
-        point_material: PointMaterialId,
-    ) -> SceneModel {
-        let mut scene_model = SceneModel::new();
-
-        for surface in self.surfaces.iter() {
-            let mut tess = SurfacePointTessellator::new(surface);
-            let start = Instant::now();
-            tess.tessellate(tolerance);
-            let end = Instant::now();
-            println!(
-                "tessellated surface in {}us with {} vertices",
-                (end - start).as_micros(),
-                tess.num_points()
-            );
-
-            scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
-        }
-
-        for curve in self.curves.iter() {
-            let mut tess = CurveTesselator::new(curve);
-            tess.tessellate(tolerance);
-            scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 2.0));
-        }
-
-        for point in self.points.iter() {
-            scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
-        }
-
-        println!("scene_model = {:#?}", scene_model.points().len());
-
-        scene_model
+    for curve_id in geometry.curves().keys() {
+        let curve_solver = geometry.curve_solver(*curve_id).unwrap();
+        let mut tess = CurveTesselator::new(&curve_solver);
+        tess.tessellate(tolerance);
+        scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 2.0));
     }
+
+    for (_, point) in geometry.points().iter() {
+        scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
+    }
+
+    scene_model
 }
