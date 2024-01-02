@@ -37,7 +37,7 @@ pub fn shader_src(tokens: TokenStream) -> TokenStream {
     TokenStream::from_str(&format!("r#\"{}\"#", content)).unwrap()
 }
 
-const INCLUDE_PREFIX: &'static str = "//#include \"";
+const INCLUDE_PREFIX: &'static str = "//#include ";
 
 fn read_file(base_dir: PathBuf, file_name: &str) -> String {
     let file_path = {
@@ -56,8 +56,10 @@ fn read_file(base_dir: PathBuf, file_name: &str) -> String {
                 .chars()
                 .into_iter()
                 .skip(INCLUDE_PREFIX.len())
-                .take(line.len() - INCLUDE_PREFIX.len() - 1)
-                .collect::<String>();
+                .take(line.len() - INCLUDE_PREFIX.len())
+                .collect::<String>()
+                .trim()
+                .to_owned();
 
             parts.push(read_file(base_dir.clone(), &dep_path));
         } else {

@@ -1,5 +1,5 @@
-//#include "../../shader-includes/globals.wgsl"
-//#include "../../shader-includes/vs-surface.wgsl"
+//#include ../../shader-includes/globals.wgsl
+//#include ../../shader-includes/vs-surface.wgsl
 
 @fragment
 fn fs_surface(

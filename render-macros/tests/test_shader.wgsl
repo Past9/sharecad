@@ -1,2 +1,2 @@
-//#include "dep1.wgsl"
+//#include dep1.wgsl
 fn main() { }

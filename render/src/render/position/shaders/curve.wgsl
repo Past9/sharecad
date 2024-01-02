@@ -1,5 +1,5 @@
-//#include "../../shader-includes/globals.wgsl"
-//#include "../../shader-includes/vs-curve.wgsl"
+//#include ../../shader-includes/globals.wgsl
+//#include ../../shader-includes/vs-curve.wgsl
 
 @fragment
 fn fs_curve(

@@ -1,6 +1,6 @@
-//#include "../../shader-includes/globals.wgsl"
-//#include "../../shader-includes/vs-point.wgsl"
-//#include "../../shader-includes/point-adjust-depth.wgsl"
+//#include ../../shader-includes/globals.wgsl
+//#include ../../shader-includes/vs-point.wgsl
+//#include ../../shader-includes/point-adjust-depth.wgsl
 
 struct FsPointOut {
     @location(0) id: u32,
