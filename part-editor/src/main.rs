@@ -7,23 +7,19 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{Curve, Curve3, Curve3Impl, Surface, SurfaceIntersection, Sweep, SweepSurface};
+use geometry::{Curve, Surface, SurfaceIntersection};
 use render::{
     color::rgb,
     light::{AmbientLight, DirectionalLight},
     model::{
-        CurveMaterialId, CurveMaterialSpec, CurveMesh, PointMaterialId, PointMaterialSpec,
-        SceneCurve, SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
+        CurveMaterialId, CurveMaterialSpec, PointMaterialId, PointMaterialSpec, SceneCurve,
+        SceneModel, ScenePoint, SceneSurface, SurfaceMaterialId, SurfaceMaterialSpec,
     },
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, point2, point3, vec3, Point3, Quat, Vec3};
-use std::{
-    f64::consts::{PI, TAU},
-    sync::Arc,
-    time::Instant,
-};
+use space::{point2, point3, vec3, Point3, Vec3};
+use std::{sync::Arc, time::Instant};
 use tessellate::{Curve3Tesselator, SurfacePointTessellator};
 
 fn main() -> Result<(), eframe::Error> {
@@ -206,8 +202,6 @@ impl PartModel {
     ) -> SceneModel {
         let mut scene_model = SceneModel::new();
 
-        let mut normal_lines = Vec::new();
-
         for surface in self.surfaces.iter() {
             let mut tess = SurfacePointTessellator::new(surface);
             let start = Instant::now();
@@ -218,11 +212,6 @@ impl PartModel {
                 (end - start).as_micros(),
                 tess.num_points()
             );
-
-            for vert in tess.mesh().vertices().iter() {
-                let nl = Curve3::line(vert.position, vert.position + vert.normal);
-                normal_lines.push(nl);
-            }
 
             scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
         }
