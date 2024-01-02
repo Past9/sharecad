@@ -1,18 +1,26 @@
 use std::collections::HashMap;
 
 use common::{CurveId, IdSeries, PointId, SurfaceId};
-use space::Point3;
+use space::{point3, Point3};
 
-use crate::primitives::{Curve, RefCurve, RefLine, Surface};
+use crate::primitives::{Curve, CurveSolver, Line, Surface, SurfaceSolver, Sweep};
 
-pub struct RefGeometry<'a> {
+/*
+fn test_ref_geometry() {
+    let mut geometry = RefGeometry::new();
+    let p0 = geometry.create_point(Point3::ZERO);
+    let p1 = geometry.create_point(point3(0.0, 1.0, 0.0));
+    let line = geometry.create_line_between(p0, p1);
+}
+
+pub struct RefGeometry {
     points: HashMap<PointId, Point3>,
-    curves: HashMap<CurveId, RefCurve<'a>>,
+    curves: HashMap<CurveId, RefCurve>,
 
     curve_ids: IdSeries<CurveId>,
     point_ids: IdSeries<PointId>,
 }
-impl<'a> RefGeometry<'a> {
+impl RefGeometry {
     pub fn new() -> Self {
         Self {
             curves: HashMap::new(),
@@ -29,7 +37,13 @@ impl<'a> RefGeometry<'a> {
         id
     }
 
-    pub fn create_curve(&mut self, curve: RefCurve<'a>) -> CurveId {
+    pub fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId {
+        let id = self.curve_ids.next();
+        let line = RefCurve::Line(RefLine::new(id, start, end));
+        self.create_curve(line)
+    }
+
+    pub fn create_curve(&mut self, curve: RefCurve) -> CurveId {
         let id = self.curve_ids.next();
         self.curves.insert(id, curve);
         id
@@ -38,6 +52,21 @@ impl<'a> RefGeometry<'a> {
     pub fn get_point(&self, id: PointId) -> Option<&Point3> {
         self.points.get(&id)
     }
+}
+*/
+
+fn test_geometry() {
+    let mut geom = Geometry::new();
+
+    let profile_start = geom.create_point(Point3::ZERO);
+    let profile_end = geom.create_point(point3(0.0, 1.0, 0.0));
+    let profile = geom.create_line_between(profile_start, profile_end);
+
+    let path_start = geom.create_point(Point3::ZERO);
+    let path_end = geom.create_point(point3(0.0, 0.0, 3.0));
+    let path = geom.create_line_between(path_start, path_end);
+
+    let sweep = geom.create_sweep(profile, path);
 }
 
 pub struct Geometry {
@@ -68,20 +97,44 @@ impl Geometry {
         id
     }
 
-    pub fn add_curve(&mut self, curve: Curve) -> CurveId {
-        let id = self.curve_ids.next();
-        self.curves.insert(id, curve);
-        id
-    }
-
-    pub fn add_point(&mut self, point: Point3) -> PointId {
+    pub fn create_point(&mut self, point: Point3) -> PointId {
         let id = self.point_ids.next();
         self.points.insert(id, point);
         id
     }
 
+    pub fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId {
+        let id = self.curve_ids.next();
+        let line = Line::new(start, end);
+        self.curves.insert(id, line.into());
+        id
+    }
+
+    pub fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId {
+        let id = self.surface_ids.next();
+        let sweep = Sweep::new(profile, path);
+        self.surfaces.insert(id, sweep.into());
+        id
+    }
+
+    pub fn point(&self, id: PointId) -> Option<&Point3> {
+        self.points.get(&id)
+    }
+
     pub fn curve(&self, id: CurveId) -> Option<&Curve> {
         self.curves.get(&id)
+    }
+
+    pub fn curve_solver(&self, id: CurveId) -> Option<CurveSolver> {
+        self.curves.get(&id).map(|c| c.solver(self))
+    }
+
+    pub fn surface(&self, id: SurfaceId) -> Option<&Surface> {
+        self.surfaces.get(&id)
+    }
+
+    pub fn surface_solver(&self, id: SurfaceId) -> Option<SurfaceSolver> {
+        self.surfaces.get(&id).map(|s| s.solver(self))
     }
 
     pub fn surfaces(&self) -> &HashMap<SurfaceId, Surface> {

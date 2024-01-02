@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::primitives::{Curve, Surface, SurfaceIntersection};
+use geometry::primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver};
 use render::{
     light::{AmbientLight, DirectionalLight},
     model::{SceneCurve, SceneModel, ScenePoint, SceneSurface},
@@ -106,9 +106,9 @@ fn build_scene() -> Scene {
         vec3(0.0, 3.0, 0.0),
     );
     */
-    let profile0 = Curve::line(point3(0.0, 0.0, 0.0), point3(0.0, 1.0, 0.0));
-    let path0 = Curve::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 3.0));
-    let surf0 = Surface::sweep(profile0.clone(), path0.clone());
+    let profile0 = CurveSolver::line(point3(0.0, 0.0, 0.0), point3(0.0, 1.0, 0.0));
+    let path0 = CurveSolver::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 3.0));
+    let surf0 = SurfaceSolver::sweep(profile0.clone(), path0.clone());
 
     /*
     let profile1 = Curve::arc(
@@ -124,9 +124,9 @@ fn build_scene() -> Scene {
         vec3(1.0, 4.0, 1.0),
     );
      */
-    let profile1 = Curve::line(point3(2.0, 0.0, 2.0), point3(2.0, 1.0, 2.0));
-    let path1 = Curve::line(point3(2.0, 0.0, 2.0), point3(-1.0, 0.0, 2.0));
-    let surf1 = Surface::sweep(profile1.clone(), path1.clone());
+    let profile1 = CurveSolver::line(point3(2.0, 0.0, 2.0), point3(2.0, 1.0, 2.0));
+    let path1 = CurveSolver::line(point3(2.0, 0.0, 2.0), point3(-1.0, 0.0, 2.0));
+    let surf1 = SurfaceSolver::sweep(profile1.clone(), path1.clone());
 
     let intersection = SurfaceIntersection::new(&surf0, &surf1);
     //let mut s0_params = vec![point2(2.0, 0.0)];
@@ -154,16 +154,16 @@ fn build_scene() -> Scene {
         path0,
         profile1,
         path1,
-        Curve::line(point3(0.0, 0.0, 1.0), point3(0.0, 1.0, 1.0)),
-        Curve::line(point3(0.0, 0.0, 2.0), point3(0.0, 1.0, 2.0)),
-        Curve::line(point3(0.0, 0.5, 0.0), point3(0.0, 0.5, 3.0)),
-        Curve::line(point3(0.0, 1.0, 0.0), point3(0.0, 1.0, 3.0)),
-        Curve::line(point3(0.0, 0.0, 3.0), point3(0.0, 1.0, 3.0)),
-        Curve::line(point3(-1.0, 0.0, 2.0), point3(-1.0, 1.0, 2.0)),
-        Curve::line(point3(-1.0, 1.0, 2.0), point3(2.0, 1.0, 2.0)),
-        Curve::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
-        Curve::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
-        Curve::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
+        CurveSolver::line(point3(0.0, 0.0, 1.0), point3(0.0, 1.0, 1.0)),
+        CurveSolver::line(point3(0.0, 0.0, 2.0), point3(0.0, 1.0, 2.0)),
+        CurveSolver::line(point3(0.0, 0.5, 0.0), point3(0.0, 0.5, 3.0)),
+        CurveSolver::line(point3(0.0, 1.0, 0.0), point3(0.0, 1.0, 3.0)),
+        CurveSolver::line(point3(0.0, 0.0, 3.0), point3(0.0, 1.0, 3.0)),
+        CurveSolver::line(point3(-1.0, 0.0, 2.0), point3(-1.0, 1.0, 2.0)),
+        CurveSolver::line(point3(-1.0, 1.0, 2.0), point3(2.0, 1.0, 2.0)),
+        CurveSolver::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
+        CurveSolver::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
+        CurveSolver::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
     ];
 
     // Build part
@@ -183,12 +183,16 @@ fn build_scene() -> Scene {
 
 // BREP model
 struct PartModel {
-    surfaces: Vec<Surface>,
-    curves: Vec<Curve>,
+    surfaces: Vec<SurfaceSolver>,
+    curves: Vec<CurveSolver>,
     points: Vec<Point3>,
 }
 impl PartModel {
-    pub fn new(surfaces: Vec<Surface>, curves: Vec<Curve>, points: Vec<Point3>) -> Self {
+    pub fn new(
+        surfaces: Vec<SurfaceSolver>,
+        curves: Vec<CurveSolver>,
+        points: Vec<Point3>,
+    ) -> Self {
         Self {
             surfaces,
             curves,

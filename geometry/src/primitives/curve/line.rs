@@ -1,15 +1,37 @@
-use super::{CurvePointAxes, ICurve, ICurvePoint};
+use crate::{geometry, Geometry};
+
+use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
+use common::PointId;
 use space::{vec3, Coincidence, Point3, Vec3};
 use std::cell::OnceCell;
 
 #[derive(Clone)]
-pub struct LineCurve {
+pub struct Line {
+    start: PointId,
+    end: PointId,
+}
+impl Line {
+    pub fn new(start: PointId, end: PointId) -> Self {
+        Self { start, end }
+    }
+
+    pub fn solver(&self, geometry: &Geometry) -> LineSolver {
+        LineSolver {
+            start: geometry.point(self.start).unwrap().to_owned(),
+            end: geometry.point(self.end).unwrap().to_owned(),
+            never_tangent: OnceCell::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct LineSolver {
     start: Point3,
     end: Point3,
 
     never_tangent: OnceCell<Vec3>,
 }
-impl LineCurve {
+impl LineSolver {
     pub fn new(start: Point3, end: Point3) -> Self {
         Self {
             start,
@@ -18,7 +40,7 @@ impl LineCurve {
         }
     }
 }
-impl<'a> ICurve<'a> for LineCurve {
+impl<'a> ICurveSolver<'a> for LineSolver {
     type Point = LinePoint<'a>;
 
     fn domain(&self) -> (f64, f64) {
@@ -43,7 +65,7 @@ impl<'a> ICurve<'a> for LineCurve {
 
 pub struct LinePoint<'a> {
     u: f64,
-    line: &'a LineCurve,
+    line: &'a LineSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
@@ -52,7 +74,7 @@ pub struct LinePoint<'a> {
     axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> LinePoint<'a> {
-    pub fn new(line: &'a LineCurve, u: f64) -> Self {
+    pub fn new(line: &'a LineSolver, u: f64) -> Self {
         Self {
             line,
             u,

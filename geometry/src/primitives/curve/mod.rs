@@ -9,7 +9,40 @@ pub use arc::*;
 pub use helix::*;
 pub use line::*;
 
-pub trait ICurve<'a> {
+use crate::Geometry;
+
+#[derive(Clone)]
+pub enum Curve {
+    Line(Line),
+    Arc(Arc),
+    Helix(Helix),
+}
+impl Curve {
+    pub fn solver(&self, geometry: &Geometry) -> CurveSolver {
+        match self {
+            Curve::Line(line) => CurveSolver::Line(line.solver(geometry)),
+            Curve::Arc(arc) => CurveSolver::Arc(arc.solver(geometry)),
+            Curve::Helix(helix) => CurveSolver::Helix(helix.solver(geometry)),
+        }
+    }
+}
+impl From<Line> for Curve {
+    fn from(line: Line) -> Self {
+        Self::Line(line)
+    }
+}
+impl From<Arc> for Curve {
+    fn from(arc: Arc) -> Self {
+        Self::Arc(arc)
+    }
+}
+impl From<Helix> for Curve {
+    fn from(helix: Helix) -> Self {
+        Self::Helix(helix)
+    }
+}
+
+pub trait ICurveSolver<'a> {
     type Point: ICurvePoint<'a>;
 
     fn domain(&self) -> (f64, f64);
@@ -25,60 +58,60 @@ pub trait ICurve<'a> {
 }
 
 #[derive(Clone)]
-pub enum Curve {
-    Line(LineCurve),
-    Arc(ArcCurve),
-    Helix(HelixCurve),
+pub enum CurveSolver {
+    Line(LineSolver),
+    Arc(ArcSolver),
+    Helix(HelixSolver),
 }
-impl Curve {
+impl CurveSolver {
     pub fn line(start: Point3, end: Point3) -> Self {
-        LineCurve::new(start, end).into()
+        LineSolver::new(start, end).into()
     }
 
     pub fn arc(r: f64, angle: Angle, orientation: Quat, translation: Vec3) -> Self {
-        ArcCurve::new(r, angle, orientation, translation).into()
+        ArcSolver::new(r, angle, orientation, translation).into()
     }
 
     pub fn helix(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
-        HelixCurve::new(r, h, n, orientation, translation).into()
+        HelixSolver::new(r, h, n, orientation, translation).into()
     }
 
     pub fn domain(&self) -> (f64, f64) {
         match self {
-            Curve::Line(line) => line.domain(),
-            Curve::Helix(helix) => helix.domain(),
-            Curve::Arc(arc) => arc.domain(),
+            CurveSolver::Line(line) => line.domain(),
+            CurveSolver::Helix(helix) => helix.domain(),
+            CurveSolver::Arc(arc) => arc.domain(),
         }
     }
 
     pub fn point(&self, u: f64) -> CurvePoint {
         match self {
-            Curve::Line(line) => CurvePoint::from(line.point(u)),
-            Curve::Helix(helix) => CurvePoint::from(helix.point(u)),
-            Curve::Arc(arc) => CurvePoint::from(arc.point(u)),
+            CurveSolver::Line(line) => CurvePoint::from(line.point(u)),
+            CurveSolver::Helix(helix) => CurvePoint::from(helix.point(u)),
+            CurveSolver::Arc(arc) => CurvePoint::from(arc.point(u)),
         }
     }
 
     pub fn never_tangent(&self) -> &Vec3 {
         match self {
-            Curve::Line(line) => line.never_tangent(),
-            Curve::Helix(helix) => helix.never_tangent(),
-            Curve::Arc(arc) => arc.never_tangent(),
+            CurveSolver::Line(line) => line.never_tangent(),
+            CurveSolver::Helix(helix) => helix.never_tangent(),
+            CurveSolver::Arc(arc) => arc.never_tangent(),
         }
     }
 }
-impl From<LineCurve> for Curve {
-    fn from(line: LineCurve) -> Self {
+impl From<LineSolver> for CurveSolver {
+    fn from(line: LineSolver) -> Self {
         Self::Line(line)
     }
 }
-impl From<ArcCurve> for Curve {
-    fn from(arc: ArcCurve) -> Self {
+impl From<ArcSolver> for CurveSolver {
+    fn from(arc: ArcSolver) -> Self {
         Self::Arc(arc)
     }
 }
-impl From<HelixCurve> for Curve {
-    fn from(helix: HelixCurve) -> Self {
+impl From<HelixSolver> for CurveSolver {
+    fn from(helix: HelixSolver) -> Self {
         Self::Helix(helix)
     }
 }

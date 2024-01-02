@@ -1,10 +1,31 @@
 use space::{point3, vec3, Angle, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 
-use super::{CurvePointAxes, ICurve, ICurvePoint};
+use crate::{geometry, Geometry};
+
+use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 
 #[derive(Clone)]
-pub struct ArcCurve {
+pub struct Arc {
+    r: f64,
+    angle: Angle,
+    orientation: Quat,
+    translation: Vec3,
+}
+impl Arc {
+    pub fn solver(&self, _geometry: &Geometry) -> ArcSolver {
+        ArcSolver {
+            r: self.r,
+            angle: self.angle,
+            orientation: self.orientation,
+            translation: self.translation,
+            never_tangent: OnceCell::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ArcSolver {
     r: f64,
     angle: Angle,
     orientation: Quat,
@@ -12,7 +33,7 @@ pub struct ArcCurve {
 
     never_tangent: OnceCell<Vec3>,
 }
-impl ArcCurve {
+impl ArcSolver {
     pub fn new(r: f64, angle: Angle, orientation: Quat, translation: Vec3) -> Self {
         Self {
             r,
@@ -24,7 +45,7 @@ impl ArcCurve {
         }
     }
 }
-impl<'a> ICurve<'a> for ArcCurve {
+impl<'a> ICurveSolver<'a> for ArcSolver {
     type Point = ArcPoint<'a>;
 
     fn domain(&self) -> (f64, f64) {
@@ -43,7 +64,7 @@ impl<'a> ICurve<'a> for ArcCurve {
 
 pub struct ArcPoint<'a> {
     u: f64,
-    arc: &'a ArcCurve,
+    arc: &'a ArcSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
@@ -52,7 +73,7 @@ pub struct ArcPoint<'a> {
     axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> ArcPoint<'a> {
-    pub fn new(arc: &'a ArcCurve, u: f64) -> Self {
+    pub fn new(arc: &'a ArcSolver, u: f64) -> Self {
         Self {
             u,
             arc,

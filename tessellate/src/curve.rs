@@ -1,4 +1,4 @@
-use geometry::primitives::Curve;
+use geometry::primitives::CurveSolver;
 use render::model::CurveMesh;
 use space::Point3;
 use std::collections::BTreeSet;
@@ -25,11 +25,11 @@ impl Ord for CurveVert {
     }
 }
 pub struct CurveTesselator<'a> {
-    curve: &'a Curve,
+    curve: &'a CurveSolver,
     points: BTreeSet<CurveVert>,
 }
 impl<'a> CurveTesselator<'a> {
-    pub fn new(curve: &'a Curve) -> Self {
+    pub fn new(curve: &'a CurveSolver) -> Self {
         let points = BTreeSet::from_iter([
             CurveVert {
                 u: curve.domain().0,
@@ -48,7 +48,7 @@ impl<'a> CurveTesselator<'a> {
         CurveMesh::new(self.points.iter().map(|v| v.pos).collect())
     }
 
-    pub fn curve(&self) -> &Curve {
+    pub fn curve(&self) -> &CurveSolver {
         &self.curve
     }
 

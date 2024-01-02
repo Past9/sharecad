@@ -1,11 +1,27 @@
 mod sweep;
 
-use crate::primitives::curve::Curve;
+use crate::{primitives::curve::CurveSolver, Geometry};
 use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
 
 pub use sweep::*;
 
-pub trait ISurface<'a> {
+pub enum Surface {
+    Sweep(Sweep),
+}
+impl Surface {
+    pub fn solver(&self, geometry: &Geometry) -> SurfaceSolver {
+        match self {
+            Surface::Sweep(sweep) => SurfaceSolver::Sweep(sweep.solver(geometry)),
+        }
+    }
+}
+impl From<Sweep> for Surface {
+    fn from(sweep: Sweep) -> Self {
+        Self::Sweep(sweep)
+    }
+}
+
+pub trait ISurfaceSolver<'a> {
     type Point: ISurfacePoint;
 
     fn domain(&self) -> (Point2, Point2);
@@ -18,28 +34,28 @@ pub trait ISurface<'a> {
     fn point(&'a self, uv: Point2) -> Self::Point;
 }
 
-pub enum Surface {
-    Sweep(SweepSurface),
+pub enum SurfaceSolver {
+    Sweep(SweepSolver),
 }
-impl Surface {
-    pub fn sweep(profile: Curve, path: Curve) -> Self {
-        SweepSurface::new(profile, path).into()
+impl SurfaceSolver {
+    pub fn sweep(profile: CurveSolver, path: CurveSolver) -> Self {
+        SweepSolver::new(profile, path).into()
     }
 
     pub fn domain(&self) -> (Point2, Point2) {
         match self {
-            Surface::Sweep(sweep) => sweep.domain(),
+            SurfaceSolver::Sweep(sweep) => sweep.domain(),
         }
     }
 
     pub fn point(&self, uv: Point2) -> SurfacePoint {
         match self {
-            Surface::Sweep(sweep) => SurfacePoint::from(sweep.point(uv)),
+            SurfaceSolver::Sweep(sweep) => SurfacePoint::from(sweep.point(uv)),
         }
     }
 }
-impl From<SweepSurface> for Surface {
-    fn from(sweep: SweepSurface) -> Self {
+impl From<SweepSolver> for SurfaceSolver {
+    fn from(sweep: SweepSolver) -> Self {
         Self::Sweep(sweep)
     }
 }
@@ -210,11 +226,11 @@ mod helpers {
 }
 
 pub struct SurfaceIntersection<'a> {
-    s0: &'a Surface,
-    s1: &'a Surface,
+    s0: &'a SurfaceSolver,
+    s1: &'a SurfaceSolver,
 }
 impl<'a> SurfaceIntersection<'a> {
-    pub fn new(s0: &'a Surface, s1: &'a Surface) -> Self {
+    pub fn new(s0: &'a SurfaceSolver, s1: &'a SurfaceSolver) -> Self {
         Self { s0, s1 }
     }
 

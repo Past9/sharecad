@@ -1,9 +1,32 @@
-use super::{CurvePointAxes, ICurve, ICurvePoint};
+use crate::Geometry;
+
+use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 use space::{point3, vec3, Point3, Quat, Vec3};
 use std::{cell::OnceCell, f64::consts::TAU};
 
 #[derive(Clone)]
-pub struct HelixCurve {
+pub struct Helix {
+    r: f64,
+    h: f64,
+    n: f64,
+    orientation: Quat,
+    translation: Vec3,
+}
+impl Helix {
+    pub fn solver(&self, _geometry: &Geometry) -> HelixSolver {
+        HelixSolver {
+            r: self.r,
+            h: self.h,
+            n: self.n,
+            orientation: self.orientation,
+            translation: self.translation,
+            never_tangent: OnceCell::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct HelixSolver {
     /// Radius of the helix
     r: f64,
     /// Axial length (not length along the helical curve)
@@ -17,7 +40,7 @@ pub struct HelixCurve {
 
     never_tangent: OnceCell<Vec3>,
 }
-impl HelixCurve {
+impl HelixSolver {
     pub fn new(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
         Self {
             r,
@@ -44,7 +67,7 @@ impl HelixCurve {
         (self.h.powi(2) + self.r.powi(2)).sqrt() * u
     }
 }
-impl<'a> ICurve<'a> for HelixCurve {
+impl<'a> ICurveSolver<'a> for HelixSolver {
     type Point = HelixPoint<'a>;
 
     fn domain(&self) -> (f64, f64) {
@@ -63,7 +86,7 @@ impl<'a> ICurve<'a> for HelixCurve {
 
 pub struct HelixPoint<'a> {
     u: f64,
-    helix: &'a HelixCurve,
+    helix: &'a HelixSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
@@ -72,7 +95,7 @@ pub struct HelixPoint<'a> {
     axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> HelixPoint<'a> {
-    pub fn new(helix: &'a HelixCurve, u: f64) -> Self {
+    pub fn new(helix: &'a HelixSolver, u: f64) -> Self {
         Self {
             u,
             helix,

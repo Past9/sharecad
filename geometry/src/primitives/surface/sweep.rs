@@ -1,9 +1,10 @@
 use std::cell::OnceCell;
 
+use common::CurveId;
 use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
 use crate::{
-    primitives::{axes, axes_der1, axes_der2, Curve, CurvePoint},
+    primitives::{axes, axes_der1, axes_der2, CurvePoint, CurveSolver},
     Geometry,
 };
 
@@ -11,19 +12,45 @@ use super::{
     helpers::{
         ff1, ff2, gaussian_curvature, mean_curvature, normal_curvature, principal_curvatures,
     },
-    ISurface, ISurfacePoint,
+    ISurfacePoint, ISurfaceSolver,
 };
 
-pub struct SweepSurface {
-    profile: Curve,
-    path: Curve,
+#[derive(Clone)]
+pub struct Sweep {
+    profile: CurveId,
+    path: CurveId,
 }
-impl SweepSurface {
-    pub fn new(profile: Curve, path: Curve) -> Self {
+impl Sweep {
+    pub fn new(profile: CurveId, path: CurveId) -> Self {
+        Self { profile, path }
+    }
+
+    pub fn solver(&self, geometry: &Geometry) -> SweepSolver {
+        SweepSolver {
+            profile: geometry
+                .curve(self.profile)
+                .unwrap()
+                .to_owned()
+                .solver(geometry),
+            path: geometry
+                .curve(self.path)
+                .unwrap()
+                .to_owned()
+                .solver(geometry),
+        }
+    }
+}
+
+pub struct SweepSolver {
+    profile: CurveSolver,
+    path: CurveSolver,
+}
+impl SweepSolver {
+    pub fn new(profile: CurveSolver, path: CurveSolver) -> Self {
         Self { profile, path }
     }
 }
-impl<'a> ISurface<'a> for SweepSurface {
+impl<'a> ISurfaceSolver<'a> for SweepSolver {
     type Point = SweepPoint<'a>;
 
     fn domain(&self) -> (Point2, Point2) {
@@ -53,7 +80,7 @@ pub struct SweepPoint<'a> {
     path_axes_der2: OnceCell<(Vec3, Vec3, Vec3)>,
     path_axes_der2_mat: OnceCell<Mat33>,
 
-    sweep: &'a SweepSurface,
+    sweep: &'a SweepSolver,
     uv: Point2,
     eval: OnceCell<Point3>,
     der1: OnceCell<(Vec3, Vec3)>,
@@ -66,7 +93,7 @@ pub struct SweepPoint<'a> {
     principal_curvatures: OnceCell<(f64, f64)>,
 }
 impl<'a> SweepPoint<'a> {
-    pub fn new(sweep: &'a SweepSurface, uv: Point2) -> Self {
+    pub fn new(sweep: &'a SweepSolver, uv: Point2) -> Self {
         Self {
             profile_u: sweep.profile.point(uv.u()),
             path_v: sweep.path.point(uv.v()),

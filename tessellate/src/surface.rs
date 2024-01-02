@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::bsp::{BspTree, TreeSplit};
-use geometry::primitives::{Surface, SurfacePoint};
+use geometry::primitives::{SurfacePoint, SurfaceSolver};
 use render::model::{SurfaceMesh, SurfaceVertex};
 use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec3};
 
@@ -14,12 +14,12 @@ pub struct SurfaceVert {
 }
 
 pub struct SurfacePointTessellator<'a> {
-    surface: &'a Surface,
+    surface: &'a SurfaceSolver,
     points: Vec<SurfaceVert>,
     indices: Vec<u32>,
 }
 impl<'a> SurfacePointTessellator<'a> {
-    pub fn new(surface: &'a Surface) -> Self {
+    pub fn new(surface: &'a SurfaceSolver) -> Self {
         Self {
             surface,
             points: vec![],
