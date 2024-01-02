@@ -1,12 +1,9 @@
 mod sweep;
 
-pub use sweep::*;
-
-use std::cell::OnceCell;
-
-use space::{point2, vec4, Mat33, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
-
 use crate::Curve;
+use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
+
+pub use sweep::*;
 
 pub trait ISurface<'a> {
     type Point: ISurfacePoint;

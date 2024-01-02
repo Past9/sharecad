@@ -20,7 +20,7 @@ use render::{
 };
 use space::{point2, point3, vec3, Point3, Vec3};
 use std::{sync::Arc, time::Instant};
-use tessellate::{Curve3Tesselator, SurfacePointTessellator};
+use tessellate::{CurveTesselator, SurfacePointTessellator};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -217,7 +217,7 @@ impl PartModel {
         }
 
         for curve in self.curves.iter() {
-            let mut tess = Curve3Tesselator::new(curve);
+            let mut tess = CurveTesselator::new(curve);
             tess.tessellate(tolerance);
             scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 2.0));
         }
