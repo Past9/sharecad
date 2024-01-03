@@ -235,6 +235,13 @@ impl SurfaceMaterialSpec {
     pub fn ambient_from_file(self, path: &str) -> Self {
         self.ambient_from_bytes(&std::fs::read(path).unwrap())
     }
+
+    pub fn copper() -> Self {
+        Self::default()
+            .diffuse_rgb(rgb(0.72, 0.45, 0.2))
+            .roughness_rgb(rgb(0.2, 0.2, 0.2))
+            .metallic_rgb(rgb(0.6, 0.6, 0.6))
+    }
 }
 impl Default for SurfaceMaterialSpec {
     fn default() -> Self {

@@ -67,7 +67,7 @@ fn main() -> Result<(), eframe::Error> {
 fn build_scene() -> Scene {
     let mut scene = Scene::new();
 
-    scene.set_ambient_light(AmbientLight::new(rgb(0.1, 0.1, 0.1)));
+    scene.set_ambient_light(AmbientLight::new(rgb(0.35, 0.35, 0.35)));
     scene.set_camera_directional_lights(vec![
         DirectionalLight::new(vec3(-1.0, -1.0, 2.0), rgb(2.0, 2.0, 2.0)),
         DirectionalLight::new(vec3(1.0, -1.0, 2.0), rgb(1.0, 1.0, 1.5)),
@@ -81,12 +81,9 @@ fn build_scene() -> Scene {
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
     );
 
-    let sweep2_material = scene.materials_mut().insert_surface_material(
-        SurfaceMaterialSpec::default()
-            .diffuse_rgb(rgb(0.8, 0.3, 0.3))
-            .roughness_rgb(rgb(0.2, 0.2, 0.2))
-            .metallic_rgb(rgb(0.6, 0.6, 0.6)),
-    );
+    let sweep2_material = scene
+        .materials_mut()
+        .insert_surface_material(SurfaceMaterialSpec::copper());
 
     let default_point_material = scene
         .materials_mut()
