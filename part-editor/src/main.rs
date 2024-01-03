@@ -7,25 +7,19 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::{
-    primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver},
-    IGeometry, PrimitiveGeometry,
-};
+use geometry::IGeometry;
 use model::PrimitiveModel;
 use render::{
     light::{AmbientLight, DirectionalLight},
-    model::{SceneCurve, SceneModel, ScenePoint, SceneSurface},
+    model::SceneModel,
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, point2, point3, vec3, Point3, Quat, Vec3};
-use std::{sync::Arc, time::Instant};
+use space::{deg, point3, vec3, Point3, Quat, Vec3};
+use std::sync::Arc;
 use visual::{
     color::rgb,
-    material::{
-        CurveMaterialId, CurveMaterialSpec, PointMaterialId, PointMaterialSpec, SurfaceMaterialId,
-        SurfaceMaterialSpec,
-    },
+    material::{PointMaterialSpec, SurfaceMaterialSpec},
     IGeometryVisuals,
 };
 
@@ -94,107 +88,6 @@ fn build_scene() -> Scene {
             .metallic_rgb(rgb(0.6, 0.6, 0.6)),
     );
 
-    let x_axis_material = scene
-        .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
-    let y_axis_material = scene
-        .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 0.0)));
-    let z_axis_material = scene
-        .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
-
-    let origin_material = scene
-        .materials_mut()
-        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 1.0)));
-
-    /*
-    /*
-    let profile0 = Curve::arc(
-        1.0,
-        deg(180.0),
-        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        vec3(0.0, 3.0, 0.0),
-    );
-    let path0 = Curve::arc(
-        1.0,
-        deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(0.0, 3.0, 0.0),
-    );
-    */
-    let profile0 = CurveSolver::line(point3(0.0, 0.0, 0.0), point3(0.0, 1.0, 0.0));
-    let path0 = CurveSolver::line(point3(0.0, 0.0, 0.0), point3(0.0, 0.0, 3.0));
-    let surf0 = SurfaceSolver::sweep(profile0.clone(), path0.clone());
-
-    /*
-    let profile1 = Curve::arc(
-        1.0,
-        deg(180.0),
-        Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-        vec3(1.0, 4.0, 1.0),
-    );
-    let path1 = Curve::arc(
-        1.0,
-        deg(360.0),
-        Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-        vec3(1.0, 4.0, 1.0),
-    );
-     */
-    let profile1 = CurveSolver::line(point3(2.0, 0.0, 2.0), point3(2.0, 1.0, 2.0));
-    let path1 = CurveSolver::line(point3(2.0, 0.0, 2.0), point3(-1.0, 0.0, 2.0));
-    let surf1 = SurfaceSolver::sweep(profile1.clone(), path1.clone());
-
-    let intersection = SurfaceIntersection::new(&surf0, &surf1);
-    //let mut s0_params = vec![point2(2.0, 0.0)];
-    //let mut s1_params = vec![point2(1.4, PI + 0.5)];
-    let mut s0_params = vec![point2(0.5, 0.5)];
-    let mut s1_params = vec![point2(0.5, 0.5)];
-
-    /*
-    for i in 0..30 {
-        let (new_s0_param, new_s1_param) =
-            intersection.next(*s0_params.last().unwrap(), *s1_params.last().unwrap());
-        s0_params.push(new_s0_param);
-        s1_params.push(new_s1_param);
-    }
-    */
-
-    let points = vec![Point3::ZERO, point3(3.0, 3.0, 3.0)]
-        .into_iter()
-        .chain(s0_params.into_iter().map(|uv| *surf0.point(uv).eval()))
-        .chain(s1_params.into_iter().map(|uv| *surf1.point(uv).eval()))
-        .collect();
-    let surfaces = vec![surf0, surf1];
-    let curves = vec![
-        profile0,
-        path0,
-        profile1,
-        path1,
-        CurveSolver::line(point3(0.0, 0.0, 1.0), point3(0.0, 1.0, 1.0)),
-        CurveSolver::line(point3(0.0, 0.0, 2.0), point3(0.0, 1.0, 2.0)),
-        CurveSolver::line(point3(0.0, 0.5, 0.0), point3(0.0, 0.5, 3.0)),
-        CurveSolver::line(point3(0.0, 1.0, 0.0), point3(0.0, 1.0, 3.0)),
-        CurveSolver::line(point3(0.0, 0.0, 3.0), point3(0.0, 1.0, 3.0)),
-        CurveSolver::line(point3(-1.0, 0.0, 2.0), point3(-1.0, 1.0, 2.0)),
-        CurveSolver::line(point3(-1.0, 1.0, 2.0), point3(2.0, 1.0, 2.0)),
-        CurveSolver::line(Point3::ZERO, Vec3::UNIT_X.into_point()),
-        CurveSolver::line(Point3::ZERO, Vec3::UNIT_Y.into_point()),
-        CurveSolver::line(Point3::ZERO, Vec3::UNIT_Z.into_point()),
-    ];
-
-    // Build part
-    let part = PartModel::new(surfaces, curves, points);
-
-
-    scene.add_model(part.scene_model_by_dist_tolerance(
-        TOLERANCE,
-        surface_material,
-        curve_material,
-        point_material,
-    ));
-    */
-
     let default_point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
@@ -226,21 +119,6 @@ fn build_scene() -> Scene {
         );
         let sweep2 = model.create_sweep(profile, arc_path);
         model.set_surface_material(sweep2, sweep2_material);
-
-        // Coords
-        let origin = model.create_point(Point3::ZERO);
-        let x_point = model.create_point(point3(1.0, 0.0, 0.0));
-        let y_point = model.create_point(point3(0.0, 1.0, 0.0));
-        let z_point = model.create_point(point3(0.0, 0.0, 1.0));
-
-        let x_axis = model.create_line_between(origin, x_point);
-        let y_axis = model.create_line_between(origin, y_point);
-        let z_axis = model.create_line_between(origin, z_point);
-
-        model.set_point_material(origin, origin_material);
-        model.set_curve_material(x_axis, x_axis_material);
-        model.set_curve_material(y_axis, y_axis_material);
-        model.set_curve_material(z_axis, z_axis_material);
     }
 
     let sm = SceneModel::from_primitive_model(&model, TOLERANCE);

@@ -1,5 +1,4 @@
 mod geometry;
-mod solid;
 
 pub mod primitives;
 
@@ -7,4 +6,3 @@ pub mod primitives;
 //pub(crate) mod test;
 
 pub use geometry::*;
-pub use solid::*;

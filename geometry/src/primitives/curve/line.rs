@@ -1,6 +1,5 @@
-use crate::{geometry, IGeometry, PrimitiveGeometry};
-
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
+use crate::{IGeometry, PrimitiveGeometry};
 use common::PointId;
 use space::{vec3, Coincidence, Point3, Vec3};
 use std::cell::OnceCell;

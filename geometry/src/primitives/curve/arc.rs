@@ -1,9 +1,7 @@
+use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
+use crate::PrimitiveGeometry;
 use space::{point3, vec3, Angle, Point3, Quat, Vec3};
 use std::cell::OnceCell;
-
-use crate::{geometry, PrimitiveGeometry};
-
-use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 
 #[derive(Clone, Debug)]
 pub struct Arc {

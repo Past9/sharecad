@@ -1181,7 +1181,7 @@ impl VisualRenderer {
                                 wgpu::IndexFormat::Uint32,
                             );
 
-                            let (material_id, material) = scene
+                            let (material_id, _material) = scene
                                 .materials()
                                 .resolve_curve_material(curve.material_id());
 
@@ -1219,7 +1219,7 @@ impl VisualRenderer {
                                 wgpu::IndexFormat::Uint32,
                             );
 
-                            let (material_id, material) = scene
+                            let (material_id, _material) = scene
                                 .materials()
                                 .resolve_point_material(point.material_id());
 

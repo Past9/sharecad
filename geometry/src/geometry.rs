@@ -1,23 +1,9 @@
 use std::collections::HashMap;
 
 use common::{CurveId, IdSeries, PointId, SurfaceId};
-use space::{point3, Angle, Point3, Quat, Vec3};
+use space::{Angle, Point3, Quat, Vec3};
 
 use crate::primitives::{Arc, Curve, CurveSolver, Line, Surface, SurfaceSolver, Sweep};
-
-fn test_geometry() {
-    let mut geom = PrimitiveGeometry::new();
-
-    let profile_start = geom.create_point(Point3::ZERO);
-    let profile_end = geom.create_point(point3(0.0, 1.0, 0.0));
-    let profile = geom.create_line_between(profile_start, profile_end);
-
-    let path_start = geom.create_point(Point3::ZERO);
-    let path_end = geom.create_point(point3(0.0, 0.0, 3.0));
-    let path = geom.create_line_between(path_start, path_end);
-
-    let sweep = geom.create_sweep(profile, path);
-}
 
 pub trait IGeometry {
     fn create_point(&mut self, point: Point3) -> PointId;

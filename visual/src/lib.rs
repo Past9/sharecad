@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use common::{CurveId, PointId, SurfaceId};
-use material::{
-    CurveMaterialId, CurveMaterialSpec, MaterialLibrary, PointMaterialId, PointMaterialSpec,
-    SurfaceMaterialId, SurfaceMaterialSpec,
-};
+use material::{CurveMaterialId, PointMaterialId, SurfaceMaterialId};
 
 pub mod color;
 pub mod material;

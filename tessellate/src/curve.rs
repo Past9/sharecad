@@ -1,6 +1,5 @@
 use geometry::primitives::{CurvePoint, CurveSolver};
 use space::Point3;
-use std::collections::BTreeSet;
 
 #[derive(Clone, Debug)]
 pub struct CurveVert {

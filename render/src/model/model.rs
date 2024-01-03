@@ -6,7 +6,6 @@ use common::SurfaceId;
 use geometry::IGeometry;
 use model::PrimitiveModel;
 use space::{rad, Mat33, Mat44, Quat, Vec3};
-use std::time::Instant;
 use std::{cell::OnceCell, collections::HashMap};
 use tessellate::{TessellatedCurve, TessellatedSurface};
 use visual::IGeometryVisuals;
