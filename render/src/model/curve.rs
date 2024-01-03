@@ -10,11 +10,11 @@ use wgpu::util::DeviceExt;
 #[derive(Debug)]
 pub struct SceneCurve {
     pub mesh: CurveMesh,
-    pub material_id: CurveMaterialId,
+    pub material_id: Option<CurveMaterialId>,
     pub width: f32,
 }
 impl SceneCurve {
-    pub fn new(mesh: CurveMesh, material_id: CurveMaterialId, width: f32) -> Self {
+    pub fn new(mesh: CurveMesh, material_id: Option<CurveMaterialId>, width: f32) -> Self {
         Self {
             mesh,
             material_id,
@@ -26,7 +26,7 @@ impl SceneCurve {
         &self.mesh
     }
 
-    pub fn material_id(&self) -> CurveMaterialId {
+    pub fn material_id(&self) -> Option<CurveMaterialId> {
         self.material_id
     }
 

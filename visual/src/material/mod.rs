@@ -24,10 +24,14 @@ pub struct MaterialLibrary {
 
     point_material_ids: IdSeries<PointMaterialId>,
     point_materials: HashMap<PointMaterialId, PointMaterial>,
+
+    default_surface_material_id: SurfaceMaterialId,
+    default_curve_material_id: CurveMaterialId,
+    default_point_material_id: PointMaterialId,
 }
 impl MaterialLibrary {
     pub fn new() -> Self {
-        Self {
+        let mut lib = Self {
             texture_ids: IdSeries::new(),
             textures: HashMap::new(),
 
@@ -37,7 +41,18 @@ impl MaterialLibrary {
             curve_materials: HashMap::new(),
             point_material_ids: IdSeries::new(),
             point_materials: HashMap::new(),
-        }
+
+            default_surface_material_id: 0.into(),
+            default_curve_material_id: 0.into(),
+            default_point_material_id: 0.into(),
+        };
+
+        lib.default_surface_material_id =
+            lib.insert_surface_material(SurfaceMaterialSpec::default());
+        lib.default_curve_material_id = lib.insert_curve_material(CurveMaterialSpec::default());
+        lib.default_point_material_id = lib.insert_point_material(PointMaterialSpec::default());
+
+        lib
     }
 
     pub fn surface(&self) -> &HashMap<SurfaceMaterialId, SurfaceMaterial> {
@@ -52,8 +67,56 @@ impl MaterialLibrary {
         &self.point_materials
     }
 
+    pub fn surface_material(&self, id: SurfaceMaterialId) -> Option<&SurfaceMaterial> {
+        self.surface_materials.get(&id)
+    }
+
+    pub fn curve_material(&self, id: CurveMaterialId) -> Option<&CurveMaterial> {
+        self.curve_materials.get(&id)
+    }
+
+    pub fn point_material(&self, id: PointMaterialId) -> Option<&PointMaterial> {
+        self.point_materials.get(&id)
+    }
+
+    pub fn resolve_surface_material(
+        &self,
+        id: Option<SurfaceMaterialId>,
+    ) -> (SurfaceMaterialId, &SurfaceMaterial) {
+        let id = id.unwrap_or(self.default_surface_material_id);
+        (id, self.surface_materials.get(&id).unwrap())
+    }
+
+    pub fn resolve_curve_material(
+        &self,
+        id: Option<CurveMaterialId>,
+    ) -> (CurveMaterialId, &CurveMaterial) {
+        let id = id.unwrap_or(self.default_curve_material_id);
+        (id, self.curve_materials.get(&id).unwrap())
+    }
+
+    pub fn resolve_point_material(
+        &self,
+        id: Option<PointMaterialId>,
+    ) -> (PointMaterialId, &PointMaterial) {
+        let id = id.unwrap_or(self.default_point_material_id);
+        (id, self.point_materials.get(&id).unwrap())
+    }
+
     pub fn textures(&self) -> &HashMap<TextureId, Texture> {
         &self.textures
+    }
+
+    pub fn set_default_surface_material(&mut self, material: SurfaceMaterialId) {
+        self.default_surface_material_id = material;
+    }
+
+    pub fn set_default_curve_material(&mut self, material: CurveMaterialId) {
+        self.default_curve_material_id = material;
+    }
+
+    pub fn set_default_point_material(&mut self, material: PointMaterialId) {
+        self.default_point_material_id = material;
     }
 
     pub fn set_surface_material_by_id(&mut self, id: SurfaceMaterialId, spec: SurfaceMaterialSpec) {

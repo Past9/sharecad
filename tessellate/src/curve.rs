@@ -29,7 +29,16 @@ pub struct TessellatedCurve {
 }
 impl TessellatedCurve {
     pub fn by_tolerance(curve: &CurveSolver, tolerance: f64) -> Self {
-        let mut points: BTreeSet<CurveVert> = BTreeSet::new();
+        let mut points: BTreeSet<CurveVert> = BTreeSet::from([
+            CurveVert {
+                u: curve.domain().0,
+                pos: *curve.point(curve.domain().0).eval(),
+            },
+            CurveVert {
+                u: curve.domain().1,
+                pos: *curve.point(curve.domain().1).eval(),
+            },
+        ]);
 
         let (mut u, u_max) = curve.domain();
         let mut params = vec![];

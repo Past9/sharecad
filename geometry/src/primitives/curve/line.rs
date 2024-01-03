@@ -24,7 +24,7 @@ impl Line {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LineSolver {
     start: Point3,
     end: Point3,

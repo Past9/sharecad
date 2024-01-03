@@ -12,14 +12,14 @@ use crate::render::VertexBuffer;
 #[derive(Debug)]
 pub struct SceneSurface {
     pub mesh: SurfaceMesh,
-    pub material_id: SurfaceMaterialId,
+    pub material_id: Option<SurfaceMaterialId>,
 }
 impl SceneSurface {
-    pub fn new(mesh: SurfaceMesh, material_id: SurfaceMaterialId) -> Self {
+    pub fn new(mesh: SurfaceMesh, material_id: Option<SurfaceMaterialId>) -> Self {
         Self { mesh, material_id }
     }
 
-    pub fn material_id(&self) -> SurfaceMaterialId {
+    pub fn material_id(&self) -> Option<SurfaceMaterialId> {
         self.material_id
     }
 

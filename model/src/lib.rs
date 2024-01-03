@@ -87,39 +87,6 @@ impl IGeometry for PrimitiveModel {
     }
 }
 impl IGeometryVisuals for PrimitiveModel {
-    fn set_default_surface_material(&mut self, spec: visual::material::SurfaceMaterialSpec) {
-        self.visuals.set_default_surface_material(spec)
-    }
-
-    fn set_default_curve_material(&mut self, spec: visual::material::CurveMaterialSpec) {
-        self.visuals.set_default_curve_material(spec)
-    }
-
-    fn set_default_point_material(&mut self, spec: visual::material::PointMaterialSpec) {
-        self.visuals.set_default_point_material(spec)
-    }
-
-    fn create_surface_material(
-        &mut self,
-        spec: visual::material::SurfaceMaterialSpec,
-    ) -> SurfaceMaterialId {
-        self.visuals.create_surface_material(spec)
-    }
-
-    fn create_curve_material(
-        &mut self,
-        spec: visual::material::CurveMaterialSpec,
-    ) -> CurveMaterialId {
-        self.visuals.create_curve_material(spec)
-    }
-
-    fn create_point_material(
-        &mut self,
-        spec: visual::material::PointMaterialSpec,
-    ) -> PointMaterialId {
-        self.visuals.create_point_material(spec)
-    }
-
     fn set_surface_material(&mut self, surface: SurfaceId, material: SurfaceMaterialId) {
         self.visuals.set_surface_material(surface, material)
     }
@@ -132,15 +99,15 @@ impl IGeometryVisuals for PrimitiveModel {
         self.visuals.set_point_material(point, material)
     }
 
-    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId {
+    fn get_surface_material(&self, surface: SurfaceId) -> Option<SurfaceMaterialId> {
         self.visuals.get_surface_material(surface)
     }
 
-    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId {
+    fn get_curve_material(&self, curve: CurveId) -> Option<CurveMaterialId> {
         self.visuals.get_curve_material(curve)
     }
 
-    fn get_point_material(&self, point: PointId) -> PointMaterialId {
+    fn get_point_material(&self, point: PointId) -> Option<PointMaterialId> {
         self.visuals.get_point_material(point)
     }
 }

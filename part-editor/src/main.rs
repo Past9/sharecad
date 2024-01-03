@@ -81,11 +81,17 @@ fn build_scene() -> Scene {
     ]);
 
     // Define materials
-    let surface_material = scene.materials_mut().insert_surface_material(
+    let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .roughness_rgb(rgb(0.4, 0.4, 0.4))
             .metallic_rgb(rgb(0.2, 0.2, 0.2)),
+    );
+
+    let sweep2_material = scene.materials_mut().insert_surface_material(
+        SurfaceMaterialSpec::default()
+            .diffuse_rgb(rgb(0.8, 0.3, 0.3))
+            .roughness_rgb(rgb(0.2, 0.2, 0.2))
+            .metallic_rgb(rgb(0.6, 0.6, 0.6)),
     );
 
     let curve_material = scene
@@ -197,11 +203,6 @@ fn build_scene() -> Scene {
         let path = model.create_line_between(path_start, path_end);
 
         let sweep1 = model.create_sweep(profile, path);
-        let sweep1_material = model.create_surface_material(
-            SurfaceMaterialSpec::default()
-                .roughness_rgb(rgb(0.4, 0.4, 0.4))
-                .metallic_rgb(rgb(0.2, 0.2, 0.2)),
-        );
         model.set_surface_material(sweep1, sweep1_material);
 
         let arc_path = model.create_arc(
@@ -211,12 +212,6 @@ fn build_scene() -> Scene {
             vec3(-1.0, 0.0, 0.0),
         );
         let sweep2 = model.create_sweep(profile, arc_path);
-        let sweep2_material = model.create_surface_material(
-            SurfaceMaterialSpec::default()
-                .diffuse_rgb(rgb(0.8, 0.3, 0.3))
-                .roughness_rgb(rgb(0.2, 0.2, 0.2))
-                .metallic_rgb(rgb(0.6, 0.6, 0.6)),
-        );
         model.set_surface_material(sweep2, sweep2_material);
     }
 

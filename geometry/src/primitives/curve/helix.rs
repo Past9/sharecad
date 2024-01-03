@@ -25,7 +25,7 @@ impl Helix {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HelixSolver {
     /// Radius of the helix
     r: f64,

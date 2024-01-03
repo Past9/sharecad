@@ -9,11 +9,11 @@ use wgpu::util::DeviceExt;
 #[derive(Debug)]
 pub struct ScenePoint {
     pub mesh: PointMesh,
-    pub material_id: PointMaterialId,
+    pub material_id: Option<PointMaterialId>,
     pub width: f32,
 }
 impl ScenePoint {
-    pub fn new(position: Point3, material_id: PointMaterialId, width: f32) -> Self {
+    pub fn new(position: Point3, material_id: Option<PointMaterialId>, width: f32) -> Self {
         Self {
             mesh: PointMesh::new(position),
             material_id,
@@ -25,7 +25,7 @@ impl ScenePoint {
         &self.mesh
     }
 
-    pub fn material_id(&self) -> PointMaterialId {
+    pub fn material_id(&self) -> Option<PointMaterialId> {
         self.material_id
     }
 

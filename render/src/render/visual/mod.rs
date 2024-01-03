@@ -1129,11 +1129,9 @@ impl VisualRenderer {
 
                     for (_model_id, model) in scene.models().iter() {
                         for (surface_id, surface) in model.surfaces().iter() {
-                            let material = scene
+                            let (material_id, material) = scene
                                 .materials()
-                                .surface()
-                                .get(&surface.material_id())
-                                .unwrap();
+                                .resolve_surface_material(surface.material_id());
                             if material.is_translucent {
                                 continue;
                             }
@@ -1151,9 +1149,7 @@ impl VisualRenderer {
 
                             render_pass.set_bind_group(
                                 1,
-                                self.surface_material_bind_groups
-                                    .get(&surface.material_id())
-                                    .unwrap(),
+                                self.surface_material_bind_groups.get(&material_id).unwrap(),
                                 &[],
                             );
 
@@ -1185,11 +1181,13 @@ impl VisualRenderer {
                                 wgpu::IndexFormat::Uint32,
                             );
 
+                            let (material_id, material) = scene
+                                .materials()
+                                .resolve_curve_material(curve.material_id());
+
                             render_pass.set_bind_group(
                                 1,
-                                self.curve_material_bind_groups
-                                    .get(&curve.material_id())
-                                    .unwrap(),
+                                self.curve_material_bind_groups.get(&material_id).unwrap(),
                                 &[],
                             );
 
@@ -1221,11 +1219,13 @@ impl VisualRenderer {
                                 wgpu::IndexFormat::Uint32,
                             );
 
+                            let (material_id, material) = scene
+                                .materials()
+                                .resolve_point_material(point.material_id());
+
                             render_pass.set_bind_group(
                                 1,
-                                self.point_material_bind_groups
-                                    .get(&point.material_id())
-                                    .unwrap(),
+                                self.point_material_bind_groups.get(&material_id).unwrap(),
                                 &[],
                             );
 
@@ -1301,11 +1301,9 @@ impl VisualRenderer {
 
                     for (_model_id, model) in scene.models().iter() {
                         for (surface_id, surface) in model.surfaces().iter() {
-                            let material = scene
+                            let (material_id, material) = scene
                                 .materials()
-                                .surface()
-                                .get(&surface.material_id())
-                                .unwrap();
+                                .resolve_surface_material(surface.material_id());
                             if !material.is_translucent {
                                 continue;
                             }
@@ -1323,9 +1321,7 @@ impl VisualRenderer {
 
                             render_pass.set_bind_group(
                                 1,
-                                self.surface_material_bind_groups
-                                    .get(&surface.material_id())
-                                    .unwrap(),
+                                self.surface_material_bind_groups.get(&material_id).unwrap(),
                                 &[],
                             );
 

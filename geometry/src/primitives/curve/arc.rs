@@ -33,7 +33,7 @@ impl Arc {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ArcSolver {
     r: f64,
     angle: Angle,

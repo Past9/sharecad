@@ -11,49 +11,22 @@ pub mod material;
 pub mod texture;
 
 pub trait IGeometryVisuals {
-    fn set_default_surface_material(&mut self, spec: SurfaceMaterialSpec);
-    fn set_default_curve_material(&mut self, spec: CurveMaterialSpec);
-    fn set_default_point_material(&mut self, spec: PointMaterialSpec);
-    fn create_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId;
-    fn create_curve_material(&mut self, spec: CurveMaterialSpec) -> CurveMaterialId;
-    fn create_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterialId;
     fn set_surface_material(&mut self, surface: SurfaceId, material: SurfaceMaterialId);
     fn set_curve_material(&mut self, curve: CurveId, material: CurveMaterialId);
     fn set_point_material(&mut self, point: PointId, material: PointMaterialId);
-    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId;
-    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId;
-    fn get_point_material(&self, point: PointId) -> PointMaterialId;
+    fn get_surface_material(&self, surface: SurfaceId) -> Option<SurfaceMaterialId>;
+    fn get_curve_material(&self, curve: CurveId) -> Option<CurveMaterialId>;
+    fn get_point_material(&self, point: PointId) -> Option<PointMaterialId>;
 }
 
 pub struct GeometryVisuals {
-    materials: MaterialLibrary,
-
-    default_surface_material_id: SurfaceMaterialId,
-    default_curve_material_id: CurveMaterialId,
-    default_point_material_id: PointMaterialId,
-
     surface_materials: HashMap<SurfaceId, SurfaceMaterialId>,
     curve_materials: HashMap<CurveId, CurveMaterialId>,
     point_materials: HashMap<PointId, PointMaterialId>,
 }
 impl GeometryVisuals {
     pub fn new() -> Self {
-        let mut materials = MaterialLibrary::new();
-
-        let default_surface_material_id =
-            materials.insert_surface_material(SurfaceMaterialSpec::default());
-        let default_curve_material_id =
-            materials.insert_curve_material(CurveMaterialSpec::default());
-        let default_point_material_id =
-            materials.insert_point_material(PointMaterialSpec::default());
-
         Self {
-            materials,
-
-            default_surface_material_id,
-            default_curve_material_id,
-            default_point_material_id,
-
             surface_materials: HashMap::new(),
             curve_materials: HashMap::new(),
             point_materials: HashMap::new(),
@@ -61,33 +34,6 @@ impl GeometryVisuals {
     }
 }
 impl IGeometryVisuals for GeometryVisuals {
-    fn set_default_surface_material(&mut self, spec: SurfaceMaterialSpec) {
-        self.materials
-            .set_surface_material_by_id(self.default_surface_material_id, spec)
-    }
-
-    fn set_default_curve_material(&mut self, spec: CurveMaterialSpec) {
-        self.materials
-            .set_curve_material_by_id(self.default_curve_material_id, spec)
-    }
-
-    fn set_default_point_material(&mut self, spec: PointMaterialSpec) {
-        self.materials
-            .set_point_material_by_id(self.default_point_material_id, spec)
-    }
-
-    fn create_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId {
-        self.materials.insert_surface_material(spec)
-    }
-
-    fn create_curve_material(&mut self, spec: CurveMaterialSpec) -> CurveMaterialId {
-        self.materials.insert_curve_material(spec)
-    }
-
-    fn create_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterialId {
-        self.materials.insert_point_material(spec)
-    }
-
     fn set_surface_material(&mut self, surface: SurfaceId, material: SurfaceMaterialId) {
         self.surface_materials.insert(surface, material);
     }
@@ -100,24 +46,15 @@ impl IGeometryVisuals for GeometryVisuals {
         self.point_materials.insert(point, material);
     }
 
-    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId {
-        self.surface_materials
-            .get(&surface)
-            .unwrap_or(&self.default_surface_material_id)
-            .to_owned()
+    fn get_surface_material(&self, surface: SurfaceId) -> Option<SurfaceMaterialId> {
+        self.surface_materials.get(&surface).cloned()
     }
 
-    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId {
-        self.curve_materials
-            .get(&curve)
-            .unwrap_or(&self.default_curve_material_id)
-            .to_owned()
+    fn get_curve_material(&self, curve: CurveId) -> Option<CurveMaterialId> {
+        self.curve_materials.get(&curve).cloned()
     }
 
-    fn get_point_material(&self, point: PointId) -> PointMaterialId {
-        self.point_materials
-            .get(&point)
-            .unwrap_or(&self.default_point_material_id)
-            .to_owned()
+    fn get_point_material(&self, point: PointId) -> Option<PointMaterialId> {
+        self.point_materials.get(&point).cloned()
     }
 }

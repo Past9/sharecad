@@ -57,7 +57,7 @@ pub trait ICurveSolver<'a> {
     fn never_tangent(&self) -> &Vec3;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CurveSolver {
     Line(LineSolver),
     Arc(ArcSolver),
