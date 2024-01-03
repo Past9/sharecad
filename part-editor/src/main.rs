@@ -18,8 +18,8 @@ use render::{
 use space::{deg, point3, vec3, Point3, Quat, Vec3};
 use std::sync::Arc;
 use visual::{
-    color::rgb,
-    material::{PointMaterialSpec, SurfaceMaterialSpec},
+    color::{rgb, Rgb},
+    material::{DefaultSurfaceMaterials, PointMaterialSpec, SurfaceMaterialSpec},
     IGeometryVisuals,
 };
 
@@ -77,13 +77,15 @@ fn build_scene() -> Scene {
     // Define materials
     let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
-            .roughness_rgb(rgb(0.4, 0.4, 0.4))
-            .metallic_rgb(rgb(0.2, 0.2, 0.2)),
+            .color(Rgb::STEEL_BLUE)
+            .semigloss(),
     );
 
-    let sweep2_material = scene
-        .materials_mut()
-        .insert_surface_material(SurfaceMaterialSpec::copper());
+    let sweep2_material = scene.materials_mut().insert_surface_material(
+        SurfaceMaterialSpec::default()
+            .color(Rgb::PALE_TAUPE)
+            .semigloss(),
+    );
 
     let default_point_material = scene
         .materials_mut()
@@ -97,24 +99,28 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let profile_start = model.create_point(Point3::ZERO);
-        let profile_end = model.create_point(point3(0.0, 1.0, 0.0));
-        let profile = model.create_line_between(profile_start, profile_end);
-
-        let path_start = model.create_point(Point3::ZERO);
-        let path_end = model.create_point(point3(0.0, 0.0, 3.0));
-        let path = model.create_line_between(path_start, path_end);
-
-        let sweep1 = model.create_sweep(profile, path);
+        let sweep1_quat = Quat::from_axis_angle(vec3(1.0, -0.25, -0.25), deg(-60.0));
+        let sweep1_loc = vec3(-1.0, -1.0, 0.0);
+        let sweep1_path = model.create_arc(2.0, deg(90.0), sweep1_quat, sweep1_loc);
+        let sweep1_profile = model.create_arc(
+            2.0,
+            deg(60.0),
+            sweep1_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            sweep1_loc,
+        );
+        let sweep1 = model.create_sweep(sweep1_profile, sweep1_path);
         model.set_surface_material(sweep1, sweep1_material);
 
-        let arc_path = model.create_arc(
-            1.0,
-            deg(180.0),
-            Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
-            vec3(-1.0, 0.0, 0.0),
+        let sweep2_quat = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(-180.0));
+        let sweep2_loc = vec3(1.0, -1.0, 0.0);
+        let sweep2_path = model.create_arc(1.5, deg(90.0), sweep2_quat, sweep2_loc);
+        let sweep2_profile = model.create_arc(
+            1.5,
+            deg(60.0),
+            sweep2_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            sweep2_loc,
         );
-        let sweep2 = model.create_sweep(profile, arc_path);
+        let sweep2 = model.create_sweep(sweep2_profile, sweep2_path);
         model.set_surface_material(sweep2, sweep2_material);
     }
 
@@ -124,43 +130,3 @@ fn build_scene() -> Scene {
 
     scene
 }
-
-/*
-fn make_scene_model(
-    geometry: &PrimitiveGeometry,
-    surface_material: SurfaceMaterialId,
-    curve_material: CurveMaterialId,
-    point_material: PointMaterialId,
-    tolerance: f64,
-) -> SceneModel {
-    let mut scene_model = SceneModel::new();
-
-    for surface_id in geometry.surfaces().keys() {
-        let surface_solver = geometry.surface_solver(*surface_id).unwrap();
-        let mut tess = SurfaceTessellator::new(&surface_solver);
-        let start = Instant::now();
-        tess.tessellate(tolerance);
-        let end = Instant::now();
-        println!(
-            "tessellated surface in {}us with {} vertices",
-            (end - start).as_micros(),
-            tess.num_points()
-        );
-
-        scene_model.add_surface(SceneSurface::new(tess.mesh(), surface_material));
-    }
-
-    for curve_id in geometry.curves().keys() {
-        let curve_solver = geometry.curve_solver(*curve_id).unwrap();
-        let mut tess = CurveTesselator::new(&curve_solver);
-        tess.tessellate(tolerance);
-        scene_model.add_curve(SceneCurve::new(tess.mesh(), curve_material, 2.0));
-    }
-
-    for (_, point) in geometry.points().iter() {
-        scene_model.add_point(ScenePoint::new(point.clone(), point_material, 6.0));
-    }
-
-    scene_model
-}
-*/

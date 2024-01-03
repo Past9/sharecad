@@ -21,6 +21,10 @@ impl From<SurfaceMaterialId> for u32 {
     }
 }
 
+pub trait DefaultSurfaceMaterials {
+    fn copper_polished() -> SurfaceMaterialSpec;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct SurfaceMaterial {
     pub diffuse: TextureId,
@@ -236,11 +240,32 @@ impl SurfaceMaterialSpec {
         self.ambient_from_bytes(&std::fs::read(path).unwrap())
     }
 
-    pub fn copper() -> Self {
-        Self::default()
-            .diffuse_rgb(rgb(0.72, 0.45, 0.2))
-            .roughness_rgb(rgb(0.2, 0.2, 0.2))
-            .metallic_rgb(rgb(0.6, 0.6, 0.6))
+    pub fn matte(self) -> Self {
+        self.roughness_rgb(rgb(1.0, 1.0, 1.0))
+    }
+
+    pub fn eggshell(self) -> Self {
+        self.roughness_rgb(rgb(0.8, 0.8, 0.8))
+    }
+
+    pub fn semigloss(self) -> Self {
+        self.roughness_rgb(rgb(0.35, 0.35, 0.35))
+    }
+
+    pub fn gloss(self) -> Self {
+        self.roughness_rgb(rgb(0.2, 0.2, 0.2))
+    }
+
+    pub fn metal(self) -> Self {
+        self.metallic_rgb(rgb(0.7, 0.7, 0.7))
+    }
+
+    pub fn copper(self) -> Self {
+        self.diffuse_rgb(rgb(0.72, 0.45, 0.2))
+    }
+
+    pub fn color(self, rgb: Rgb) -> Self {
+        self.diffuse_rgb(rgb)
     }
 }
 impl Default for SurfaceMaterialSpec {
