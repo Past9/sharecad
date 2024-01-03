@@ -2,8 +2,7 @@ use std::time::Instant;
 
 use crate::bsp::{BspTree, TreeSplit};
 use geometry::primitives::{SurfacePoint, SurfaceSolver};
-use render::model::{SurfaceMesh, SurfaceVertex};
-use space::{lerp, point2, vec2, Coincidence, Point2, Point3, Vec3};
+use space::{lerp, point2, Coincidence, Point2, Point3, Vec3};
 
 pub struct SurfaceVert {
     pub u: f64,
@@ -13,43 +12,58 @@ pub struct SurfaceVert {
     pub normal: Vec3,
 }
 
-pub struct SurfacePointTessellator<'a> {
-    surface: &'a SurfaceSolver,
-    points: Vec<SurfaceVert>,
-    indices: Vec<u32>,
+pub struct TessellatedSurface {
+    pub points: Vec<SurfaceVert>,
+    pub indices: Vec<u32>,
 }
-impl<'a> SurfacePointTessellator<'a> {
-    pub fn new(surface: &'a SurfaceSolver) -> Self {
-        Self {
-            surface,
-            points: vec![],
-            indices: vec![],
-        }
+impl TessellatedSurface {
+    pub fn by_tolerance(surface: &SurfaceSolver, tolerance: f64) -> Self {
+        let uv_flat = Self::tess_uvs(surface, tolerance)
+            .into_iter()
+            .map(|p| delaunator::Point { x: p.x, y: p.y })
+            .collect::<Vec<_>>();
+
+        // Compute the Delaunay triangulation in UV space
+        let uv_mesh = delaunator::triangulate(&uv_flat);
+
+        // Set the mesh indices
+        let indices: Vec<u32> = uv_mesh.triangles.into_iter().map(|i| i as u32).collect();
+
+        // Calculate the mesh vertices in Euclidean space
+        let points: Vec<SurfaceVert> = uv_flat
+            .into_iter()
+            .filter_map(|uv| {
+                let point = surface.point(point2(uv.x, uv.y));
+                let (du, dv) = point.der1();
+
+                let dv = if dv.cc(Vec3::ZERO) {
+                    Self::find_dv(surface, uv.x, uv.y)
+                } else {
+                    Some(*dv)
+                };
+
+                if let Some(dv) = dv {
+                    let tangent = du.normalize();
+                    let bitangent = dv.normalize();
+                    let normal = du.cross(dv).normalize();
+                    Some(SurfaceVert {
+                        u: uv.x,
+                        v: uv.y,
+                        pos: *point.eval(),
+                        tangents: (tangent, bitangent),
+                        normal: normal,
+                    })
+                } else {
+                    panic!("no solution");
+                }
+            })
+            .collect();
+
+        Self { points, indices }
     }
 
-    pub fn num_points(&self) -> usize {
-        self.points.len()
-    }
-
-    pub fn mesh(&self) -> SurfaceMesh {
-        SurfaceMesh::new(
-            self.points
-                .iter()
-                .map(|p| SurfaceVertex {
-                    position: p.pos,
-                    tex_coords: point2(p.u, p.v),
-                    normal: p.normal,
-                    tangent: p.tangents.0,
-                    bitangent: p.tangents.1,
-                    param_coords: vec2(p.u, p.v),
-                })
-                .collect(),
-            self.indices.clone(),
-        )
-    }
-
-    pub fn tess_uvs3(&self, tolerance: f64) -> Vec<Point2> {
-        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.surface.domain();
+    fn tess_uvs(surface: &SurfaceSolver, tolerance: f64) -> Vec<Point2> {
+        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = surface.domain();
 
         let mut bsp = BspTree::new(v_max, v_min, u_min, u_max);
 
@@ -62,49 +76,48 @@ impl<'a> SurfacePointTessellator<'a> {
             let se = point2(e, s);
 
             // Fron NW corner, right and down
-            let sp_nw = self.surface.point(nw);
-            if self.delta_u(&sp_nw, tolerance) < (ne - nw).magnitude() {
+            let sp_nw = surface.point(nw);
+            if Self::delta_u(&sp_nw, tolerance) < (ne - nw).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if self.delta_v(&sp_nw, tolerance) < (nw - sw).magnitude() {
+            if Self::delta_v(&sp_nw, tolerance) < (nw - sw).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron SE corner, left and up
-            let sp_se = self.surface.point(se);
-            if self.delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
+            let sp_se = surface.point(se);
+            if Self::delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if self.delta_v(&sp_se, tolerance) < (se - ne).magnitude() {
+            if Self::delta_v(&sp_se, tolerance) < (se - ne).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron NE corner, left and down
-            let sp_ne = self.surface.point(ne);
-            if self.delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
+            let sp_ne = surface.point(ne);
+            if Self::delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if self.delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
+            if Self::delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron SW corner, right and up
-            let sp_sw = self.surface.point(sw);
-            if self.delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
+            let sp_sw = surface.point(sw);
+            if Self::delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if self.delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
+            if Self::delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             None
         });
         let end = Instant::now();
-        println!("BSP tree in {}us", (end - start).as_micros());
 
         let mut params = vec![
             point2(u_min, v_min),
@@ -131,14 +144,14 @@ impl<'a> SurfacePointTessellator<'a> {
         params
     }
 
-    pub fn find_dv(&self, u: f64, v: f64) -> Option<Vec3> {
+    fn find_dv(surface: &SurfaceSolver, u: f64, v: f64) -> Option<Vec3> {
         let func = |u: f64, v: f64| -> Vec3 {
-            let point = self.surface.point(point2(u, v));
+            let point = surface.point(point2(u, v));
             let (_, dv) = point.der1();
             dv.normalize()
         };
 
-        let (Point2 { x: u_min, .. }, Point2 { x: u_max, .. }) = self.surface.domain();
+        let (Point2 { x: u_min, .. }, Point2 { x: u_max, .. }) = surface.domain();
 
         const START_DIST: f64 = 0.1;
 
@@ -195,51 +208,7 @@ impl<'a> SurfacePointTessellator<'a> {
         solution
     }
 
-    pub fn tessellate(&mut self, tolerance: f64) {
-        let uv_flat = self
-            .tess_uvs3(tolerance)
-            .into_iter()
-            .map(|p| delaunator::Point { x: p.x, y: p.y })
-            .collect::<Vec<_>>();
-
-        // Compute the Delaunay triangulation in UV space
-        let uv_mesh = delaunator::triangulate(&uv_flat);
-
-        // Set the mesh indices
-        self.indices = uv_mesh.triangles.into_iter().map(|i| i as u32).collect();
-
-        // Calculate the mesh vertices in Euclidean space
-        self.points = uv_flat
-            .into_iter()
-            .filter_map(|uv| {
-                let point = self.surface.point(point2(uv.x, uv.y));
-                let (du, dv) = point.der1();
-
-                let dv = if dv.cc(Vec3::ZERO) {
-                    self.find_dv(uv.x, uv.y)
-                } else {
-                    Some(*dv)
-                };
-
-                if let Some(dv) = dv {
-                    let tangent = du.normalize();
-                    let bitangent = dv.normalize();
-                    let normal = du.cross(dv).normalize();
-                    Some(SurfaceVert {
-                        u: uv.x,
-                        v: uv.y,
-                        pos: *point.eval(),
-                        tangents: (tangent, bitangent),
-                        normal: normal,
-                    })
-                } else {
-                    panic!("no solution");
-                }
-            })
-            .collect();
-    }
-
-    pub fn delta_u(&self, point: &SurfacePoint, tolerance: f64) -> f64 {
+    fn delta_u(point: &SurfacePoint, tolerance: f64) -> f64 {
         let du = point.der1().0;
         let duu = point.der2().0;
 
@@ -249,7 +218,7 @@ impl<'a> SurfacePointTessellator<'a> {
         2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / du.magnitude()
     }
 
-    pub fn delta_v(&self, point: &SurfacePoint, tolerance: f64) -> f64 {
+    fn delta_v(point: &SurfacePoint, tolerance: f64) -> f64 {
         let dv = point.der1().1;
         let dvv = point.der2().2;
 

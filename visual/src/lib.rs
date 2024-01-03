@@ -20,6 +20,9 @@ pub trait IGeometryVisuals {
     fn set_surface_material(&mut self, surface: SurfaceId, material: SurfaceMaterialId);
     fn set_curve_material(&mut self, curve: CurveId, material: CurveMaterialId);
     fn set_point_material(&mut self, point: PointId, material: PointMaterialId);
+    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId;
+    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId;
+    fn get_point_material(&self, point: PointId) -> PointMaterialId;
 }
 
 pub struct GeometryVisuals {
@@ -95,5 +98,26 @@ impl IGeometryVisuals for GeometryVisuals {
 
     fn set_point_material(&mut self, point: PointId, material: PointMaterialId) {
         self.point_materials.insert(point, material);
+    }
+
+    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId {
+        self.surface_materials
+            .get(&surface)
+            .unwrap_or(&self.default_surface_material_id)
+            .to_owned()
+    }
+
+    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId {
+        self.curve_materials
+            .get(&curve)
+            .unwrap_or(&self.default_curve_material_id)
+            .to_owned()
+    }
+
+    fn get_point_material(&self, point: PointId) -> PointMaterialId {
+        self.point_materials
+            .get(&point)
+            .unwrap_or(&self.default_point_material_id)
+            .to_owned()
     }
 }

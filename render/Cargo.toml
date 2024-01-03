@@ -16,6 +16,7 @@ geometry = { path = "../geometry" }
 visual = { path = "../visual" }
 model = { path = "../model" }
 space = { path = "../space" }
+tessellate = { path = "../tessellate" }
 render-macros = { path = "../render-macros" }
 log = "0.4.20"
 image = { version = "0.24", default-features = false, features = [

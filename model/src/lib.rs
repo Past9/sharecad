@@ -131,4 +131,16 @@ impl IGeometryVisuals for PrimitiveModel {
     fn set_point_material(&mut self, point: PointId, material: PointMaterialId) {
         self.visuals.set_point_material(point, material)
     }
+
+    fn get_surface_material(&self, surface: SurfaceId) -> SurfaceMaterialId {
+        self.visuals.get_surface_material(surface)
+    }
+
+    fn get_curve_material(&self, curve: CurveId) -> CurveMaterialId {
+        self.visuals.get_curve_material(curve)
+    }
+
+    fn get_point_material(&self, point: PointId) -> PointMaterialId {
+        self.visuals.get_point_material(point)
+    }
 }

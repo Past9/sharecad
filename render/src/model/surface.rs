@@ -2,7 +2,8 @@ use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
 use common::SurfaceId;
-use space::{Point2, Point3, Vec2, Vec3};
+use space::{point2, vec2, Point2, Point3, Vec2, Vec3};
+use tessellate::{SurfaceVert, TessellatedSurface};
 use visual::material::SurfaceMaterialId;
 use wgpu::util::DeviceExt;
 
@@ -52,6 +53,17 @@ impl SurfaceMesh {
         }
     }
 
+    pub fn from_tessellated(tessellated: &TessellatedSurface) -> Self {
+        Self::new(
+            tessellated
+                .points
+                .iter()
+                .map(SurfaceVertex::from_tessellator_vertex)
+                .collect(),
+            tessellated.indices.to_vec(),
+        )
+    }
+
     pub fn vertices(&self) -> &[SurfaceVertex] {
         &self.vertices
     }
@@ -97,6 +109,17 @@ pub struct SurfaceVertex {
     pub param_coords: Vec2,
 }
 impl SurfaceVertex {
+    pub fn from_tessellator_vertex(vert: &SurfaceVert) -> Self {
+        Self {
+            position: vert.pos,
+            tex_coords: point2(vert.u, vert.v),
+            normal: vert.normal,
+            tangent: vert.tangents.0,
+            bitangent: vert.tangents.1,
+            param_coords: vec2(vert.u, vert.v),
+        }
+    }
+
     pub fn to_raw(&self, id: &SurfaceId) -> SurfaceVertexRaw {
         SurfaceVertexRaw {
             id: id.0,

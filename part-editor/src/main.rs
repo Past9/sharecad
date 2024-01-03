@@ -11,6 +11,7 @@ use geometry::{
     primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver},
     IGeometry, PrimitiveGeometry,
 };
+use model::PrimitiveModel;
 use render::{
     light::{AmbientLight, DirectionalLight},
     model::{SceneCurve, SceneModel, ScenePoint, SceneSurface},
@@ -19,13 +20,13 @@ use render::{
 };
 use space::{deg, point2, point3, vec3, Point3, Quat, Vec3};
 use std::{sync::Arc, time::Instant};
-use tessellate::{CurveTesselator, SurfacePointTessellator};
 use visual::{
     color::rgb,
     material::{
         CurveMaterialId, CurveMaterialSpec, PointMaterialId, PointMaterialSpec, SurfaceMaterialId,
         SurfaceMaterialSpec,
     },
+    IGeometryVisuals,
 };
 
 fn main() -> Result<(), eframe::Error> {
@@ -184,41 +185,49 @@ fn build_scene() -> Scene {
 
     const TOLERANCE: f64 = 0.0001;
 
-    let mut geom = PrimitiveGeometry::new();
+    let mut model = PrimitiveModel::new();
 
     {
-        let profile_start = geom.create_point(Point3::ZERO);
-        let profile_end = geom.create_point(point3(0.0, 1.0, 0.0));
-        let profile = geom.create_line_between(profile_start, profile_end);
+        let profile_start = model.create_point(Point3::ZERO);
+        let profile_end = model.create_point(point3(0.0, 1.0, 0.0));
+        let profile = model.create_line_between(profile_start, profile_end);
 
-        let path_start = geom.create_point(Point3::ZERO);
-        let path_end = geom.create_point(point3(0.0, 0.0, 3.0));
-        let path = geom.create_line_between(path_start, path_end);
+        let path_start = model.create_point(Point3::ZERO);
+        let path_end = model.create_point(point3(0.0, 0.0, 3.0));
+        let path = model.create_line_between(path_start, path_end);
 
-        let _sweep1 = geom.create_sweep(profile, path);
+        let sweep1 = model.create_sweep(profile, path);
+        let sweep1_material = model.create_surface_material(
+            SurfaceMaterialSpec::default()
+                .roughness_rgb(rgb(0.4, 0.4, 0.4))
+                .metallic_rgb(rgb(0.2, 0.2, 0.2)),
+        );
+        model.set_surface_material(sweep1, sweep1_material);
 
-        let arc_path = geom.create_arc(
+        let arc_path = model.create_arc(
             1.0,
             deg(180.0),
             Quat::from_axis_angle(Vec3::UNIT_X, deg(-90.0)),
             vec3(-1.0, 0.0, 0.0),
         );
-        let _sweep2 = geom.create_sweep(profile, arc_path);
+        let sweep2 = model.create_sweep(profile, arc_path);
+        let sweep2_material = model.create_surface_material(
+            SurfaceMaterialSpec::default()
+                .diffuse_rgb(rgb(0.8, 0.3, 0.3))
+                .roughness_rgb(rgb(0.2, 0.2, 0.2))
+                .metallic_rgb(rgb(0.6, 0.6, 0.6)),
+        );
+        model.set_surface_material(sweep2, sweep2_material);
     }
 
-    println!("geom {:#?}", geom);
+    let sm = SceneModel::from_primitive_model(&model, TOLERANCE);
 
-    scene.add_model(make_scene_model(
-        &geom,
-        surface_material,
-        curve_material,
-        point_material,
-        TOLERANCE,
-    ));
+    scene.add_model(sm);
 
     scene
 }
 
+/*
 fn make_scene_model(
     geometry: &PrimitiveGeometry,
     surface_material: SurfaceMaterialId,
@@ -230,7 +239,7 @@ fn make_scene_model(
 
     for surface_id in geometry.surfaces().keys() {
         let surface_solver = geometry.surface_solver(*surface_id).unwrap();
-        let mut tess = SurfacePointTessellator::new(&surface_solver);
+        let mut tess = SurfaceTessellator::new(&surface_solver);
         let start = Instant::now();
         tess.tessellate(tolerance);
         let end = Instant::now();
@@ -256,3 +265,4 @@ fn make_scene_model(
 
     scene_model
 }
+*/

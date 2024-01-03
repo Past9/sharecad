@@ -3,6 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use common::CurveId;
 use space::{Point3, Vec3};
 use std::cell::OnceCell;
+use tessellate::TessellatedCurve;
 use visual::material::CurveMaterialId;
 use wgpu::util::DeviceExt;
 
@@ -50,12 +51,12 @@ pub struct CurveMesh {
     index_buffer: OnceCell<wgpu::Buffer>,
 }
 impl CurveMesh {
-    pub fn new(points: Vec<Point3>) -> Self {
-        let mut vertices = Vec::with_capacity((points.len() - 1) * 4);
+    pub fn from_tessellated(tessellated: &TessellatedCurve) -> Self {
+        let mut vertices = Vec::with_capacity((tessellated.points.len() - 1) * 4);
 
-        for i in 1..points.len() {
-            let p0 = points[i - 1];
-            let p1 = points[i];
+        for i in 1..tessellated.points.len() {
+            let p0 = tessellated.points[i - 1].pos;
+            let p1 = tessellated.points[i].pos;
             let line_dir = p1 - p0;
             vertices.extend([
                 CurveVertex {
@@ -77,7 +78,7 @@ impl CurveMesh {
             ]);
         }
 
-        let indices = (1..points.len())
+        let indices = (1..tessellated.points.len())
             .flat_map(|i| {
                 let i = (i as u32 - 1) * 4;
                 [

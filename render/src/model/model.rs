@@ -1,9 +1,15 @@
 use super::{CurveId, PointId, SceneCurve, ScenePoint, SceneSurface};
+use super::{CurveMesh, SurfaceMesh};
 use bytemuck::{Pod, Zeroable};
 use common::IdSeries;
 use common::SurfaceId;
+use geometry::IGeometry;
+use model::PrimitiveModel;
 use space::{rad, Mat33, Mat44, Quat, Vec3};
+use std::time::Instant;
 use std::{cell::OnceCell, collections::HashMap};
+use tessellate::{TessellatedCurve, TessellatedSurface};
+use visual::IGeometryVisuals;
 use wgpu::util::DeviceExt;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -65,6 +71,39 @@ impl SceneModel {
         model.add_instance(ModelInstance::default());
 
         model
+    }
+
+    pub fn from_primitive_model(model: &PrimitiveModel, tolerance: f64) -> Self {
+        let mut scene_model = Self::new();
+
+        for surface_id in model.surfaces().keys() {
+            let surface_solver = model.surface_solver(*surface_id).unwrap();
+            let tessellated = TessellatedSurface::by_tolerance(&surface_solver, tolerance);
+            scene_model.add_surface(SceneSurface::new(
+                SurfaceMesh::from_tessellated(&tessellated),
+                model.get_surface_material(*surface_id),
+            ));
+        }
+
+        for curve_id in model.curves().keys() {
+            let curve_solver = model.curve_solver(*curve_id).unwrap();
+            let tessellated = TessellatedCurve::by_tolerance(&curve_solver, tolerance);
+            scene_model.add_curve(SceneCurve::new(
+                CurveMesh::from_tessellated(&tessellated),
+                model.get_curve_material(*curve_id),
+                2.0,
+            ));
+        }
+
+        for (point_id, point) in model.points() {
+            scene_model.add_point(ScenePoint::new(
+                *point,
+                model.get_point_material(*point_id),
+                6.0,
+            ));
+        }
+
+        scene_model
     }
 
     pub fn add_instance(&mut self, instance: ModelInstance) -> InstanceId {

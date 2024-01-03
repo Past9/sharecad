@@ -1,5 +1,4 @@
 use geometry::primitives::CurveSolver;
-use render::model::CurveMesh;
 use space::Point3;
 use std::collections::BTreeSet;
 
@@ -24,64 +23,38 @@ impl Ord for CurveVert {
         self.u.total_cmp(&other.u)
     }
 }
-pub struct CurveTesselator<'a> {
-    curve: &'a CurveSolver,
-    points: BTreeSet<CurveVert>,
+
+pub struct TessellatedCurve {
+    pub points: Vec<CurveVert>,
 }
-impl<'a> CurveTesselator<'a> {
-    pub fn new(curve: &'a CurveSolver) -> Self {
-        let points = BTreeSet::from_iter([
-            CurveVert {
-                u: curve.domain().0,
-                pos: *curve.point(curve.domain().0).eval(),
-            },
-            CurveVert {
-                u: curve.domain().1,
-                pos: *curve.point(curve.domain().1).eval(),
-            },
-        ]);
+impl TessellatedCurve {
+    pub fn by_tolerance(curve: &CurveSolver, tolerance: f64) -> Self {
+        let mut points: BTreeSet<CurveVert> = BTreeSet::new();
 
-        Self { curve, points }
-    }
-
-    pub fn mesh(&self) -> CurveMesh {
-        CurveMesh::new(self.points.iter().map(|v| v.pos).collect())
-    }
-
-    pub fn curve(&self) -> &CurveSolver {
-        &self.curve
-    }
-
-    pub fn vertices(&self) -> &BTreeSet<CurveVert> {
-        &self.points
-    }
-
-    pub fn insert_with_pos(&mut self, u: f64, pos: Point3) {
-        self.points.insert(CurveVert { u, pos });
-    }
-
-    pub fn insert(&mut self, u: f64) {
-        self.insert_with_pos(u, *self.curve.point(u).eval());
-    }
-
-    pub fn tessellate(&mut self, tolerance: f64) {
-        let (mut u, u_max) = self.curve.domain();
+        let (mut u, u_max) = curve.domain();
         let mut params = vec![];
 
         while u < u_max {
-            u += self.delta_u(u, tolerance);
+            u += Self::delta_u(curve, u, tolerance);
             if u < u_max {
                 params.push(u);
             }
         }
 
         for param in params.into_iter() {
-            self.insert(param);
+            points.insert(CurveVert {
+                u: param,
+                pos: *curve.point(u).eval(),
+            });
+        }
+
+        Self {
+            points: points.into_iter().collect(),
         }
     }
 
-    pub fn delta_u(&mut self, u: f64, tolerance: f64) -> f64 {
-        let point = self.curve.point(u);
+    fn delta_u(curve: &CurveSolver, u: f64, tolerance: f64) -> f64 {
+        let point = curve.point(u);
         let der1 = *point.der1();
         let der2 = *point.der2();
 
