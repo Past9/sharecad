@@ -1,7 +1,7 @@
 use space::{point3, vec3, Angle, Point3, Quat, Vec3};
 use std::cell::OnceCell;
 
-use crate::{geometry, Geometry};
+use crate::{geometry, PrimitiveGeometry};
 
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 
@@ -22,7 +22,7 @@ impl Arc {
         }
     }
 
-    pub fn solver(&self, _geometry: &Geometry) -> ArcSolver {
+    pub fn solver(&self, _geometry: &PrimitiveGeometry) -> ArcSolver {
         ArcSolver {
             r: self.r,
             angle: self.angle,

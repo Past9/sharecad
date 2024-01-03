@@ -1,4 +1,4 @@
-use crate::Geometry;
+use crate::PrimitiveGeometry;
 
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 use space::{point3, vec3, Point3, Quat, Vec3};
@@ -13,7 +13,7 @@ pub struct Helix {
     translation: Vec3,
 }
 impl Helix {
-    pub fn solver(&self, _geometry: &Geometry) -> HelixSolver {
+    pub fn solver(&self, _geometry: &PrimitiveGeometry) -> HelixSolver {
         HelixSolver {
             r: self.r,
             h: self.h,

@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 geometry = { path = "../geometry" }
+space = { path = "../space" }
 visual = { path = "../visual" }
 common = { path = "../common" }

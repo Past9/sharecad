@@ -1405,22 +1405,26 @@ impl VisualRenderer {
     }
 
     fn build_material_bind_groups(&mut self, scene: &Scene) {
-        for material in scene.materials().surface().values() {
-            self.create_surface_material_bind_groups(material);
+        for (id, material) in scene.materials().surface() {
+            self.create_surface_material_bind_groups(*id, material);
         }
 
-        for material in scene.materials().curve().values() {
-            self.create_curve_material_bind_groups(material);
+        for (id, material) in scene.materials().curve() {
+            self.create_curve_material_bind_groups(*id, material);
         }
 
-        for material in scene.materials().point().values() {
-            self.create_point_material_bind_groups(material);
+        for (id, material) in scene.materials().point() {
+            self.create_point_material_bind_groups(*id, material);
         }
     }
 
-    fn create_surface_material_bind_groups(&mut self, material: &SurfaceMaterial) {
+    fn create_surface_material_bind_groups(
+        &mut self,
+        id: SurfaceMaterialId,
+        material: &SurfaceMaterial,
+    ) {
         self.surface_material_bind_groups
-            .entry(material.id)
+            .entry(id)
             .or_insert_with(|| {
                 let device = self.output_target.device();
 
@@ -1497,9 +1501,9 @@ impl VisualRenderer {
             });
     }
 
-    fn create_curve_material_bind_groups(&mut self, material: &CurveMaterial) {
+    fn create_curve_material_bind_groups(&mut self, id: CurveMaterialId, material: &CurveMaterial) {
         self.curve_material_bind_groups
-            .entry(material.id)
+            .entry(id)
             .or_insert_with(|| {
                 let device = self.output_target.device();
 
@@ -1522,9 +1526,9 @@ impl VisualRenderer {
             });
     }
 
-    fn create_point_material_bind_groups(&mut self, material: &PointMaterial) {
+    fn create_point_material_bind_groups(&mut self, id: PointMaterialId, material: &PointMaterial) {
         self.point_material_bind_groups
-            .entry(material.id)
+            .entry(id)
             .or_insert_with(|| {
                 let device = self.output_target.device();
 

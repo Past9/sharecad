@@ -15,10 +15,14 @@ impl From<u32> for SurfaceMaterialId {
         SurfaceMaterialId(id)
     }
 }
+impl From<SurfaceMaterialId> for u32 {
+    fn from(id: SurfaceMaterialId) -> Self {
+        id.0
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SurfaceMaterial {
-    pub id: SurfaceMaterialId,
     pub diffuse: TextureId,
     pub normal: TextureId,
     pub emissive: TextureId,
@@ -30,7 +34,6 @@ pub struct SurfaceMaterial {
 }
 impl SurfaceMaterial {
     pub fn new(
-        id: SurfaceMaterialId,
         diffuse: TextureId,
         normal: TextureId,
         emissive: TextureId,
@@ -41,7 +44,6 @@ impl SurfaceMaterial {
         is_translucent: bool,
     ) -> Self {
         Self {
-            id,
             diffuse,
             normal,
             emissive,

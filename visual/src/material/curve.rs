@@ -10,15 +10,19 @@ impl From<u32> for CurveMaterialId {
         CurveMaterialId(id)
     }
 }
+impl From<CurveMaterialId> for u32 {
+    fn from(id: CurveMaterialId) -> Self {
+        id.0
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CurveMaterial {
-    pub id: CurveMaterialId,
     pub color: TextureId,
 }
 impl CurveMaterial {
-    pub fn new(id: CurveMaterialId, color: TextureId) -> Self {
-        Self { id, color }
+    pub fn new(color: TextureId) -> Self {
+        Self { color }
     }
 }
 

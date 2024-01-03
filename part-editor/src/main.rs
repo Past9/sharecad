@@ -9,7 +9,7 @@ use eframe::{
 };
 use geometry::{
     primitives::{CurveSolver, SurfaceIntersection, SurfaceSolver},
-    Geometry,
+    IGeometry, PrimitiveGeometry,
 };
 use render::{
     light::{AmbientLight, DirectionalLight},
@@ -184,7 +184,7 @@ fn build_scene() -> Scene {
 
     const TOLERANCE: f64 = 0.0001;
 
-    let mut geom = Geometry::new();
+    let mut geom = PrimitiveGeometry::new();
 
     {
         let profile_start = geom.create_point(Point3::ZERO);
@@ -220,7 +220,7 @@ fn build_scene() -> Scene {
 }
 
 fn make_scene_model(
-    geometry: &Geometry,
+    geometry: &PrimitiveGeometry,
     surface_material: SurfaceMaterialId,
     curve_material: CurveMaterialId,
     point_material: PointMaterialId,

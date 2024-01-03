@@ -5,7 +5,7 @@ use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
 
 use crate::{
     primitives::{axes, axes_der1, axes_der2, CurvePoint, CurveSolver},
-    Geometry,
+    IGeometry, PrimitiveGeometry,
 };
 
 use super::{
@@ -25,7 +25,7 @@ impl Sweep {
         Self { profile, path }
     }
 
-    pub fn solver(&self, geometry: &Geometry) -> SweepSolver {
+    pub fn solver(&self, geometry: &PrimitiveGeometry) -> SweepSolver {
         SweepSolver {
             profile: geometry
                 .curve(self.profile)

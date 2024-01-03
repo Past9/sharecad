@@ -56,106 +56,124 @@ impl MaterialLibrary {
         &self.textures
     }
 
-    pub fn insert_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId {
-        let diffuse_id = self.insert_rgb_texture(spec.diffuse.image());
-        let normal_id = self.insert_vector_map(spec.normal.image());
-        let emissive_id = self.insert_rgb_texture(spec.emissive.image());
-        let roughness_id = self.insert_rgb_texture(spec.roughness.image());
-        let metallic_id = self.insert_rgb_texture(spec.metallic.image());
-        let ambient_id = self.insert_rgb_texture(spec.ambient.image());
-        let transmit_id = self.insert_rgb_texture(spec.transmit.image());
-        let is_translucent = spec.is_translucent();
+    pub fn set_surface_material_by_id(&mut self, id: SurfaceMaterialId, spec: SurfaceMaterialSpec) {
+        let material = self.make_surface_material(spec);
+        self.surface_materials.insert(id, material);
+        self.surface_material_ids.advance(id);
+    }
 
-        let id = self
-            .surface_materials
+    fn make_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterial {
+        SurfaceMaterial::new(
+            self.insert_rgb_texture(spec.diffuse.image()),
+            self.insert_vector_map(spec.normal.image()),
+            self.insert_rgb_texture(spec.emissive.image()),
+            self.insert_rgb_texture(spec.roughness.image()),
+            self.insert_rgb_texture(spec.metallic.image()),
+            self.insert_rgb_texture(spec.ambient.image()),
+            self.insert_rgb_texture(spec.transmit.image()),
+            spec.is_translucent(),
+        )
+    }
+
+    fn find_surface_material_id(
+        &mut self,
+        material: &SurfaceMaterial,
+    ) -> Option<SurfaceMaterialId> {
+        self.surface_materials
             .iter()
-            .filter_map(|(id, material)| {
-                if diffuse_id == material.diffuse
-                    && normal_id == material.normal
-                    && emissive_id == material.emissive
-                    && roughness_id == material.roughness
-                    && metallic_id == material.metallic
-                    && ambient_id == material.ambient
-                    && transmit_id == material.transmit
-                    && is_translucent == material.is_translucent
-                {
+            .filter_map(|(id, existing_material)| {
+                if existing_material == material {
                     Some(id)
                 } else {
                     None
                 }
             })
-            .next();
+            .next()
+            .cloned()
+    }
 
-        match id {
-            Some(id) => *id,
+    pub fn insert_surface_material(&mut self, spec: SurfaceMaterialSpec) -> SurfaceMaterialId {
+        let material = self.make_surface_material(spec);
+
+        match self.find_surface_material_id(&material) {
+            Some(id) => id,
             None => {
                 let id = self.surface_material_ids.next();
-                self.surface_materials.insert(
-                    id,
-                    SurfaceMaterial::new(
-                        id,
-                        diffuse_id,
-                        normal_id,
-                        emissive_id,
-                        roughness_id,
-                        metallic_id,
-                        ambient_id,
-                        transmit_id,
-                        is_translucent,
-                    ),
-                );
+                self.surface_materials.insert(id, material);
                 id
             }
         }
+    }
+
+    pub fn set_curve_material_by_id(&mut self, id: CurveMaterialId, spec: CurveMaterialSpec) {
+        let material = self.make_curve_material(spec);
+        self.curve_materials.insert(id, material);
+        self.curve_material_ids.advance(id);
+    }
+
+    fn make_curve_material(&mut self, spec: CurveMaterialSpec) -> CurveMaterial {
+        CurveMaterial::new(self.insert_rgb_texture(spec.color.image()))
+    }
+
+    fn find_curve_material_id(&mut self, material: &CurveMaterial) -> Option<CurveMaterialId> {
+        self.curve_materials
+            .iter()
+            .filter_map(|(id, existing_material)| {
+                if existing_material == material {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next()
+            .cloned()
     }
 
     pub fn insert_curve_material(&mut self, spec: CurveMaterialSpec) -> CurveMaterialId {
-        let color_id = self.insert_rgb_texture(spec.color.image());
+        let material = self.make_curve_material(spec);
 
-        let id = self
-            .curve_materials
-            .iter()
-            .filter_map(|(id, material)| {
-                if color_id == material.color {
-                    Some(id)
-                } else {
-                    None
-                }
-            })
-            .next();
-
-        match id {
-            Some(id) => *id,
+        match self.find_curve_material_id(&material) {
+            Some(id) => id,
             None => {
                 let id = self.curve_material_ids.next();
-                self.curve_materials
-                    .insert(id, CurveMaterial::new(id, color_id));
+                self.curve_materials.insert(id, material);
                 id
             }
         }
     }
 
-    pub fn insert_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterialId {
-        let color_id = self.insert_rgb_texture(spec.color.image());
+    pub fn set_point_material_by_id(&mut self, id: PointMaterialId, spec: PointMaterialSpec) {
+        let material = self.make_point_material(spec);
+        self.point_materials.insert(id, material);
+        self.point_material_ids.advance(id);
+    }
 
-        let id = self
-            .point_materials
+    fn make_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterial {
+        PointMaterial::new(self.insert_rgb_texture(spec.color.image()))
+    }
+
+    fn find_point_material_id(&mut self, material: &PointMaterial) -> Option<PointMaterialId> {
+        self.point_materials
             .iter()
-            .filter_map(|(id, material)| {
-                if color_id == material.color {
+            .filter_map(|(id, existing_material)| {
+                if existing_material == material {
                     Some(id)
                 } else {
                     None
                 }
             })
-            .next();
+            .next()
+            .cloned()
+    }
 
-        match id {
-            Some(id) => *id,
+    pub fn insert_point_material(&mut self, spec: PointMaterialSpec) -> PointMaterialId {
+        let material = self.make_point_material(spec);
+
+        match self.find_point_material_id(&material) {
+            Some(id) => id,
             None => {
                 let id = self.point_material_ids.next();
-                self.point_materials
-                    .insert(id, PointMaterial::new(id, color_id));
+                self.point_materials.insert(id, material);
                 id
             }
         }

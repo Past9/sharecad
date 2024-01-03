@@ -1,4 +1,4 @@
-use crate::{geometry, Geometry};
+use crate::{geometry, IGeometry, PrimitiveGeometry};
 
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
 use common::PointId;
@@ -15,7 +15,7 @@ impl Line {
         Self { start, end }
     }
 
-    pub fn solver(&self, geometry: &Geometry) -> LineSolver {
+    pub fn solver(&self, geometry: &PrimitiveGeometry) -> LineSolver {
         LineSolver {
             start: geometry.point(self.start).unwrap().to_owned(),
             end: geometry.point(self.end).unwrap().to_owned(),

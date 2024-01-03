@@ -7,6 +7,11 @@ impl From<u32> for TextureId {
         TextureId(id)
     }
 }
+impl From<TextureId> for u32 {
+    fn from(id: TextureId) -> Self {
+        id.0
+    }
+}
 
 #[derive(Debug)]
 pub struct Texture {

@@ -1,6 +1,6 @@
 mod sweep;
 
-use crate::{primitives::curve::CurveSolver, Geometry};
+use crate::{primitives::curve::CurveSolver, PrimitiveGeometry};
 use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
 
 pub use sweep::*;
@@ -10,7 +10,7 @@ pub enum Surface {
     Sweep(Sweep),
 }
 impl Surface {
-    pub fn solver(&self, geometry: &Geometry) -> SurfaceSolver {
+    pub fn solver(&self, geometry: &PrimitiveGeometry) -> SurfaceSolver {
         match self {
             Surface::Sweep(sweep) => SurfaceSolver::Sweep(sweep.solver(geometry)),
         }

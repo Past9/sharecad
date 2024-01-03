@@ -13,12 +13,22 @@ impl From<u32> for ModelId {
         ModelId(id)
     }
 }
+impl From<ModelId> for u32 {
+    fn from(id: ModelId) -> Self {
+        id.0
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InstanceId(pub u32);
 impl From<u32> for InstanceId {
     fn from(id: u32) -> Self {
         InstanceId(id)
+    }
+}
+impl From<InstanceId> for u32 {
+    fn from(id: InstanceId) -> Self {
+        id.0
     }
 }
 

@@ -10,15 +10,19 @@ impl From<u32> for PointMaterialId {
         PointMaterialId(id)
     }
 }
+impl From<PointMaterialId> for u32 {
+    fn from(id: PointMaterialId) -> Self {
+        id.0
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PointMaterial {
-    pub id: PointMaterialId,
     pub color: TextureId,
 }
 impl PointMaterial {
-    pub fn new(id: PointMaterialId, color: TextureId) -> Self {
-        Self { id, color }
+    pub fn new(color: TextureId) -> Self {
+        Self { color }
     }
 }
 

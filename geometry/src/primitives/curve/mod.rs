@@ -9,7 +9,7 @@ pub use arc::*;
 pub use helix::*;
 pub use line::*;
 
-use crate::Geometry;
+use crate::PrimitiveGeometry;
 
 #[derive(Clone, Debug)]
 pub enum Curve {
@@ -18,7 +18,7 @@ pub enum Curve {
     Helix(Helix),
 }
 impl Curve {
-    pub fn solver(&self, geometry: &Geometry) -> CurveSolver {
+    pub fn solver(&self, geometry: &PrimitiveGeometry) -> CurveSolver {
         match self {
             Curve::Line(line) => CurveSolver::Line(line.solver(geometry)),
             Curve::Arc(arc) => CurveSolver::Arc(arc.solver(geometry)),
