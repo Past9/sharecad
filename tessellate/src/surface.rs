@@ -67,7 +67,6 @@ impl TessellatedSurface {
 
         let mut bsp = BspTree::new(v_max, v_min, u_min, u_max);
 
-        let start = Instant::now();
         bsp.split_spaces(&|n: f64, s: f64, w: f64, e: f64| {
             //
             let nw = point2(w, n);
@@ -117,7 +116,6 @@ impl TessellatedSurface {
 
             None
         });
-        let end = Instant::now();
 
         let mut params = vec![
             point2(u_min, v_min),

@@ -94,13 +94,19 @@ fn build_scene() -> Scene {
             .metallic_rgb(rgb(0.6, 0.6, 0.6)),
     );
 
-    let curve_material = scene
+    let x_axis_material = scene
         .materials_mut()
-        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
+        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
+    let y_axis_material = scene
+        .materials_mut()
+        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 0.0)));
+    let z_axis_material = scene
+        .materials_mut()
+        .insert_curve_material(CurveMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
 
-    let point_material = scene
+    let origin_material = scene
         .materials_mut()
-        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.2, 0.0)));
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 1.0)));
 
     /*
     /*
@@ -189,6 +195,13 @@ fn build_scene() -> Scene {
     ));
     */
 
+    let default_point_material = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
+    scene
+        .materials_mut()
+        .set_default_point_material(default_point_material);
+
     const TOLERANCE: f64 = 0.0001;
 
     let mut model = PrimitiveModel::new();
@@ -213,6 +226,21 @@ fn build_scene() -> Scene {
         );
         let sweep2 = model.create_sweep(profile, arc_path);
         model.set_surface_material(sweep2, sweep2_material);
+
+        // Coords
+        let origin = model.create_point(Point3::ZERO);
+        let x_point = model.create_point(point3(1.0, 0.0, 0.0));
+        let y_point = model.create_point(point3(0.0, 1.0, 0.0));
+        let z_point = model.create_point(point3(0.0, 0.0, 1.0));
+
+        let x_axis = model.create_line_between(origin, x_point);
+        let y_axis = model.create_line_between(origin, y_point);
+        let z_axis = model.create_line_between(origin, z_point);
+
+        model.set_point_material(origin, origin_material);
+        model.set_curve_material(x_axis, x_axis_material);
+        model.set_curve_material(y_axis, y_axis_material);
+        model.set_curve_material(z_axis, z_axis_material);
     }
 
     let sm = SceneModel::from_primitive_model(&model, TOLERANCE);
