@@ -130,7 +130,7 @@ impl_op_ex_commutative!(*|a: Angle, b: f64| -> Angle { Angle::rad(a.0 * b) });
 mod tests {
     use std::f64::consts::PI;
 
-    use crate::{deg, rad, Angle};
+    use crate::math::{deg, rad, Angle};
 
     #[test]
     fn angle_ccw() {

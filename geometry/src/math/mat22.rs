@@ -1,6 +1,7 @@
-use crate::{vec2, Vec2};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use std::ops::Index;
+
+use super::{vec2, Vec2};
 
 #[derive(Copy, Clone)]
 pub struct Mat22(pub [[f64; 2]; 2]);

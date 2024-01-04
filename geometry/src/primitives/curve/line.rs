@@ -1,7 +1,9 @@
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
-use crate::{IGeometry, PrimitiveGeometry};
+use crate::{
+    math::{vec3, Coincidence, Mat33, Point3, Vec3},
+    IGeometry, PrimitiveGeometry,
+};
 use common::PointId;
-use space::{vec3, Coincidence, Point3, Vec3};
 use std::cell::OnceCell;
 
 #[derive(Clone, Debug)]
@@ -117,15 +119,15 @@ impl<'a> ICurvePoint<'a> for LinePoint<'a> {
         0.0
     }
 
-    fn axes(&'a self) -> &space::Mat33 {
+    fn axes(&'a self) -> &Mat33 {
         self.axes().axes_mat()
     }
 
-    fn axes_der1(&'a self) -> &space::Mat33 {
+    fn axes_der1(&'a self) -> &Mat33 {
         self.axes().axes_der1_mat()
     }
 
-    fn axes_der2(&'a self) -> &space::Mat33 {
+    fn axes_der2(&'a self) -> &Mat33 {
         self.axes().axes_der2_mat()
     }
 }

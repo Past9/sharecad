@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use common::{CurveId, PointId, SurfaceId};
 use geometry::{
+    math::{Angle, Point3, Quat, Vec3},
     primitives::{Curve, Surface},
     IGeometry, PrimitiveGeometry,
 };
-use space::{Angle, Point3, Quat, Vec3};
+use std::collections::HashMap;
 use visual::{
     material::{CurveMaterialId, PointMaterialId, SurfaceMaterialId},
     GeometryVisuals, IGeometryVisuals,

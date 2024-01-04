@@ -1,5 +1,6 @@
-use crate::{vec3, Mat44, Vec3};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+
+use super::{vec3, Mat44, Vec3};
 
 pub fn point3(x: f64, y: f64, z: f64) -> Point3 {
     Point3::new(x, y, z)

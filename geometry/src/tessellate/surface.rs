@@ -1,6 +1,9 @@
-use crate::bsp::{BspTree, TreeSplit};
-use geometry::primitives::{SurfacePoint, SurfaceSolver};
-use space::{lerp, point2, Coincidence, Point2, Point3, Vec3};
+use crate::{
+    math::{lerp, point2, Coincidence, Point2, Point3, Vec3},
+    primitives::{SurfacePoint, SurfaceSolver},
+};
+
+use super::bsp::{BspTree, TreeSplit};
 
 pub struct SurfaceVert {
     pub u: f64,

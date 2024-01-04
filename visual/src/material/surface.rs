@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
+use geometry::math::{vec3, Vec3};
 use image::GenericImageView;
-use space::{vec3, Vec3};
 
 use crate::{
     color::{rgb, Rgb},

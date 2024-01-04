@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-space = { path = "../space" }
 common = { path = "../common" }
+geometry = { path = "../geometry" }
 auto_ops = "0.3.0"
 image = { version = "0.24", default-features = false, features = [
     "png",

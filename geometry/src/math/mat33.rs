@@ -1,6 +1,7 @@
-use crate::{rad, vec2, vec3, Angle, Quat, Vec2, Vec3};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use std::ops::Index;
+
+use super::{vec3, Vec3, Vec2, Angle, rad, vec2, Quat};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -283,7 +284,7 @@ impl_op_ex_commutative!(*|s: f64, m: &Mat33| -> Mat33 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deg, point2};
+    use crate::math::{deg, point2};
 
     use super::*;
 

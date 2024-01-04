@@ -1,6 +1,8 @@
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
-use crate::PrimitiveGeometry;
-use space::{point3, vec3, Angle, Point3, Quat, Vec3};
+use crate::{
+    math::{point3, vec3, Angle, Mat33, Point3, Quat, Vec3},
+    PrimitiveGeometry,
+};
 use std::cell::OnceCell;
 
 #[derive(Clone, Debug)]
@@ -135,15 +137,15 @@ impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
         1.0 / self.arc.r
     }
 
-    fn axes(&'a self) -> &space::Mat33 {
+    fn axes(&'a self) -> &Mat33 {
         self.axes().axes_mat()
     }
 
-    fn axes_der1(&'a self) -> &space::Mat33 {
+    fn axes_der1(&'a self) -> &Mat33 {
         self.axes().axes_der1_mat()
     }
 
-    fn axes_der2(&'a self) -> &space::Mat33 {
+    fn axes_der2(&'a self) -> &Mat33 {
         self.axes().axes_der2_mat()
     }
 }

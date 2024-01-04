@@ -7,8 +7,8 @@ use crate::{
     scene::Scene,
 };
 use common::{CurveId, PointId, SurfaceId};
+use geometry::math::point2;
 use render_macros::shader_src;
-use space::point2;
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
 

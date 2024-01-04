@@ -1,9 +1,9 @@
 mod controller;
 
 use bytemuck::{Pod, Zeroable};
-use space::{Angle, Mat44, Point3, Quat, Vec3};
 
 pub use controller::*;
+use geometry::math::{Angle, Mat44, Point3, Quat, Vec3};
 
 pub struct Eye {
     pub dist: f64,

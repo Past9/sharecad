@@ -2,14 +2,16 @@ mod arc;
 mod helix;
 mod line;
 
-use space::{Angle, Coincidence, Mat33, Point3, Quat, Vec3, NEWTON_TOL};
 use std::cell::OnceCell;
 
 pub use arc::*;
 pub use helix::*;
 pub use line::*;
 
-use crate::PrimitiveGeometry;
+use crate::{
+    math::{Angle, Coincidence, Mat33, Point3, Quat, Vec3},
+    PrimitiveGeometry,
+};
 
 #[derive(Clone, Debug)]
 pub enum Curve {

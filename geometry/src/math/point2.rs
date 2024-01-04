@@ -1,5 +1,6 @@
-use crate::{vec2, Mat33, Vec2};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+
+use super::{vec2, Mat33, Vec2};
 
 pub fn point2(x: f64, y: f64) -> Point2 {
     Point2::new(x, y)

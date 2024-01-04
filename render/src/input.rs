@@ -1,5 +1,5 @@
 use egui::PointerButton;
-use space::{point2, vec2, Point2, Vec2};
+use geometry::math::{point2, vec2, Point2, Vec2};
 
 #[derive(Debug, Clone)]
 pub enum InputEvent {

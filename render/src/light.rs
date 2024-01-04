@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use space::Vec3;
+use geometry::math::Vec3;
 use visual::color::Rgb;
 
 #[derive(Debug, Clone)]

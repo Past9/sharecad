@@ -1,5 +1,6 @@
-use crate::{rad, Angle, Point2};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+
+use super::{rad, Angle, Point2};
 
 pub fn vec2(x: f64, y: f64) -> Vec2 {
     Vec2::new(x, y)
@@ -157,8 +158,9 @@ impl_op_ex!(/|s: &f64, v: &Vec2| -> Vec2 { vec2(s / v.x, s / v.y) });
 
 #[cfg(test)]
 mod tests {
+    use crate::math::{deg, point2, Mat33};
+
     use super::*;
-    use crate::{deg, point2, Mat33};
 
     #[test]
     fn gets_turn_dir() {

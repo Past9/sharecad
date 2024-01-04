@@ -2,8 +2,8 @@ use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
 use common::SurfaceId;
-use space::{point2, vec2, Point2, Point3, Vec2, Vec3};
-use tessellate::{SurfaceVert, TessellatedSurface};
+use geometry::math::{point2, vec2, Point2, Point3, Vec2, Vec3};
+use geometry::tessellate::{SurfaceVert, TessellatedSurface};
 use visual::material::SurfaceMaterialId;
 use wgpu::util::DeviceExt;
 

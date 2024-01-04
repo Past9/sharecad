@@ -1,4 +1,4 @@
-use crate::{Point2, Vec2};
+use super::{Point2, Vec2};
 
 pub fn coord2(o: Point2, x: Vec2, y: Vec2) -> Coord2 {
     Coord2::new(o, x, y)

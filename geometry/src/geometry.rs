@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use crate::math::{Angle, Point3, Quat, Vec3};
 use common::{CurveId, IdSeries, PointId, SurfaceId};
-use space::{Angle, Point3, Quat, Vec3};
 
 use crate::primitives::{Arc, Curve, CurveSolver, Helix, Line, Surface, SurfaceSolver, Sweep};
 

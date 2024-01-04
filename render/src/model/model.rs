@@ -3,11 +3,11 @@ use super::{CurveMesh, SurfaceMesh};
 use bytemuck::{Pod, Zeroable};
 use common::IdSeries;
 use common::SurfaceId;
+use geometry::math::{deg, rad, Mat33, Mat44, Quat, Vec3};
+use geometry::tessellate::{TessellatedCurve, TessellatedSurface, TessellationTolerance};
 use geometry::IGeometry;
 use model::PrimitiveModel;
-use space::{deg, rad, Mat33, Mat44, Quat, Vec3};
 use std::{cell::OnceCell, collections::HashMap};
-use tessellate::{TessellatedCurve, TessellatedSurface, TessellationTolerance};
 use visual::IGeometryVisuals;
 use wgpu::util::DeviceExt;
 

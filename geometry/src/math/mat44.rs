@@ -1,8 +1,8 @@
 use std::ops::Index;
-
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
-use crate::{Mat33, Point3, Quat, Vec3, Vec4};
+use super::{Vec3, Point3, Mat33, Quat, Vec4};
+
 
 #[derive(Copy, Clone)]
 pub struct Mat44(pub [[f64; 4]; 4]);
@@ -347,7 +347,7 @@ impl_op_ex_commutative!(*|s: f64, m: &Mat44| -> Mat44 {
 
 #[cfg(test)]
 mod tests {
-    use crate::Mat44;
+    use crate::math::Mat44;
 
     #[test]
     fn determinant() {

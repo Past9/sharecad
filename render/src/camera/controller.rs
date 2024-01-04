@@ -1,7 +1,7 @@
-use crate::input::{InputEvent, MouseButton};
+use geometry::math::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
 
 use super::Camera;
-use space::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
+use crate::input::{InputEvent, MouseButton};
 
 const ZOOM_SENSITIVITY: f64 = 0.2;
 const ORBIT_SENSITIVITY: f64 = 0.4;

@@ -8,7 +8,7 @@ use crate::{
     },
     scene::Scene,
 };
-use space::{deg, point3, Point2, Point3, Vec3};
+use geometry::math::{deg, point3, Point2, Point3, Vec3};
 use wgpu::Surface;
 
 pub struct ViewState {

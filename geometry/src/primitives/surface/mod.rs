@@ -1,7 +1,10 @@
 mod sweep;
 
-use crate::{primitives::curve::CurveSolver, PrimitiveGeometry};
-use space::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4};
+use crate::{
+    math::{point2, vec4, Mat44, Point2, Point3, Vec2, Vec3, Vec4},
+    primitives::curve::CurveSolver,
+    PrimitiveGeometry,
+};
 
 pub use sweep::*;
 
@@ -165,7 +168,7 @@ impl<'a> From<SweepPoint<'a>> for SurfacePoint<'a> {
 }
 
 mod helpers {
-    use space::Vec2;
+    use crate::math::Vec2;
 
     use super::ISurfacePoint;
 

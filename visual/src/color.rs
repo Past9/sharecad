@@ -1,6 +1,6 @@
 use auto_ops::impl_op_ex_commutative;
+use geometry::math::{vec3, Vec3};
 use image::{DynamicImage, GenericImage};
-use space::{vec3, Vec3};
 
 #[derive(Debug, Clone)]
 pub struct Rgba {

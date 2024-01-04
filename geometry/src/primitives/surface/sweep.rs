@@ -1,12 +1,10 @@
-use std::cell::OnceCell;
-
-use common::CurveId;
-use space::{point2, Mat33, Point2, Point3, Vec2, Vec3};
-
 use crate::{
+    math::{point2, Mat33, Point2, Point3, Vec2, Vec3},
     primitives::{axes, axes_der1, axes_der2, CurvePoint, CurveSolver},
     IGeometry, PrimitiveGeometry,
 };
+use common::CurveId;
+use std::cell::OnceCell;
 
 use super::{
     helpers::{

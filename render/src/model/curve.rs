@@ -1,9 +1,9 @@
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
 use common::CurveId;
-use space::{Point3, Vec3};
+use geometry::math::{Point3, Vec3};
+use geometry::tessellate::TessellatedCurve;
 use std::cell::OnceCell;
-use tessellate::TessellatedCurve;
 use visual::material::CurveMaterialId;
 use wgpu::util::DeviceExt;
 

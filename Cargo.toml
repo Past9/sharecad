@@ -4,10 +4,8 @@ resolver = "2"
 members = [
     "common",
     "geometry",
-    "space",
     "render",
     "part-editor",
-    "tessellate",
     "render-macros",
     "common",
     "model",

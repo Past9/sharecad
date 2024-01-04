@@ -1,4 +1,4 @@
-use crate::{Angle, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
+use super::{Angle, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 pub const NEWTON_TOL: f64 = COINCIDENT_TOL * 0.1;
@@ -10,7 +10,7 @@ pub const NEWTON_TOL: f64 = COINCIDENT_TOL * 0.1;
 macro_rules! assert_cc {
     ($a:expr, $b:expr) => {
         assert!(
-            $crate::Coincidence::cc(&$a, $b),
+            $crate::math::Coincidence::cc(&$a, $b),
             "assertion failed: `left.is_coincident(right)`\n  left: `{:?}`\n right: `{:?}`",
             $a,
             $b
@@ -25,7 +25,7 @@ macro_rules! assert_cc {
 macro_rules! assert_nc {
     ($a:expr, $b:expr) => {
         assert!(
-            !crate::Coincidence::cc(&$a, $b),
+            !crate::math::Coincidence::cc(&$a, $b),
             "assertion failed: `!left.is_coincident(right)`\n  left: `{:?}`\n right: `{:?}`",
             $a,
             $b
@@ -139,7 +139,7 @@ impl Coincidence<Angle> for Angle {
 
 #[cfg(test)]
 mod tests {
-    use crate::{point2, vec2};
+    use crate::math::{point2, vec2};
 
     use super::*;
 

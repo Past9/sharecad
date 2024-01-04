@@ -1,7 +1,8 @@
-use crate::PrimitiveGeometry;
-
 use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
-use space::{point3, vec3, Point3, Quat, Vec3};
+use crate::{
+    math::{point3, vec3, Mat33, Point3, Quat, Vec3},
+    PrimitiveGeometry,
+};
 use std::{cell::OnceCell, f64::consts::TAU};
 
 #[derive(Clone, Debug)]
@@ -172,15 +173,15 @@ impl<'a> ICurvePoint<'a> for HelixPoint<'a> {
         })
     }
 
-    fn axes(&'a self) -> &space::Mat33 {
+    fn axes(&'a self) -> &Mat33 {
         self.axes().axes_mat()
     }
 
-    fn axes_der1(&'a self) -> &space::Mat33 {
+    fn axes_der1(&'a self) -> &Mat33 {
         self.axes().axes_der1_mat()
     }
 
-    fn axes_der2(&'a self) -> &space::Mat33 {
+    fn axes_der2(&'a self) -> &Mat33 {
         self.axes().axes_der2_mat()
     }
 }

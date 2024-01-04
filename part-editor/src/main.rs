@@ -7,6 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
+use geometry::math::{deg, point3, vec3, Quat, Vec3};
 use geometry::IGeometry;
 use model::PrimitiveModel;
 use render::{
@@ -15,8 +16,7 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, point3, vec3, Quat, Vec3};
-use std::{f64::consts::TAU, sync::Arc};
+use std::sync::Arc;
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},
