@@ -15,11 +15,11 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use space::{deg, point3, vec3, Point3, Quat, Vec3};
+use space::{deg, point3, vec3, Quat, Vec3};
 use std::sync::Arc;
 use visual::{
     color::{rgb, Rgb},
-    material::{DefaultSurfaceMaterials, PointMaterialSpec, SurfaceMaterialSpec},
+    material::{PointMaterialSpec, SurfaceMaterialSpec},
     IGeometryVisuals,
 };
 
@@ -94,34 +94,32 @@ fn build_scene() -> Scene {
         .materials_mut()
         .set_default_point_material(default_point_material);
 
+    let projection_point_material = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
+
+    let projected_point_material = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 0.0)));
+
     const TOLERANCE: f64 = 0.0001;
 
     let mut model = PrimitiveModel::new();
 
     {
-        let sweep1_quat = Quat::from_axis_angle(vec3(1.0, -0.25, -0.25), deg(-60.0));
-        let sweep1_loc = vec3(-1.0, -1.0, 0.0);
-        let sweep1_path = model.create_arc(2.0, deg(90.0), sweep1_quat, sweep1_loc);
-        let sweep1_profile = model.create_arc(
-            2.0,
-            deg(60.0),
-            sweep1_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            sweep1_loc,
-        );
-        let sweep1 = model.create_sweep(sweep1_profile, sweep1_path);
-        model.set_surface_material(sweep1, sweep1_material);
+        let sweep1_path = model.create_arc(1.0, deg(250.0), Quat::ZERO, Vec3::ZERO);
 
-        let sweep2_quat = Quat::from_axis_angle(vec3(0.0, 1.0, 0.0), deg(-180.0));
-        let sweep2_loc = vec3(1.0, -1.0, 0.0);
-        let sweep2_path = model.create_arc(1.5, deg(90.0), sweep2_quat, sweep2_loc);
-        let sweep2_profile = model.create_arc(
-            1.5,
-            deg(60.0),
-            sweep2_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            sweep2_loc,
-        );
-        let sweep2 = model.create_sweep(sweep2_profile, sweep2_path);
-        model.set_surface_material(sweep2, sweep2_material);
+        // Test point projection
+        let arc = model.curve_solver(sweep1_path).unwrap();
+        let projection_point = point3(0.5, 2.0, 0.0);
+        let projection_point_id = model.create_point(projection_point.clone());
+        model.set_point_material(projection_point_id, projection_point_material);
+        let res = arc.project_point(projection_point);
+
+        println!("res = {:#?}", res);
+
+        let id = model.create_point(res.unwrap().pos);
+        model.set_point_material(id, projected_point_material)
     }
 
     let sm = SceneModel::from_primitive_model(&model, TOLERANCE);
