@@ -166,6 +166,8 @@ impl CurveSolver {
         let mut result: Option<PointProjectionResult> = None;
 
         for iter in 0..MAX_ITER {
+            println!();
+
             let cp = self.point(u);
 
             let pos = cp.eval();
@@ -175,6 +177,17 @@ impl CurveSolver {
             let dist = diff.magnitude();
             let d1_dot_diff = d1.dot(diff);
             let delta = d1_dot_diff / (d2.dot(diff) + d1.magnitude2());
+
+            println!("u = {}", u);
+            println!("iter = {}", iter);
+            println!("pos = {}", pos);
+            println!("d1 = {}", d1);
+            println!("d2 = {}", d2);
+            println!("diff = {}", diff);
+            println!("d1_dot_diff = {}", d1_dot_diff);
+            println!("d2.dot(diff) = {}", d2.dot(diff));
+            println!("d1.magnitude2() = {}", d1.magnitude2());
+            println!("delta = {}", delta);
 
             result = Some(PointProjectionResult {
                 iter,
