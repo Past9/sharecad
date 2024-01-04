@@ -3,13 +3,21 @@ use std::collections::HashMap;
 use common::{CurveId, IdSeries, PointId, SurfaceId};
 use space::{Angle, Point3, Quat, Vec3};
 
-use crate::primitives::{Arc, Curve, CurveSolver, Line, Surface, SurfaceSolver, Sweep};
+use crate::primitives::{Arc, Curve, CurveSolver, Helix, Line, Surface, SurfaceSolver, Sweep};
 
 pub trait IGeometry {
     fn create_point(&mut self, point: Point3) -> PointId;
     fn create_curve(&mut self, curve: Curve) -> CurveId;
     fn create_surface(&mut self, surface: Surface) -> SurfaceId;
     fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId;
+    fn create_helix(
+        &mut self,
+        r: f64,
+        h: f64,
+        n: f64,
+        orientation: Quat,
+        translation: Vec3,
+    ) -> CurveId;
     fn create_arc(&mut self, r: f64, angle: Angle, orientation: Quat, translation: Vec3)
         -> CurveId;
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId;
@@ -67,6 +75,17 @@ impl IGeometry for PrimitiveGeometry {
 
     fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId {
         self.create_curve(Line::new(start, end).into())
+    }
+
+    fn create_helix(
+        &mut self,
+        r: f64,
+        h: f64,
+        n: f64,
+        orientation: Quat,
+        translation: Vec3,
+    ) -> CurveId {
+        self.create_curve(Helix::new(r, h, n, orientation, translation).into())
     }
 
     fn create_arc(

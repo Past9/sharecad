@@ -131,6 +131,10 @@ impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
         })
     }
 
+    fn curvature(&self) -> f64 {
+        1.0 / self.arc.r
+    }
+
     fn axes(&'a self) -> &space::Mat33 {
         self.axes().axes_mat()
     }

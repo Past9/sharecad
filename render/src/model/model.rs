@@ -5,9 +5,9 @@ use common::IdSeries;
 use common::SurfaceId;
 use geometry::IGeometry;
 use model::PrimitiveModel;
-use space::{rad, Mat33, Mat44, Quat, Vec3};
+use space::{deg, rad, Mat33, Mat44, Quat, Vec3};
 use std::{cell::OnceCell, collections::HashMap};
-use tessellate::{TessellatedCurve, TessellatedSurface};
+use tessellate::{TessellatedCurve, TessellatedSurface, TessellationTolerance};
 use visual::IGeometryVisuals;
 use wgpu::util::DeviceExt;
 
@@ -86,7 +86,10 @@ impl SceneModel {
 
         for curve_id in model.curves().keys() {
             let curve_solver = model.curve_solver(*curve_id).unwrap();
-            let tessellated = TessellatedCurve::by_tolerance(&curve_solver, tolerance);
+            let tessellated = TessellatedCurve::create(
+                &curve_solver,
+                TessellationTolerance::DistanceAndAngle(0.001, deg(1.0)),
+            );
             scene_model.add_curve(SceneCurve::new(
                 CurveMesh::from_tessellated(&tessellated),
                 model.get_curve_material(*curve_id),

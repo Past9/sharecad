@@ -165,8 +165,6 @@ impl CurveSolver {
         let (u_min, u_max) = self.domain();
 
         for iter in 0..MAX_ITER {
-            println!("{}", iter);
-
             let cp = self.point(u);
 
             let pos = cp.eval();
@@ -263,6 +261,10 @@ pub trait ICurvePoint<'a> {
     fn axes(&'a self) -> &Mat33;
     fn axes_der1(&'a self) -> &Mat33;
     fn axes_der2(&'a self) -> &Mat33;
+
+    fn curvature(&self) -> f64 {
+        (self.der1().magnitude().powi(3) / (self.der1().cross(*self.der2())).magnitude()).recip()
+    }
 }
 
 pub enum CurvePoint<'a> {
@@ -308,6 +310,14 @@ impl<'a> CurvePoint<'a> {
             CurvePoint::Line(line) => line.der3(),
             CurvePoint::Helix(helix) => helix.der3(),
             CurvePoint::Arc(arc) => arc.der3(),
+        }
+    }
+
+    pub fn curvature(&self) -> f64 {
+        match self {
+            CurvePoint::Line(line) => line.curvature(),
+            CurvePoint::Helix(helix) => helix.curvature(),
+            CurvePoint::Arc(arc) => arc.curvature(),
         }
     }
 

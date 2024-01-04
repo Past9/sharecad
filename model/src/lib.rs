@@ -40,6 +40,18 @@ impl IGeometry for PrimitiveModel {
         self.geometry.create_line_between(start, end)
     }
 
+    fn create_helix(
+        &mut self,
+        r: f64,
+        h: f64,
+        n: f64,
+        orientation: Quat,
+        translation: Vec3,
+    ) -> CurveId {
+        self.geometry
+            .create_helix(r, h, n, orientation, translation)
+    }
+
     fn create_arc(
         &mut self,
         r: f64,

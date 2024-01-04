@@ -13,6 +13,16 @@ pub struct Helix {
     translation: Vec3,
 }
 impl Helix {
+    pub fn new(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
+        Self {
+            r,
+            h,
+            n,
+            orientation,
+            translation,
+        }
+    }
+
     pub fn solver(&self, _geometry: &PrimitiveGeometry) -> HelixSolver {
         HelixSolver {
             r: self.r,

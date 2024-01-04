@@ -16,7 +16,7 @@ use render::{
     scene::Scene,
 };
 use space::{deg, point3, vec3, Quat, Vec3};
-use std::sync::Arc;
+use std::{f64::consts::TAU, sync::Arc};
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},
@@ -107,7 +107,7 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let sweep1_path = model.create_arc(1.0, deg(60.0), Quat::ZERO, Vec3::ZERO);
+        let sweep1_path = model.create_arc(1.0, deg(360.0), Quat::ZERO, Vec3::ZERO);
 
         // Test point projection
         let arc = model.curve_solver(sweep1_path).unwrap();

@@ -113,6 +113,10 @@ impl<'a> ICurvePoint<'a> for LinePoint<'a> {
         self.der3.get_or_init(|| Vec3::ZERO)
     }
 
+    fn curvature(&self) -> f64 {
+        0.0
+    }
+
     fn axes(&'a self) -> &space::Mat33 {
         self.axes().axes_mat()
     }
