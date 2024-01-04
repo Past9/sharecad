@@ -107,11 +107,11 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let sweep1_path = model.create_arc(1.0, deg(360.0), Quat::ZERO, Vec3::ZERO);
+        let sweep1_path = model.create_arc(1.0, deg(60.0), Quat::ZERO, Vec3::ZERO);
 
         // Test point projection
         let arc = model.curve_solver(sweep1_path).unwrap();
-        let projection_point = point3(0.0, 2.0, 0.0);
+        let projection_point = point3(0.0, 1.5, 0.0);
         let projection_point_id = model.create_point(projection_point.clone());
         model.set_point_material(projection_point_id, projection_point_material);
         let res = arc.project_point(projection_point);

@@ -160,13 +160,12 @@ impl CurveSolver {
         point: Point3,
         mut u: f64,
     ) -> Option<PointProjectionResult> {
-        const MAX_ITER: u32 = 100;
+        const MAX_ITER: u32 = 10;
 
         let (u_min, u_max) = self.domain();
-        let mut result: Option<PointProjectionResult> = None;
 
         for iter in 0..MAX_ITER {
-            println!();
+            println!("{}", iter);
 
             let cp = self.point(u);
 
@@ -176,20 +175,21 @@ impl CurveSolver {
             let diff = pos - point;
             let dist = diff.magnitude();
             let d1_dot_diff = d1.dot(diff);
-            let delta = d1_dot_diff / (d2.dot(diff) + d1.magnitude2());
 
-            println!("u = {}", u);
-            println!("iter = {}", iter);
-            println!("pos = {}", pos);
-            println!("d1 = {}", d1);
-            println!("d2 = {}", d2);
-            println!("diff = {}", diff);
-            println!("d1_dot_diff = {}", d1_dot_diff);
-            println!("d2.dot(diff) = {}", d2.dot(diff));
-            println!("d1.magnitude2() = {}", d1.magnitude2());
-            println!("delta = {}", delta);
+            let delta_den = d2.dot(diff) + d1.magnitude2();
 
-            result = Some(PointProjectionResult {
+            let delta = if !delta_den.cc(0.0) {
+                d1_dot_diff / delta_den
+            } else {
+                // The derivative (delta_den) of the function we're minimizing can
+                // be zero in some situations, which would normally cause delta to
+                // very large or infinite. This situation can often be fixed by
+                // setting delta to some small fraction of the domain, "pushing"
+                // the u parameter off the troublesome value.
+                (u_max - u_min) / 100.0
+            };
+
+            let result = Some(PointProjectionResult {
                 iter,
                 u,
                 pos: *pos,
@@ -234,7 +234,7 @@ impl CurveSolver {
             u = u_next;
         }
 
-        result
+        None
     }
 }
 impl From<LineSolver> for CurveSolver {
