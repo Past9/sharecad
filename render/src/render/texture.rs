@@ -4,7 +4,6 @@ use visual::texture::TextureImage;
 
 #[derive(Debug)]
 pub(super) struct TextureResources {
-    pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
@@ -42,11 +41,7 @@ impl TextureResources {
             ..Default::default()
         });
 
-        Self {
-            texture,
-            view,
-            sampler,
-        }
+        Self { view, sampler }
     }
 
     pub fn image(
@@ -106,10 +101,6 @@ impl TextureResources {
             ..Default::default()
         });
 
-        Self {
-            texture,
-            view,
-            sampler,
-        }
+        Self { view, sampler }
     }
 }

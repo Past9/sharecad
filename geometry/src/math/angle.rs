@@ -92,16 +92,6 @@ impl Angle {
 
         rad(rads)
     }
-
-    fn normalize_cw(&self) -> Self {
-        let pi_2 = PI2_1;
-        let mut rads = self.0 % -pi_2;
-        if rads > 0.0 {
-            rads -= pi_2;
-        }
-
-        rad(rads)
-    }
 }
 impl From<Angle> for f64 {
     fn from(value: Angle) -> Self {
