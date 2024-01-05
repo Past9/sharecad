@@ -3,6 +3,8 @@ use crate::{
     primitives::{CurvePoint, CurveSolver},
 };
 
+use super::TessellationTolerance;
+
 #[derive(Clone, Debug)]
 pub struct CurveSample {
     pub u: f64,
@@ -25,12 +27,6 @@ impl Ord for CurveSample {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.u.total_cmp(&other.u)
     }
-}
-
-pub enum TessellationTolerance {
-    Distance(f64),
-    Angle(Angle),
-    DistanceAndAngle(f64, Angle),
 }
 
 #[derive(Clone, Debug)]
@@ -83,17 +79,14 @@ impl TessellatedCurve {
     }
 
     fn delta_u_angle(point: &CurvePoint, angle: Angle) -> f64 {
+        let d1 = point.der1();
         let p = point.curvature().recip();
-        let d_mag = point.der1().magnitude();
-        (p * angle.radians()) / d_mag
+        (p * angle.radians()) / d1.magnitude()
     }
 
     fn delta_u_dist(point: &CurvePoint, dist: f64) -> f64 {
         let der1 = *point.der1();
-        let der2 = *point.der2();
-
-        let p = der1.magnitude().powi(3) / (der1.cross(der2)).magnitude();
-
+        let p = point.curvature().recip();
         2.0 * (dist * (2.0 * p - dist)).sqrt() / der1.magnitude()
     }
 }

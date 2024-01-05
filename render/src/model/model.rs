@@ -77,7 +77,7 @@ impl SceneModel {
 
         for surface_id in model.surfaces().keys() {
             let surface_solver = model.surface_solver(*surface_id).unwrap();
-            let tessellated = TessellatedSurface::by_tolerance(&surface_solver, tolerance);
+            let tessellated = TessellatedSurface::create(&surface_solver, tolerance);
             scene_model.add_surface(SceneSurface::new(
                 SurfaceMesh::from_tessellated(&tessellated),
                 model.get_surface_material(*surface_id),

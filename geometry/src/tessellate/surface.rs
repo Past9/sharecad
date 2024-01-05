@@ -1,5 +1,5 @@
 use crate::{
-    math::{lerp, point2, Coincidence, Point2, Point3, Vec3},
+    math::{lerp, point2, Angle, Coincidence, Point2, Point3, Vec3},
     primitives::{SurfacePoint, SurfaceSolver},
 };
 
@@ -18,7 +18,7 @@ pub struct TessellatedSurface {
     pub indices: Vec<u32>,
 }
 impl TessellatedSurface {
-    pub fn by_tolerance(surface: &SurfaceSolver, tolerance: f64) -> Self {
+    pub fn create(surface: &SurfaceSolver, tolerance: f64) -> Self {
         let uv_flat = Self::tess_uvs(surface, tolerance)
             .into_iter()
             .map(|p| delaunator::Point { x: p.x, y: p.y })
@@ -77,41 +77,41 @@ impl TessellatedSurface {
 
             // Fron NW corner, right and down
             let sp_nw = surface.point(nw);
-            if Self::delta_u(&sp_nw, tolerance) < (ne - nw).magnitude() {
+            if Self::delta_u_dist(&sp_nw, tolerance) < (ne - nw).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if Self::delta_v(&sp_nw, tolerance) < (nw - sw).magnitude() {
+            if Self::delta_v_dist(&sp_nw, tolerance) < (nw - sw).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron SE corner, left and up
             let sp_se = surface.point(se);
-            if Self::delta_u(&sp_se, tolerance) < (sw - se).magnitude() {
+            if Self::delta_u_dist(&sp_se, tolerance) < (sw - se).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if Self::delta_v(&sp_se, tolerance) < (se - ne).magnitude() {
+            if Self::delta_v_dist(&sp_se, tolerance) < (se - ne).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron NE corner, left and down
             let sp_ne = surface.point(ne);
-            if Self::delta_u(&sp_ne, tolerance) < (nw - ne).magnitude() {
+            if Self::delta_u_dist(&sp_ne, tolerance) < (nw - ne).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if Self::delta_v(&sp_ne, tolerance) < (ne - se).magnitude() {
+            if Self::delta_v_dist(&sp_ne, tolerance) < (ne - se).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
             // Fron SW corner, right and up
             let sp_sw = surface.point(sw);
-            if Self::delta_u(&sp_sw, tolerance) < (se - sw).magnitude() {
+            if Self::delta_u_dist(&sp_sw, tolerance) < (se - sw).magnitude() {
                 return Some(TreeSplit::Ew);
             }
 
-            if Self::delta_v(&sp_sw, tolerance) < (sw - nw).magnitude() {
+            if Self::delta_v_dist(&sp_sw, tolerance) < (sw - nw).magnitude() {
                 return Some(TreeSplit::Ns);
             }
 
@@ -207,23 +207,27 @@ impl TessellatedSurface {
         solution
     }
 
-    fn delta_u(point: &SurfacePoint, tolerance: f64) -> f64 {
-        let du = point.der1().0;
-        let duu = point.der2().0;
-
-        let k = du.cross(duu).magnitude() / du.magnitude().powi(3);
-        let p = k.recip();
-
-        2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / du.magnitude()
+    fn delta_u_angle(point: &SurfacePoint, angle: Angle) -> f64 {
+        let (du, _) = point.der1();
+        let p = point.curvature_u().recip();
+        (p * angle.radians()) / du.magnitude()
     }
 
-    fn delta_v(point: &SurfacePoint, tolerance: f64) -> f64 {
+    fn delta_v_angle(point: &SurfacePoint, angle: Angle) -> f64 {
+        let (_, dv) = point.der1();
+        let p = point.curvature_v().recip();
+        (p * angle.radians()) / dv.magnitude()
+    }
+
+    fn delta_u_dist(point: &SurfacePoint, dist: f64) -> f64 {
+        let du = point.der1().0;
+        let p = point.curvature_u().recip();
+        2.0 * (dist * (2.0 * (p) - dist)).sqrt() / du.magnitude()
+    }
+
+    fn delta_v_dist(point: &SurfacePoint, dist: f64) -> f64 {
         let dv = point.der1().1;
-        let dvv = point.der2().2;
-
-        let k = dv.cross(dvv).magnitude() / dv.magnitude().powi(3);
-        let p = k.recip();
-
-        2.0 * (tolerance * (2.0 * (p) - tolerance)).sqrt() / dv.magnitude()
+        let p = point.curvature_v().recip();
+        2.0 * (dist * (2.0 * (p) - dist)).sqrt() / dv.magnitude()
     }
 }

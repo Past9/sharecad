@@ -7,12 +7,6 @@ pub trait ICurvePoint<'a> {
     fn der1(&self) -> &Vec3;
     fn der2(&self) -> &Vec3;
     fn der3(&self) -> &Vec3;
-    //fn axes(&self) -> &CurvePointAxes<'a>;
-    /*
-    fn axes(&'a self) -> &Mat33;
-    fn axes_der1(&'a self) -> &Mat33;
-    fn axes_der2(&'a self) -> &Mat33;
-     */
 
     fn curvature(&self) -> f64 {
         (self.der1().magnitude().powi(3) / (self.der1().cross(*self.der2())).magnitude()).recip()
