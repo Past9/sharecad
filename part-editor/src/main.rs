@@ -16,7 +16,7 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},
@@ -102,6 +102,10 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 0.0)));
 
+    let inverted_point_material = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
+
     const TOLERANCE: f64 = 0.0001;
 
     let mut model = PrimitiveModel::new();
@@ -111,15 +115,21 @@ fn build_scene() -> Scene {
 
         // Test point projection
         let arc = model.curve_solver(sweep1_path).unwrap();
-        let projection_point = point3(0.0, 1.5, 0.0);
+        let projection_point = point3(0.1, 0.0, 0.0);
         let projection_point_id = model.create_point(projection_point.clone());
         model.set_point_material(projection_point_id, projection_point_material);
-        let res = arc.project_point(projection_point);
+        arc.project_point(projection_point);
+        let start = Instant::now();
+        let results = arc.project_point(projection_point);
+        let end = Instant::now();
 
-        println!("res = {:#?}", res);
+        println!("results = {:#?}", results);
+        println!("res in {}us", (end - start).as_micros());
 
-        let id = model.create_point(res.unwrap().pos);
-        model.set_point_material(id, projected_point_material)
+        for result in results.iter() {
+            let id = model.create_point(result.pos);
+            model.set_point_material(id, projected_point_material)
+        }
     }
 
     let sm = SceneModel::from_primitive_model(&model, TOLERANCE);

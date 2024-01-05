@@ -1,25 +1,27 @@
 use crate::{
-    math::{Angle, Point3},
+    math::{Angle, Point3, Vec3},
     primitives::{CurvePoint, CurveSolver},
 };
 
 #[derive(Clone, Debug)]
-pub struct CurveVert {
+pub struct CurveSample {
     pub u: f64,
     pub pos: Point3,
+    pub der1: Vec3,
+    pub der2: Vec3,
 }
-impl PartialEq for CurveVert {
+impl PartialEq for CurveSample {
     fn eq(&self, other: &Self) -> bool {
         self.u == other.u
     }
 }
-impl Eq for CurveVert {}
-impl PartialOrd for CurveVert {
+impl Eq for CurveSample {}
+impl PartialOrd for CurveSample {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.u.partial_cmp(&other.u)
     }
 }
-impl Ord for CurveVert {
+impl Ord for CurveSample {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.u.total_cmp(&other.u)
     }
@@ -31,8 +33,9 @@ pub enum TessellationTolerance {
     DistanceAndAngle(f64, Angle),
 }
 
+#[derive(Clone, Debug)]
 pub struct TessellatedCurve {
-    pub points: Vec<CurveVert>,
+    pub points: Vec<CurveSample>,
 }
 impl TessellatedCurve {
     pub fn create(curve: &CurveSolver, tolerance: TessellationTolerance) -> Self {
@@ -69,9 +72,11 @@ impl TessellatedCurve {
         Self {
             points: points
                 .into_iter()
-                .map(|p| CurveVert {
+                .map(|p| CurveSample {
                     u: p.u(),
-                    pos: *p.eval(),
+                    pos: *p.pos(),
+                    der1: *p.der1(),
+                    der2: *p.der2(),
                 })
                 .collect(),
         }

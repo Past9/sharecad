@@ -50,7 +50,7 @@ impl TessellatedSurface {
                     Some(SurfaceVert {
                         u: uv.x,
                         v: uv.y,
-                        pos: *point.eval(),
+                        pos: *point.pos(),
                         tangents: (tangent, bitangent),
                         normal: normal,
                     })

@@ -1,6 +1,9 @@
 use std::cell::OnceCell;
 
-use crate::math::{Angle, Coincidence, Point3, Quat, Vec3};
+use crate::{
+    math::{deg, Angle, Coincidence, Point3, Quat, Vec3},
+    tessellate::{TessellatedCurve, TessellationTolerance},
+};
 
 use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver};
 
@@ -41,26 +44,27 @@ impl From<HelixSolver> for CurveSolverKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PointProjectionResult {
     pub iter: u32,
     pub u: f64,
     pub pos: Point3,
     pub diff: Vec3,
     pub dist: f64,
-    pub der1_dot_diff: f64,
 }
 
-#[derive(Clone, Debug)]
+//#[derive(Clone, Debug)]
 pub struct CurveSolver {
     kind: CurveSolverKind,
     is_closed: OnceCell<bool>,
+    projection_tessellation: OnceCell<TessellatedCurve>,
 }
 impl CurveSolver {
     pub(super) fn new(kind: CurveSolverKind) -> Self {
         Self {
             kind,
             is_closed: OnceCell::new(),
+            projection_tessellation: OnceCell::new(),
         }
     }
 
@@ -107,14 +111,78 @@ impl CurveSolver {
             let (u_min, u_max) = self.domain();
             let start = self.point(u_min);
             let end = self.point(u_max);
-            start.eval().cc(*end.eval()) && start.der1().normalize().cc(end.der1().normalize())
+            start.pos().cc(*end.pos()) && start.der1().normalize().cc(end.der1().normalize())
         })
     }
 
-    pub fn project_point(&self, point: Point3) -> Option<PointProjectionResult> {
-        let (min_u, max_u) = self.domain();
-        let start_u = (min_u + max_u) / 2.0;
-        self.project_from_starting_param(point, start_u)
+    pub fn invert_point(&self, point: Point3) -> Vec<PointProjectionResult> {
+        let initial_guesses = self.projection_starting_params(point, true, false);
+        let mut results = vec![];
+
+        for guess in initial_guesses {
+            if let Some(res) = self.project_from_starting_param(point, guess) {
+                if res.dist.cc(0.0) {
+                    results.push(res);
+                }
+            }
+        }
+
+        results
+    }
+
+    pub fn project_point(&self, point: Point3) -> Vec<PointProjectionResult> {
+        let initial_guesses = self.projection_starting_params(point, true, true);
+        let mut results = vec![];
+
+        for guess in initial_guesses {
+            if let Some(res) = self.project_from_starting_param(point, guess) {
+                results.push(res);
+            }
+        }
+
+        results.sort_by(|a, b| a.dist.total_cmp(&b.dist));
+
+        results
+    }
+
+    fn projection_tessellation(&self) -> &TessellatedCurve {
+        self.projection_tessellation
+            .get_or_init(|| TessellatedCurve::create(self, TessellationTolerance::Angle(deg(1.0))))
+    }
+
+    fn projection_starting_params(
+        &self,
+        p: Point3,
+        allow_above_focal_point: bool,
+        allow_below_focal_point: bool,
+    ) -> Vec<f64> {
+        let mut start_params = vec![];
+        let samples = &self.projection_tessellation().points;
+
+        for i in 1..samples.len() {
+            let p0 = &samples[i - 1];
+            let p1 = &samples[i];
+
+            let p0_p = p - p0.pos;
+            let p_p1 = p1.pos - p;
+
+            let r1 = p0_p.dot(p0.der1);
+            let r2 = p_p1.dot(p1.der1);
+
+            let is_perpendicular =
+                // perpendicular at p0 or p1
+                (r1 == 0.0 || r2 == 0.0) ||
+                // perpendicular from outside of curve or inside "focal point" 
+                (allow_above_focal_point && r1 > 0.0 && r2 > 0.0) ||
+                // perpendicular from below curve beyond the "focal point"
+                (allow_below_focal_point && r1 < 0.0 && r2 < 0.0);
+
+            if is_perpendicular {
+                start_params.push((p0.u + p1.u) / 2.0);
+            }
+        }
+
+        start_params
     }
 
     fn project_from_starting_param(
@@ -129,7 +197,7 @@ impl CurveSolver {
         for iter in 0..MAX_ITER {
             let cp = self.point(u);
 
-            let pos = cp.eval();
+            let pos = cp.pos();
             let d1 = cp.der1();
             let d2 = cp.der2();
             let diff = pos - point;
@@ -155,7 +223,6 @@ impl CurveSolver {
                 pos: *pos,
                 diff,
                 dist,
-                der1_dot_diff: d1_dot_diff,
             });
 
             // Some stopping conditions

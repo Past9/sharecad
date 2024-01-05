@@ -98,7 +98,7 @@ impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
         self.u
     }
 
-    fn eval(&self) -> &Point3 {
+    fn pos(&self) -> &Point3 {
         self.eval.get_or_init(|| {
             let point = point3(self.arc.r * self.u.cos(), self.arc.r * self.u.sin(), 0.0);
             self.arc.orientation * point + self.arc.translation

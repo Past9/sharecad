@@ -74,7 +74,7 @@ pub trait ISurfacePoint {
     }
 
     fn uv(&self) -> Point2;
-    fn eval(&self) -> &Point3;
+    fn pos(&self) -> &Point3;
     fn der1(&self) -> &(Vec3, Vec3);
     fn der2(&self) -> &(Vec3, Vec3, Vec3);
     fn ff1(&self) -> &(f64, f64, f64);
@@ -107,9 +107,9 @@ impl<'a> SurfacePoint<'a> {
         }
     }
 
-    pub fn eval(&self) -> &Point3 {
+    pub fn pos(&self) -> &Point3 {
         match self {
-            SurfacePoint::Sweep(sweep) => sweep.eval(),
+            SurfacePoint::Sweep(sweep) => sweep.pos(),
         }
     }
 
@@ -246,16 +246,16 @@ impl<'a> SurfaceIntersection<'a> {
     }
 
     pub fn dist2(&self, uv0: Point2, uv1: Point2) -> f64 {
-        (self.s0.point(uv0).eval() - self.s1.point(uv1).eval()).magnitude2()
+        (self.s0.point(uv0).pos() - self.s1.point(uv1).pos()).magnitude2()
     }
 
     pub fn gradient(&self, uv0: Point2, uv1: Point2) -> Vec4 {
         let s0_point = self.s0.point(uv0);
-        let s0_pos = s0_point.eval();
+        let s0_pos = s0_point.pos();
         let (s0_du, s0_dv) = *s0_point.der1();
 
         let s1_point = self.s1.point(uv1);
-        let s1_pos = s1_point.eval();
+        let s1_pos = s1_point.pos();
         let (s1_du, s1_dv) = *s1_point.der1();
 
         let d_u0 = (s0_pos - s1_pos).dot(s0_du) + s0_du.dot(s0_pos - s1_pos);
@@ -268,12 +268,12 @@ impl<'a> SurfaceIntersection<'a> {
 
     pub fn hessian(&self, uv0: Point2, uv1: Point2) -> Mat44 {
         let s0_point = self.s0.point(uv0);
-        let s0_pos = *s0_point.eval();
+        let s0_pos = *s0_point.pos();
         let (s0_du, s0_dv) = *s0_point.der1();
         let (s0_duu, s0_duv, s0_dvv) = *s0_point.der2();
 
         let s1_point = self.s1.point(uv1);
-        let s1_pos = *s1_point.eval();
+        let s1_pos = *s1_point.pos();
         let (s1_du, s1_dv) = *s1_point.der1();
         let (s1_duu, s1_duv, s1_dvv) = *s1_point.der2();
 

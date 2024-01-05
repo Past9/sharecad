@@ -181,10 +181,10 @@ impl<'a> ISurfacePoint for SweepPoint<'a> {
         self.uv
     }
 
-    fn eval(&self) -> &Point3 {
+    fn pos(&self) -> &Point3 {
         self.eval.get_or_init(|| {
             let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
-            self.path_v.eval() + m * (self.profile_u.eval() - self.path_start.eval())
+            self.path_v.pos() + m * (self.profile_u.pos() - self.path_start.pos())
         })
     }
 
@@ -194,7 +194,7 @@ impl<'a> ISurfacePoint for SweepPoint<'a> {
             let du = m * self.profile_u.der1();
 
             let m_der1 = self.path_axes_der1_mat() * self.path_axes_start_inverse_mat();
-            let dv = self.path_v.der1() + m_der1 * (self.profile_u.eval() - self.path_start.eval());
+            let dv = self.path_v.der1() + m_der1 * (self.profile_u.pos() - self.path_start.pos());
 
             (du, dv)
         })
@@ -209,8 +209,7 @@ impl<'a> ISurfacePoint for SweepPoint<'a> {
             let duv = m_der1 * self.profile_u.der1();
 
             let m_der2 = self.path_axes_der2_mat() * self.path_axes_start_inverse_mat();
-            let dvv =
-                self.path_v.der2() + m_der2 * (self.profile_u.eval() - self.path_start.eval());
+            let dvv = self.path_v.der2() + m_der2 * (self.profile_u.pos() - self.path_start.pos());
 
             (duu, duv, dvv)
         })

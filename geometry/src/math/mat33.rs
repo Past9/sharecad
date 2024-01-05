@@ -1,7 +1,7 @@
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use std::ops::Index;
 
-use super::{vec3, Vec3, Vec2, Angle, rad, vec2, Quat};
+use super::{rad, vec2, vec3, Angle, Quat, Vec2, Vec3};
 
 #[derive(Copy, Clone)]
 pub struct Mat33(pub [[f64; 3]; 3]);
@@ -204,9 +204,9 @@ impl From<Quat> for Mat33 {
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat33::new(
-            1.0 - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,        
-            xy2 + sz2,        1.0 - xx2 - zz2,  yz2 - sx2,        
-            xz2 - sy2,        yz2 + sx2,        1.0 - xx2 - yy2,  
+            1.0 - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,
+            xy2 + sz2,        1.0 - xx2 - zz2,  yz2 - sx2,
+            xz2 - sy2,        yz2 + sx2,        1.0 - xx2 - yy2,
         )
     }
 }

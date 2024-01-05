@@ -3,7 +3,7 @@ use crate::math::{Point3, Vec3};
 
 pub trait ICurvePoint<'a> {
     fn u(&self) -> f64;
-    fn eval(&self) -> &Point3;
+    fn pos(&self) -> &Point3;
     fn der1(&self) -> &Vec3;
     fn der2(&self) -> &Vec3;
     fn der3(&self) -> &Vec3;
@@ -33,11 +33,11 @@ impl<'a> CurvePoint<'a> {
         }
     }
 
-    pub fn eval(&self) -> &Point3 {
+    pub fn pos(&self) -> &Point3 {
         match self {
-            CurvePoint::Line(line) => line.eval(),
-            CurvePoint::Helix(helix) => helix.eval(),
-            CurvePoint::Arc(arc) => arc.eval(),
+            CurvePoint::Line(line) => line.pos(),
+            CurvePoint::Helix(helix) => helix.pos(),
+            CurvePoint::Arc(arc) => arc.pos(),
         }
     }
 

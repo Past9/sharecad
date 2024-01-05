@@ -91,7 +91,7 @@ impl<'a> ICurvePoint<'a> for LinePoint<'a> {
         self.u
     }
 
-    fn eval(&self) -> &Point3 {
+    fn pos(&self) -> &Point3 {
         self.eval
             .get_or_init(|| ((1.0 - self.u) * self.line.start + self.u * self.line.end))
     }

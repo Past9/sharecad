@@ -122,7 +122,7 @@ impl<'a> ICurvePoint<'a> for HelixPoint<'a> {
         self.u
     }
 
-    fn eval(&self) -> &Point3 {
+    fn pos(&self) -> &Point3 {
         self.eval.get_or_init(|| {
             let point = point3(
                 self.helix.r * self.u.cos(),
