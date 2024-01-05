@@ -1,6 +1,6 @@
-use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
+use super::{ICurvePoint, ICurveSolver};
 use crate::{
-    math::{point3, vec3, Angle, Mat33, Point3, Quat, Vec3},
+    math::{point3, vec3, Angle, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
 use std::cell::OnceCell;
@@ -79,7 +79,6 @@ pub struct ArcPoint<'a> {
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
-    axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> ArcPoint<'a> {
     pub fn new(arc: &'a ArcSolver, u: f64) -> Self {
@@ -91,13 +90,7 @@ impl<'a> ArcPoint<'a> {
             der1: OnceCell::new(),
             der2: OnceCell::new(),
             der3: OnceCell::new(),
-            axes: OnceCell::new(),
         }
-    }
-
-    fn axes(&'a self) -> &CurvePointAxes<'a> {
-        self.axes
-            .get_or_init(|| CurvePointAxes::new(self, *self.arc.never_tangent()))
     }
 }
 impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
@@ -135,17 +128,5 @@ impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
 
     fn curvature(&self) -> f64 {
         1.0 / self.arc.r
-    }
-
-    fn axes(&'a self) -> &Mat33 {
-        self.axes().axes_mat()
-    }
-
-    fn axes_der1(&'a self) -> &Mat33 {
-        self.axes().axes_der1_mat()
-    }
-
-    fn axes_der2(&'a self) -> &Mat33 {
-        self.axes().axes_der2_mat()
     }
 }

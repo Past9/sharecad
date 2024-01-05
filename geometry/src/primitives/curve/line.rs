@@ -1,6 +1,6 @@
-use super::{CurvePointAxes, ICurvePoint, ICurveSolver};
+use super::{ICurvePoint, ICurveSolver};
 use crate::{
-    math::{vec3, Coincidence, Mat33, Point3, Vec3},
+    math::{vec3, Coincidence, Point3, Vec3},
     IGeometry, PrimitiveGeometry,
 };
 use common::PointId;
@@ -72,7 +72,6 @@ pub struct LinePoint<'a> {
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
-    axes: OnceCell<CurvePointAxes<'a>>,
 }
 impl<'a> LinePoint<'a> {
     pub fn new(line: &'a LineSolver, u: f64) -> Self {
@@ -84,13 +83,7 @@ impl<'a> LinePoint<'a> {
             der1: OnceCell::new(),
             der2: OnceCell::new(),
             der3: OnceCell::new(),
-            axes: OnceCell::new(),
         }
-    }
-
-    fn axes(&'a self) -> &CurvePointAxes<'a> {
-        self.axes
-            .get_or_init(|| CurvePointAxes::new(self, *self.line.never_tangent()))
     }
 }
 impl<'a> ICurvePoint<'a> for LinePoint<'a> {
@@ -117,17 +110,5 @@ impl<'a> ICurvePoint<'a> for LinePoint<'a> {
 
     fn curvature(&self) -> f64 {
         0.0
-    }
-
-    fn axes(&'a self) -> &Mat33 {
-        self.axes().axes_mat()
-    }
-
-    fn axes_der1(&'a self) -> &Mat33 {
-        self.axes().axes_der1_mat()
-    }
-
-    fn axes_der2(&'a self) -> &Mat33 {
-        self.axes().axes_der2_mat()
     }
 }
