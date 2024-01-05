@@ -126,7 +126,10 @@ fn build_scene() -> Scene {
         let projection_point = model.create_point(point3(0.0, 1.0, -0.5));
         let solver = model.surface_solver(sweep1).unwrap();
 
+        let start = Instant::now();
         let projections = solver.project_point(*model.point(projection_point).unwrap());
+        let end = Instant::now();
+        println!("projection in {} us", (end - start).as_micros());
 
         println!("projections = {:#?}", projections);
 

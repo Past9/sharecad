@@ -1,6 +1,6 @@
 mod sweep;
 
-use std::cell::OnceCell;
+use std::{cell::OnceCell, time::Instant};
 
 use crate::{
     math::{point2, vec2, vec4, Coincidence, Mat22, Mat44, Point2, Point3, Vec2, Vec3, Vec4},
@@ -147,8 +147,6 @@ impl SurfaceSolver {
         let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
 
         for iter in 0..MAX_ITER {
-            println!("");
-
             let cp = self.point(uv);
 
             let pos = *cp.pos();
@@ -179,10 +177,6 @@ impl SurfaceSolver {
                 diff,
                 dist,
             });
-
-            println!("uv = {}", uv);
-            println!("dist = {}", dist);
-            println!("k = {}", k);
 
             // Some stopping conditions
             {
