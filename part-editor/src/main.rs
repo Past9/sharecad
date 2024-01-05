@@ -7,7 +7,7 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::math::{deg, point3, vec3, Quat, Vec3};
+use geometry::math::{deg, point2, point3, vec3, Quat, Vec3};
 use geometry::IGeometry;
 use model::PrimitiveModel;
 use render::{
@@ -111,25 +111,31 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let sweep1_path = model.create_arc(1.0, deg(360.0), Quat::ZERO, Vec3::ZERO);
+        let sweep1_quat = Quat::from_axis_angle(vec3(1.0, -0.25, -0.25), deg(-60.0));
+        let sweep1_loc = vec3(-1.0, -1.0, 0.0);
+        let sweep1_path = model.create_arc(2.0, deg(90.0), sweep1_quat, sweep1_loc);
+        let sweep1_profile = model.create_arc(
+            2.0,
+            deg(60.0),
+            sweep1_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            sweep1_loc,
+        );
+        let sweep1 = model.create_sweep(sweep1_profile, sweep1_path);
+        model.set_surface_material(sweep1, sweep1_material);
 
-        // Test point projection
-        let arc = model.curve_solver(sweep1_path).unwrap();
-        let projection_point = point3(0.1, 0.0, 0.0);
-        let projection_point_id = model.create_point(projection_point.clone());
-        model.set_point_material(projection_point_id, projection_point_material);
-        arc.project_point(projection_point);
-        let start = Instant::now();
-        let results = arc.project_point(projection_point);
-        let end = Instant::now();
+        let projection_point = model.create_point(point3(0.0, 1.0, -0.5));
+        let solver = model.surface_solver(sweep1).unwrap();
 
-        println!("results = {:#?}", results);
-        println!("res in {}us", (end - start).as_micros());
+        let projections = solver.project_point(*model.point(projection_point).unwrap());
 
-        for result in results.iter() {
-            let id = model.create_point(result.pos);
-            model.set_point_material(id, projected_point_material)
+        println!("projections = {:#?}", projections);
+
+        for projection in projections {
+            let id = model.create_point(projection.pos);
+            model.set_point_material(id, projected_point_material);
         }
+
+        model.set_point_material(projection_point, projection_point_material);
     }
 
     let sm = SceneModel::from_primitive_model(&model, TOLERANCE);

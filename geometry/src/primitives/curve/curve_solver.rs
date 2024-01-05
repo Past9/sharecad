@@ -45,7 +45,7 @@ impl From<HelixSolver> for CurveSolverKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct PointProjectionResult {
+pub struct PointToCurveProjection {
     pub iter: u32,
     pub u: f64,
     pub pos: Point3,
@@ -53,7 +53,6 @@ pub struct PointProjectionResult {
     pub dist: f64,
 }
 
-//#[derive(Clone, Debug)]
 pub struct CurveSolver {
     kind: CurveSolverKind,
     is_closed: OnceCell<bool>,
@@ -115,7 +114,7 @@ impl CurveSolver {
         })
     }
 
-    pub fn invert_point(&self, point: Point3) -> Vec<PointProjectionResult> {
+    pub fn invert_point(&self, point: Point3) -> Vec<PointToCurveProjection> {
         let initial_guesses = self.projection_starting_params(point, true, false);
         let mut results = vec![];
 
@@ -130,7 +129,7 @@ impl CurveSolver {
         results
     }
 
-    pub fn project_point(&self, point: Point3) -> Vec<PointProjectionResult> {
+    pub fn project_point(&self, point: Point3) -> Vec<PointToCurveProjection> {
         let initial_guesses = self.projection_starting_params(point, true, true);
         let mut results = vec![];
 
@@ -189,8 +188,8 @@ impl CurveSolver {
         &self,
         point: Point3,
         mut u: f64,
-    ) -> Option<PointProjectionResult> {
-        const MAX_ITER: u32 = 10;
+    ) -> Option<PointToCurveProjection> {
+        const MAX_ITER: u32 = 32;
 
         let (u_min, u_max) = self.domain();
 
@@ -217,7 +216,7 @@ impl CurveSolver {
                 (u_max - u_min) / 100.0
             };
 
-            let result = Some(PointProjectionResult {
+            let result = Some(PointToCurveProjection {
                 iter,
                 u,
                 pos: *pos,
