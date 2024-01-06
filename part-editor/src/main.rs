@@ -7,8 +7,11 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::math::{deg, point2, point3, vec3, Quat, Vec3};
 use geometry::IGeometry;
+use geometry::{
+    math::{deg, point2, point3, vec3, Quat, Vec3},
+    tessellate::TessellationTolerance,
+};
 use model::PrimitiveModel;
 use render::{
     light::{AmbientLight, DirectionalLight},
@@ -106,8 +109,6 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
 
-    const TOLERANCE: f64 = 0.0001;
-
     let mut model = PrimitiveModel::new();
 
     {
@@ -141,7 +142,10 @@ fn build_scene() -> Scene {
         model.set_point_material(projection_point, projection_point_material);
     }
 
-    let sm = SceneModel::from_primitive_model(&model, TOLERANCE);
+    let sm = SceneModel::from_primitive_model(
+        &model,
+        &TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
+    );
 
     scene.add_model(sm);
 

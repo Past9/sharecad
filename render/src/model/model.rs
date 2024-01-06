@@ -72,7 +72,7 @@ impl SceneModel {
         model
     }
 
-    pub fn from_primitive_model(model: &PrimitiveModel, tolerance: f64) -> Self {
+    pub fn from_primitive_model(model: &PrimitiveModel, tolerance: &TessellationTolerance) -> Self {
         let mut scene_model = Self::new();
 
         for surface_id in model.surfaces().keys() {
@@ -86,10 +86,7 @@ impl SceneModel {
 
         for curve_id in model.curves().keys() {
             let curve_solver = model.curve_solver(*curve_id).unwrap();
-            let tessellated = TessellatedCurve::create(
-                &curve_solver,
-                TessellationTolerance::DistanceAndAngle(0.001, deg(1.0)),
-            );
+            let tessellated = TessellatedCurve::create(&curve_solver, tolerance);
             scene_model.add_curve(SceneCurve::new(
                 CurveMesh::from_tessellated(&tessellated),
                 model.get_curve_material(*curve_id),

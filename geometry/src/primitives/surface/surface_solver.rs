@@ -1,7 +1,8 @@
 use super::{ISurfacePoint, SurfacePoint, SweepSolver};
 use crate::{
-    math::{point2, vec2, Coincidence, Mat22, Point2, Point3, Vec2, Vec3},
+    math::{deg, point2, vec2, Coincidence, Mat22, Point2, Point3, Vec2, Vec3},
     primitives::curve::CurveSolver,
+    tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
 use std::cell::OnceCell;
 
@@ -40,6 +41,7 @@ pub struct SurfaceSolver {
     kind: SurfaceSolverKind,
     is_closed_u: OnceCell<bool>,
     is_closed_v: OnceCell<bool>,
+    projection_bsp: OnceCell<BspTree>,
 }
 impl SurfaceSolver {
     pub(super) fn new(kind: SurfaceSolverKind) -> Self {
@@ -47,6 +49,7 @@ impl SurfaceSolver {
             kind,
             is_closed_u: OnceCell::new(),
             is_closed_v: OnceCell::new(),
+            projection_bsp: OnceCell::new(),
         }
     }
 
@@ -105,6 +108,12 @@ impl SurfaceSolver {
         results
     }
 
+    fn projection_bsp(&self) -> &BspTree {
+        self.projection_bsp.get_or_init(|| {
+            TessellatedSurface::create_bsp(self, &TessellationTolerance::Angle(deg(1.0)))
+        })
+    }
+
     fn projection_starting_params(
         &self,
         p: Point3,
@@ -112,6 +121,9 @@ impl SurfaceSolver {
         allow_below_focal_point: bool,
     ) -> Vec<Point2> {
         let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
+
+        let bsp = self.projection_bsp();
+
         vec![point2((u_min + u_max) / 2.0, (v_min + v_max) / 2.0)]
     }
 

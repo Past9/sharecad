@@ -146,7 +146,7 @@ impl CurveSolver {
 
     fn projection_tessellation(&self) -> &TessellatedCurve {
         self.projection_tessellation
-            .get_or_init(|| TessellatedCurve::create(self, TessellationTolerance::Angle(deg(1.0))))
+            .get_or_init(|| TessellatedCurve::create(self, &TessellationTolerance::Angle(deg(1.0))))
     }
 
     fn projection_starting_params(

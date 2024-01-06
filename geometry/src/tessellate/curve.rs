@@ -34,7 +34,7 @@ pub struct TessellatedCurve {
     pub points: Vec<CurveSample>,
 }
 impl TessellatedCurve {
-    pub fn create(curve: &CurveSolver, tolerance: TessellationTolerance) -> Self {
+    pub fn create(curve: &CurveSolver, tolerance: &TessellationTolerance) -> Self {
         let (min_u, max_u) = curve.domain();
         let mut points: Vec<CurvePoint> = vec![];
 
@@ -43,19 +43,7 @@ impl TessellatedCurve {
                 points.push(curve.point(min_u));
             } else {
                 let last_point = &points[points.len() - 1];
-
-                let delta = match tolerance {
-                    TessellationTolerance::Distance(distance) => {
-                        Self::delta_u_dist(last_point, distance)
-                    }
-                    TessellationTolerance::Angle(angle) => Self::delta_u_angle(last_point, angle),
-                    TessellationTolerance::DistanceAndAngle(distance, angle) => {
-                        Self::delta_u_dist(last_point, distance)
-                            .min(Self::delta_u_angle(last_point, angle))
-                    }
-                };
-
-                let next_u = last_point.u() + delta;
+                let next_u = last_point.u() + Self::delta(last_point, tolerance);
                 if next_u < max_u {
                     points.push(curve.point(next_u));
                 } else {
@@ -78,13 +66,23 @@ impl TessellatedCurve {
         }
     }
 
-    fn delta_u_angle(point: &CurvePoint, angle: Angle) -> f64 {
-        let d1 = point.der1();
-        let p = point.curvature().recip();
-        (p * angle.radians()) / d1.magnitude()
+    fn delta(point: &CurvePoint, tolerance: &TessellationTolerance) -> f64 {
+        match tolerance {
+            TessellationTolerance::Distance(distance) => Self::delta_dist(point, *distance),
+            TessellationTolerance::Angle(angle) => Self::delta_angle(point, *angle),
+            TessellationTolerance::DistanceAndAngle(distance, angle) => {
+                Self::delta_dist(point, *distance).min(Self::delta_angle(point, *angle))
+            }
+        }
     }
 
-    fn delta_u_dist(point: &CurvePoint, dist: f64) -> f64 {
+    fn delta_angle(point: &CurvePoint, angle: Angle) -> f64 {
+        let d1 = point.der1();
+        let k = point.curvature();
+        angle.radians() / (k * d1.magnitude())
+    }
+
+    fn delta_dist(point: &CurvePoint, dist: f64) -> f64 {
         let der1 = *point.der1();
         let p = point.curvature().recip();
         2.0 * (dist * (2.0 * p - dist)).sqrt() / der1.magnitude()

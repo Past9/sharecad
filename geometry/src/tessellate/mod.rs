@@ -2,6 +2,7 @@ mod bsp;
 mod curve;
 mod surface;
 
+pub use bsp::*;
 pub use curve::*;
 pub use surface::*;
 

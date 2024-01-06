@@ -58,7 +58,7 @@ impl Tree {
     }
 
     pub fn visit_splits<F: FnMut(f64, f64, f64, f64, TreeSplit)>(
-        &mut self,
+        &self,
         p_n: f64,
         p_s: f64,
         p_w: f64,
@@ -107,7 +107,7 @@ impl BspTree {
             .split_spaces(self.n, self.s, self.w, self.e, visitor);
     }
 
-    pub fn visit_splits<F: FnMut(f64, f64, f64, f64, TreeSplit)>(&mut self, visitor: &mut F) {
+    pub fn visit_splits<F: FnMut(f64, f64, f64, f64, TreeSplit)>(&self, visitor: &mut F) {
         self.tree
             .visit_splits(self.n, self.s, self.w, self.e, visitor);
     }
