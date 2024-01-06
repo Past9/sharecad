@@ -1,13 +1,13 @@
 use super::{ISurfacePoint, SurfacePoint, SweepSolver};
 use crate::{
     math::{
-        deg, lerp, point2, richardson_extrapolate, vec2, Coincidence, Mat22, Point2, Point3, Vec2,
-        Vec3,
+        deg, point2, richardson_extrapolate, vec2, Coincidence, Mat22, Point2, Point3, Vec2, Vec3,
+        COINCIDENT_TOL,
     },
     primitives::curve::CurveSolver,
-    tessellate::{BspTree, TessellatedSurface, TessellationTolerance, TreeSplit},
+    tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
-use std::{cell::OnceCell, collections::HashMap, time::Instant};
+use std::{cell::OnceCell, time::Instant};
 
 pub trait ISurfaceSolver<'a> {
     type Point: ISurfacePoint;
@@ -27,6 +27,8 @@ pub struct PointToSurfaceProjection {
     pub iter: u32,
     pub uv: Point2,
     pub pos: Point3,
+    pub du: Vec3,
+    pub dv: Vec3,
     pub diff: Vec3,
     pub dist: f64,
 }
@@ -102,7 +104,38 @@ impl SurfaceSolver {
 
         for guess in initial_guesses {
             if let Some(res) = self.project_from_starting_param(point, guess) {
-                results.push(res);
+                // Singularities can cause false positive results. We filter these out
+                // by using estimated tangents for any zero derivatives and checking
+                // that the point really is perpendicualr to these.
+                let (tangent_u, tangent_v) = {
+                    let tangent_u = if res.du.cc(Vec3::ZERO) {
+                        match self.est_tangent_u(res.uv) {
+                            Some(tan) => tan,
+                            None => {
+                                continue;
+                            }
+                        }
+                    } else {
+                        res.du.normalize()
+                    };
+
+                    let tangent_v = if res.dv.cc(Vec3::ZERO) {
+                        match self.est_tangent_v(res.uv) {
+                            Some(tan) => tan,
+                            None => {
+                                continue;
+                            }
+                        }
+                    } else {
+                        res.dv.normalize()
+                    };
+
+                    (tangent_u, tangent_v)
+                };
+
+                if tangent_u.dot(res.diff).cc(0.0) && tangent_v.dot(res.diff).cc(0.0) {
+                    results.push(res);
+                }
             }
         }
 
@@ -113,7 +146,7 @@ impl SurfaceSolver {
 
     fn projection_bsp(&self) -> &BspTree {
         self.projection_bsp.get_or_init(|| {
-            TessellatedSurface::create_bsp(self, &TessellationTolerance::Angle(deg(1.0)))
+            TessellatedSurface::create_bsp(self, &TessellationTolerance::Angle(deg(5.0)))
         })
     }
 
@@ -188,12 +221,6 @@ impl SurfaceSolver {
         });
         let end = Instant::now();
 
-        println!(
-            "{} candidates in {}us",
-            start_params.len(),
-            (end - start).as_micros()
-        );
-
         start_params
     }
 
@@ -256,6 +283,8 @@ impl SurfaceSolver {
             let result = Some(PointToSurfaceProjection {
                 iter,
                 uv,
+                du,
+                dv,
                 pos,
                 diff,
                 dist,
@@ -270,7 +299,7 @@ impl SurfaceSolver {
 
                 // Zero cosine
                 if (du.dot(diff) / (du.magnitude() * dist)).cc_newton(0.0)
-                    || (dv.dot(diff) / (dv.magnitude() * dist)).cc_newton(0.0)
+                    && (dv.dot(diff) / (dv.magnitude() * dist)).cc_newton(0.0)
                 {
                     return result;
                 }
@@ -348,7 +377,7 @@ impl SurfaceSolver {
             start_v,
             end_v,
             40,
-            0.0001,
+            COINCIDENT_TOL,
         )
     }
 
@@ -380,7 +409,7 @@ impl SurfaceSolver {
             start_u,
             end_u,
             40,
-            0.0001,
+            COINCIDENT_TOL,
         )
     }
 }

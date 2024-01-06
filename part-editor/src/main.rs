@@ -81,7 +81,7 @@ fn build_scene() -> Scene {
     let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
             .color(Rgb::STEEL_BLUE)
-            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
+            .transmit_rgb(rgb(0.5, 0.5, 0.5))
             .semigloss(),
     );
 
@@ -120,10 +120,9 @@ fn build_scene() -> Scene {
             Vec3::ZERO,
         );
 
-        /*
         let profile = model.create_arc(
             0.5,
-            deg(180.0),
+            deg(360.0),
             Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
             vec3(1.0, 0.0, 0.0),
         );
@@ -135,7 +134,6 @@ fn build_scene() -> Scene {
             Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
             Vec3::ZERO,
         );
-         */
 
         let sweep = model.create_sweep(profile, path);
         model.set_surface_material(sweep, sweep1_material);
@@ -148,7 +146,8 @@ fn build_scene() -> Scene {
         model.create_line_between(origin, y_extent);
         model.create_line_between(origin, z_extent);
 
-        let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
+        //let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
+        let projection_point = model.create_point(point3(0.0, -0.01, 0.0));
         let solver = model.surface_solver(sweep).unwrap();
 
         solver.projection_starting_params(*model.point(projection_point).unwrap(), true, true);
@@ -156,10 +155,11 @@ fn build_scene() -> Scene {
         let start = Instant::now();
         let projections = solver.project_point(*model.point(projection_point).unwrap());
         let end = Instant::now();
-        println!("projections = {:#?}", projections);
-        println!("projection in {} us", (end - start).as_micros());
-
-        //println!("projections = {:#?}", projections);
+        println!(
+            "{} projections in {}",
+            projections.len(),
+            (end - start).as_micros()
+        );
 
         for projection in projections {
             let id = model.create_point(projection.pos);
@@ -167,18 +167,6 @@ fn build_scene() -> Scene {
         }
 
         model.set_point_material(projection_point, projection_point_material);
-
-        let start_params =
-            solver.projection_starting_params(*model.point(projection_point).unwrap(), true, true);
-
-        let test_point_material = scene
-            .materials_mut()
-            .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
-
-        for p in start_params {
-            let id = model.create_point(*solver.point(p).pos());
-            model.set_point_material(id, test_point_material);
-        }
     }
 
     let sm = SceneModel::from_primitive_model(
