@@ -19,7 +19,11 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use std::{f64::consts::TAU, sync::Arc, time::Instant};
+use std::{
+    f64::consts::{PI, TAU},
+    sync::Arc,
+    time::Instant,
+};
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},
@@ -91,7 +95,7 @@ fn build_scene() -> Scene {
             .semigloss(),
     );
 
-    let projection_point_material = scene
+    let start_point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
 
@@ -124,57 +128,48 @@ fn build_scene() -> Scene {
         let profile2_start = model.create_point(point3(x_offset + radius, 0.0, -1.0));
         let profile2_end = model.create_point(point3(x_offset + radius, 0.0, 1.0));
         let profile2 = model.create_line_between(profile2_start, profile2_end);
-        let path2 = model.create_arc(
-            radius,
-            deg(350.0),
-            //Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            Quat::ZERO,
-            vec3(x_offset, 0.0, 0.0),
-        );
+        let path2 = model.create_arc(radius, deg(350.0), Quat::ZERO, vec3(x_offset, 0.0, 0.0));
         let sweep2 = model.create_sweep(profile2, path2);
         model.set_surface_material(sweep2, sweep2_material);
 
-        /*
-        let sweep = model.create_sweep(profile, path);
-        model.set_surface_material(sweep, sweep1_material);
+        // Intersection
+        {
+            let sweep1_uv_start = point2(0.9, 0.6 * PI);
+            let sweep1_start = model.create_point(
+                *model
+                    .surface_solver(sweep1)
+                    .unwrap()
+                    .point(sweep1_uv_start)
+                    .pos(),
+            );
+            model.set_point_material(sweep1_start, start_point_material);
 
-
-        //let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
-        let projection_point = model.create_point(point3(0.0, -0.01, 0.0));
-        let solver = model.surface_solver(sweep).unwrap();
-
-        solver.projection_starting_params(*model.point(projection_point).unwrap(), true, true);
-
-        let start = Instant::now();
-        let projections = solver.project_point(*model.point(projection_point).unwrap());
-        let end = Instant::now();
-        println!(
-            "{} projections in {}",
-            projections.len(),
-            (end - start).as_micros()
-        );
-
-        for projection in projections {
-            let id = model.create_point(projection.pos);
-            model.set_point_material(id, projected_point_material);
+            let sweep2_uv_start = point2(0.1, 0.6 * PI);
+            let sweep2_start = model.create_point(
+                *model
+                    .surface_solver(sweep2)
+                    .unwrap()
+                    .point(sweep2_uv_start)
+                    .pos(),
+            );
+            model.set_point_material(sweep2_start, start_point_material);
         }
 
-        model.set_point_material(projection_point, projection_point_material);
-        */
-
-        let origin = model.create_point(point3(0.0, 0.0, 0.0));
-        let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
-        let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
-        let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
-        model.create_line_between(origin, x_extent);
-        model.create_line_between(origin, y_extent);
-        model.create_line_between(origin, z_extent);
+        // Coordinate system
+        {
+            let origin = model.create_point(point3(0.0, 0.0, 0.0));
+            let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
+            let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
+            let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
+            model.create_line_between(origin, x_extent);
+            model.create_line_between(origin, y_extent);
+            model.create_line_between(origin, z_extent);
+        }
     }
 
     let sm = SceneModel::from_primitive_model(
         &model,
-        //&TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
-        &TessellationTolerance::DistanceAndAngle(0.1, deg(5.0)),
+        &TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
     );
 
     scene.add_model(sm);
