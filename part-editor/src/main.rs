@@ -19,7 +19,7 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use std::{sync::Arc, time::Instant};
+use std::{f64::consts::TAU, sync::Arc, time::Instant};
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},
@@ -81,6 +81,7 @@ fn build_scene() -> Scene {
     let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
             .color(Rgb::STEEL_BLUE)
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .semigloss(),
     );
 
@@ -119,6 +120,23 @@ fn build_scene() -> Scene {
             Vec3::ZERO,
         );
 
+        /*
+        let profile = model.create_arc(
+            0.5,
+            deg(180.0),
+            Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+            vec3(1.0, 0.0, 0.0),
+        );
+
+        let path = model.create_helix(
+            2.0,
+            1.2 / TAU,
+            5.0,
+            Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            Vec3::ZERO,
+        );
+         */
+
         let sweep = model.create_sweep(profile, path);
         model.set_surface_material(sweep, sweep1_material);
 
@@ -133,9 +151,12 @@ fn build_scene() -> Scene {
         let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
         let solver = model.surface_solver(sweep).unwrap();
 
+        solver.projection_starting_params(*model.point(projection_point).unwrap(), true, true);
+
         let start = Instant::now();
         let projections = solver.project_point(*model.point(projection_point).unwrap());
         let end = Instant::now();
+        println!("projections = {:#?}", projections);
         println!("projection in {} us", (end - start).as_micros());
 
         //println!("projections = {:#?}", projections);
@@ -163,7 +184,7 @@ fn build_scene() -> Scene {
     let sm = SceneModel::from_primitive_model(
         &model,
         //&TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
-        &TessellationTolerance::DistanceAndAngle(1.0, deg(5.0)),
+        &TessellationTolerance::DistanceAndAngle(0.1, deg(5.0)),
     );
 
     scene.add_model(sm);

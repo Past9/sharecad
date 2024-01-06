@@ -128,7 +128,8 @@ impl TessellatedSurface {
                 let (du, dv) = point.der1();
 
                 let dv = if dv.cc(Vec3::ZERO) {
-                    Self::find_dv(surface, uv.x, uv.y)
+                    surface.est_tangent_v(point2(uv.x, uv.y))
+                    //Self::find_dv(surface, uv.x, uv.y)
                 } else {
                     Some(*dv)
                 };
@@ -183,6 +184,7 @@ impl TessellatedSurface {
         params
     }
 
+    /*
     fn find_dv(surface: &SurfaceSolver, u: f64, v: f64) -> Option<Vec3> {
         let func = |u: f64, v: f64| -> Vec3 {
             let point = surface.point(point2(u, v));
@@ -246,6 +248,7 @@ impl TessellatedSurface {
 
         solution
     }
+    */
 
     fn delta_u(point: &SurfacePoint, tolerance: &TessellationTolerance) -> f64 {
         match tolerance {

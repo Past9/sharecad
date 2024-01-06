@@ -124,7 +124,7 @@ impl ViewState {
             800.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(0.0),
+            deg(45.0),
         );
 
         let camera_controller = CameraController::new(camera);
@@ -170,7 +170,7 @@ impl ViewState {
             InputEvent::CursorMoved(point) => {
                 let id = self.get_object_id_at(point);
                 if let Some(id) = id {
-                    println!("hover {:?}", id);
+                    //println!("hover {:?}", id);
                 }
             }
             _ => {}

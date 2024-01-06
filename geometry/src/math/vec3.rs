@@ -142,6 +142,11 @@ impl Vec3 {
             - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
     }
 }
+impl Default for Vec3 {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
 impl From<Point3> for Vec3 {
     fn from(point: Point3) -> Self {
         Self {
