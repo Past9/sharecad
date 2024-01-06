@@ -2,7 +2,7 @@ use super::{ISurfacePoint, SurfacePoint, SweepSolver};
 use crate::{
     math::{deg, point2, vec2, Coincidence, Mat22, Point2, Point3, Vec2, Vec3},
     primitives::curve::CurveSolver,
-    tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
+    tessellate::{BspTree, TessellatedSurface, TessellationTolerance, TreeSplit},
 };
 use std::cell::OnceCell;
 
@@ -110,21 +110,95 @@ impl SurfaceSolver {
 
     fn projection_bsp(&self) -> &BspTree {
         self.projection_bsp.get_or_init(|| {
-            TessellatedSurface::create_bsp(self, &TessellationTolerance::Angle(deg(1.0)))
+            TessellatedSurface::create_bsp(self, &TessellationTolerance::Angle(deg(5.0)))
         })
     }
 
-    fn projection_starting_params(
+    pub fn projection_starting_params(
         &self,
         p: Point3,
         allow_above_focal_point: bool,
         allow_below_focal_point: bool,
     ) -> Vec<Point2> {
-        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
+        let mut start_params = vec![];
 
         let bsp = self.projection_bsp();
 
-        vec![point2((u_min + u_max) / 2.0, (v_min + v_max) / 2.0)]
+        bsp.visit_spaces(&mut |n: f64, s: f64, w: f64, e: f64| {
+            let nw = self.point(point2(w, n));
+            let ne = self.point(point2(e, n));
+            let sw = self.point(point2(w, s));
+            let se = self.point(point2(e, s));
+
+            let perp_to_n = Self::is_perpendicular(
+                p,
+                *nw.pos(),
+                nw.der1().0,
+                *ne.pos(),
+                ne.der1().0,
+                allow_above_focal_point,
+                allow_below_focal_point,
+            );
+
+            let perp_to_s = Self::is_perpendicular(
+                p,
+                *sw.pos(),
+                sw.der1().0,
+                *se.pos(),
+                se.der1().0,
+                allow_above_focal_point,
+                allow_below_focal_point,
+            );
+
+            let perp_to_w = Self::is_perpendicular(
+                p,
+                *sw.pos(),
+                sw.der1().1,
+                *nw.pos(),
+                nw.der1().1,
+                allow_above_focal_point,
+                allow_below_focal_point,
+            );
+
+            let perp_to_e = Self::is_perpendicular(
+                p,
+                *se.pos(),
+                se.der1().1,
+                *ne.pos(),
+                ne.der1().1,
+                allow_above_focal_point,
+                allow_below_focal_point,
+            );
+
+            if (perp_to_e || perp_to_w) && (perp_to_n || perp_to_s) {
+                start_params.push(point2((w + e) / 2.0, (s + n) / 2.0));
+            }
+        });
+
+        start_params
+    }
+
+    fn is_perpendicular(
+        p: Point3,
+        p0_pos: Point3,
+        p0_d1: Vec3,
+        p1_pos: Point3,
+        p1_d1: Vec3,
+        allow_above_focal_point: bool,
+        allow_below_focal_point: bool,
+    ) -> bool {
+        let p0_p = p - p0_pos;
+        let p_p1 = p1_pos - p;
+
+        let r1 = p0_p.dot(p0_d1);
+        let r2 = p_p1.dot(p1_d1);
+
+        // perpendicular at p0 or p1
+        (r1 == 0.0 || r2 == 0.0) ||
+                // perpendicular from outside of curve or inside "focal point" 
+                (allow_above_focal_point && r1 > 0.0 && r2 > 0.0) ||
+                // perpendicular from below curve beyond the "focal point"
+                (allow_below_focal_point && r1 < 0.0 && r2 < 0.0)
     }
 
     fn project_from_starting_param(

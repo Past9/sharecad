@@ -7,11 +7,11 @@ use eframe::{
     wgpu::{self, Features},
     Renderer,
 };
-use geometry::IGeometry;
 use geometry::{
     math::{deg, point2, point3, vec3, Quat, Vec3},
     tessellate::TessellationTolerance,
 };
+use geometry::{primitives::ISurfacePoint, IGeometry};
 use model::PrimitiveModel;
 use render::{
     light::{AmbientLight, DirectionalLight},
@@ -90,13 +90,6 @@ fn build_scene() -> Scene {
             .semigloss(),
     );
 
-    let default_point_material = scene
-        .materials_mut()
-        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
-    scene
-        .materials_mut()
-        .set_default_point_material(default_point_material);
-
     let projection_point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
@@ -112,27 +105,40 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let sweep1_quat = Quat::from_axis_angle(vec3(1.0, -0.25, -0.25), deg(-60.0));
-        let sweep1_loc = vec3(-1.0, -1.0, 0.0);
-        let sweep1_path = model.create_arc(2.0, deg(90.0), sweep1_quat, sweep1_loc);
-        let sweep1_profile = model.create_arc(
+        let profile = model.create_arc(
             2.0,
-            deg(60.0),
-            sweep1_quat * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            sweep1_loc,
+            deg(180.0),
+            Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+            Vec3::ZERO,
         );
-        let sweep1 = model.create_sweep(sweep1_profile, sweep1_path);
-        model.set_surface_material(sweep1, sweep1_material);
 
-        let projection_point = model.create_point(point3(0.0, 1.0, -0.5));
-        let solver = model.surface_solver(sweep1).unwrap();
+        let path = model.create_arc(
+            2.0,
+            deg(360.0),
+            Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            Vec3::ZERO,
+        );
+
+        let sweep = model.create_sweep(profile, path);
+        model.set_surface_material(sweep, sweep1_material);
+
+        let origin = model.create_point(point3(0.0, 0.0, 0.0));
+        let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
+        let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
+        let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
+        model.create_line_between(origin, x_extent);
+        model.create_line_between(origin, y_extent);
+        model.create_line_between(origin, z_extent);
+
+        let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
+        let solver = model.surface_solver(sweep).unwrap();
 
         let start = Instant::now();
         let projections = solver.project_point(*model.point(projection_point).unwrap());
         let end = Instant::now();
         println!("projection in {} us", (end - start).as_micros());
 
-        println!("projections = {:#?}", projections);
+        //println!("projections = {:#?}", projections);
 
         for projection in projections {
             let id = model.create_point(projection.pos);
@@ -140,11 +146,24 @@ fn build_scene() -> Scene {
         }
 
         model.set_point_material(projection_point, projection_point_material);
+
+        let start_params =
+            solver.projection_starting_params(*model.point(projection_point).unwrap(), true, true);
+
+        let test_point_material = scene
+            .materials_mut()
+            .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.5, 0.0)));
+
+        for p in start_params {
+            let id = model.create_point(*solver.point(p).pos());
+            model.set_point_material(id, test_point_material);
+        }
     }
 
     let sm = SceneModel::from_primitive_model(
         &model,
-        &TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
+        //&TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
+        &TessellationTolerance::DistanceAndAngle(1.0, deg(5.0)),
     );
 
     scene.add_model(sm);

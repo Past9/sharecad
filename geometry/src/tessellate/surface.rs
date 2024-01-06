@@ -1,6 +1,6 @@
 use crate::{
     math::{lerp, point2, Angle, Coincidence, Point2, Point3, Vec3},
-    primitives::{SurfacePoint, SurfaceSolver},
+    primitives::{ISurfacePoint, SurfacePoint, SurfaceSolver},
 };
 
 use super::{
