@@ -106,45 +106,38 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let profile = model.create_arc(
-            2.0,
-            deg(180.0),
-            Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
+        let profile1_start = model.create_point(point3(-1.0, -1.0, 0.0));
+        let profile1_end = model.create_point(point3(-1.0, 1.0, 0.0));
+        let profile1 = model.create_line_between(profile1_start, profile1_end);
+        let path1 = model.create_arc(
+            1.0,
+            deg(350.0),
+            Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
+                * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
             Vec3::ZERO,
         );
+        let sweep1 = model.create_sweep(profile1, path1);
+        model.set_surface_material(sweep1, sweep1_material);
 
-        let path = model.create_arc(
-            2.0,
-            deg(360.0),
-            Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            Vec3::ZERO,
+        let x_offset = 1.5;
+        let radius = 1.0;
+        let profile2_start = model.create_point(point3(x_offset + radius, 0.0, -1.0));
+        let profile2_end = model.create_point(point3(x_offset + radius, 0.0, 1.0));
+        let profile2 = model.create_line_between(profile2_start, profile2_end);
+        let path2 = model.create_arc(
+            radius,
+            deg(350.0),
+            //Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+            Quat::ZERO,
+            vec3(x_offset, 0.0, 0.0),
         );
+        let sweep2 = model.create_sweep(profile2, path2);
+        model.set_surface_material(sweep2, sweep2_material);
 
-        let profile = model.create_arc(
-            0.5,
-            deg(360.0),
-            Quat::from_axis_angle(Vec3::UNIT_Z, deg(-90.0)),
-            vec3(1.0, 0.0, 0.0),
-        );
-
-        let path = model.create_helix(
-            2.0,
-            1.2 / TAU,
-            5.0,
-            Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
-            Vec3::ZERO,
-        );
-
+        /*
         let sweep = model.create_sweep(profile, path);
         model.set_surface_material(sweep, sweep1_material);
 
-        let origin = model.create_point(point3(0.0, 0.0, 0.0));
-        let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
-        let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
-        let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
-        model.create_line_between(origin, x_extent);
-        model.create_line_between(origin, y_extent);
-        model.create_line_between(origin, z_extent);
 
         //let projection_point = model.create_point(point3(1.5, 1.5, -1.5));
         let projection_point = model.create_point(point3(0.0, -0.01, 0.0));
@@ -167,6 +160,15 @@ fn build_scene() -> Scene {
         }
 
         model.set_point_material(projection_point, projection_point_material);
+        */
+
+        let origin = model.create_point(point3(0.0, 0.0, 0.0));
+        let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
+        let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
+        let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
+        model.create_line_between(origin, x_extent);
+        model.create_line_between(origin, y_extent);
+        model.create_line_between(origin, z_extent);
     }
 
     let sm = SceneModel::from_primitive_model(
