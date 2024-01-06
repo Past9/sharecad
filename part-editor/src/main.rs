@@ -9,6 +9,7 @@ use eframe::{
 };
 use geometry::{
     math::{deg, point2, point3, vec3, Quat, Vec3},
+    primitives::SurfaceIntersection,
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -99,9 +100,13 @@ fn build_scene() -> Scene {
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 0.0, 1.0)));
 
-    let projected_point_material = scene
+    let walk_point_material_1 = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 0.0)));
+
+    let walk_point_material_2 = scene
+        .materials_mut()
+        .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(0.0, 1.0, 1.0)));
 
     let inverted_point_material = scene
         .materials_mut()
@@ -153,6 +158,25 @@ fn build_scene() -> Scene {
                     .pos(),
             );
             model.set_point_material(sweep2_start, start_point_material);
+
+            let s1_solver = model.surface_solver(sweep1).unwrap();
+            let s2_solver = model.surface_solver(sweep2).unwrap();
+
+            let intersection = SurfaceIntersection::new(&s1_solver, &s2_solver);
+
+            const MAX_ITER: usize = 10;
+            let mut s1_uv = sweep1_uv_start;
+            let mut s2_uv = sweep2_uv_start;
+            for i in 0..MAX_ITER {
+                (s1_uv, s2_uv) = intersection.next(s1_uv, s2_uv);
+
+                println!("{}, {}", s1_uv, s2_uv);
+
+                let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
+                let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());
+                model.set_point_material(s1_pos, walk_point_material_1);
+                model.set_point_material(s2_pos, walk_point_material_2);
+            }
         }
 
         // Coordinate system
