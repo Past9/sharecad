@@ -9,7 +9,7 @@ use eframe::{
 };
 use geometry::{
     math::{deg, point2, point3, vec3, Quat, Vec3},
-    primitives::SurfaceIntersection,
+    primitives::{SurfaceIntersection, SurfaceIntersectionTransversal},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -158,6 +158,12 @@ fn build_scene() -> Scene {
                     .pos(),
             );
             model.set_point_material(sweep2_start, start_point_material);
+
+            let s1_solver = model.surface_solver(sweep1).unwrap();
+            let s2_solver = model.surface_solver(sweep2).unwrap();
+
+            let intersection = SurfaceIntersectionTransversal::new(&s1_solver, &s2_solver);
+            intersection.at(sweep1_uv_start, sweep2_uv_start);
         }
 
         // Intersection

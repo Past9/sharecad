@@ -3,7 +3,7 @@ mod surface_solver;
 mod sweep;
 
 use crate::{
-    math::{deg, point2, vec4, Mat33, Mat44, Point2, Vec4},
+    math::{deg, point2, vec4, Mat33, Mat44, Point2, Vec3, Vec4},
     PrimitiveGeometry,
 };
 
@@ -117,6 +117,12 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         let d_v0 = Mat33::from_col_vecs(s0_du, c, s0_normal).determinant() / s0_normal.magnitude2();
         let d_u1 = Mat33::from_col_vecs(c, s1_dv, s1_normal).determinant() / s1_normal.magnitude2();
         let d_v1 = Mat33::from_col_vecs(s1_du, c, s1_normal).determinant() / s1_normal.magnitude2();
+
+        println!();
+        println!("d_u0 = {}", d_u0);
+        println!("d_v0 = {}", d_v0);
+        println!("d_u1 = {}", d_u1);
+        println!("d_v1 = {}", d_v1);
 
         SITResult {}
     }
