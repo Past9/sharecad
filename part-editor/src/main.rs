@@ -128,7 +128,7 @@ fn build_scene() -> Scene {
         let sweep1 = model.create_sweep(profile1, path1);
         model.set_surface_material(sweep1, sweep1_material);
 
-        let x_offset = 1.5;
+        let x_offset = 2.0;
         let radius = 1.0;
         let profile2_start = model.create_point(point3(x_offset + radius, 0.0, -1.0));
         let profile2_end = model.create_point(point3(x_offset + radius, 0.0, 1.0));
@@ -139,7 +139,7 @@ fn build_scene() -> Scene {
 
         // Intersection
         {
-            let sweep1_uv_start = point2(0.9, 0.6 * PI);
+            let sweep1_uv_start = point2(0.55, 1.0 * PI);
             let sweep1_start = model.create_point(
                 *model
                     .surface_solver(sweep1)
@@ -149,7 +149,7 @@ fn build_scene() -> Scene {
             );
             model.set_point_material(sweep1_start, start_point_material);
 
-            let sweep2_uv_start = point2(0.1, 0.6 * PI);
+            let sweep2_uv_start = point2(0.45, 1.0 * PI);
             let sweep2_start = model.create_point(
                 *model
                     .surface_solver(sweep2)
@@ -161,16 +161,17 @@ fn build_scene() -> Scene {
 
             let s1_solver = model.surface_solver(sweep1).unwrap();
             let s2_solver = model.surface_solver(sweep2).unwrap();
+            //let s2_solver = model.surface_solver(sweep1).unwrap();
 
             let intersection = SurfaceIntersection::new(&s1_solver, &s2_solver);
 
-            const MAX_ITER: usize = 10;
+            const MAX_ITER: usize = 100;
             let mut s1_uv = sweep1_uv_start;
             let mut s2_uv = sweep2_uv_start;
             for i in 0..MAX_ITER {
                 (s1_uv, s2_uv) = intersection.next(s1_uv, s2_uv);
 
-                println!("{}, {}", s1_uv, s2_uv);
+                //println!("{}, {}", s1_uv, s2_uv);
 
                 let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
                 let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());

@@ -53,7 +53,6 @@ impl Vec3 {
 
     pub fn magnitude2(&self) -> f64 {
         self.dot(*self)
-        //self.x.powi(2) + self.y.powi(2) + self.z.powi(2)
     }
 
     pub fn magnitude(&self) -> f64 {

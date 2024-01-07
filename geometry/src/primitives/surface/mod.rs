@@ -100,10 +100,20 @@ impl<'a> SurfaceIntersection<'a> {
     }
 
     pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
+        println!();
         let params = vec4(uv0.u(), uv0.v(), uv1.u(), uv1.v());
-        let sub = self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        println!("uv0, uv1 = {}, {}", uv0, uv1);
+        println!("gradient {}", self.gradient(uv0, uv1));
+        println!("dist2 {}", self.dist2(uv0, uv1));
+        println!("dist {}", self.dist2(uv0, uv1).sqrt());
+        let sub = 0.01 * self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        println!("change {}", -sub);
         let Vec4 { x, y, z, w } = params - sub;
-        (point2(x, y), point2(z, w))
+        let out = (point2(x, y), point2(z, w));
+
+        println!("out {:?}", out);
+
+        out
     }
 
     pub fn dist2(&self, uv0: Point2, uv1: Point2) -> f64 {
@@ -125,78 +135,82 @@ impl<'a> SurfaceIntersection<'a> {
         let d_v1 = (s0_pos - s1_pos).dot(-s1_dv) + (-s1_dv).dot(s0_pos - s1_pos);
 
         vec4(d_u0, d_v0, d_u1, d_v1)
+        //vec4(d_v1, d_u1, d_v0, d_u0)
+        //vec4(-d_v0, d_u0, d_v1, -d_u1)
     }
 
-    pub fn hessian(&self, uv0: Point2, uv1: Point2) -> Mat44 {
-        let s0_point = self.s0.point(uv0);
-        let s0_pos = *s0_point.pos();
-        let (s0_du, s0_dv) = *s0_point.der1();
-        let (s0_duu, s0_duv, s0_dvv) = *s0_point.der2();
+    /*
+        pub fn hessian(&self, uv0: Point2, uv1: Point2) -> Mat44 {
+            let s0_point = self.s0.point(uv0);
+            let s0_pos = *s0_point.pos();
+            let (s0_du, s0_dv) = *s0_point.der1();
+            let (s0_duu, s0_duv, s0_dvv) = *s0_point.der2();
 
-        let s1_point = self.s1.point(uv1);
-        let s1_pos = *s1_point.pos();
-        let (s1_du, s1_dv) = *s1_point.der1();
-        let (s1_duu, s1_duv, s1_dvv) = *s1_point.der2();
+            let s1_point = self.s1.point(uv1);
+            let s1_pos = *s1_point.pos();
+            let (s1_du, s1_dv) = *s1_point.der1();
+            let (s1_duu, s1_duv, s1_dvv) = *s1_point.der2();
 
-        // Row 0
-        let aa =
-            (s0_pos - s1_pos).dot(s0_duu) + 2.0 * s0_du.dot(s0_du) + s0_duu.dot(s0_pos - s1_pos);
+            // Row 0
+            let aa =
+                (s0_pos - s1_pos).dot(s0_duu) + 2.0 * s0_du.dot(s0_du) + s0_duu.dot(s0_pos - s1_pos);
 
-        let ab = (s0_pos - s1_pos).dot(s0_duv)
-            + s0_dv.dot(s0_du)
-            + s0_du.dot(s0_dv)
-            + s0_duv.dot(s0_pos - s1_pos);
+            let ab = (s0_pos - s1_pos).dot(s0_duv)
+                + s0_dv.dot(s0_du)
+                + s0_du.dot(s0_dv)
+                + s0_duv.dot(s0_pos - s1_pos);
 
-        let ac = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
+            let ac = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
 
-        let ad = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
+            let ad = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
 
-        // Row 1
-        let ba = (s0_pos - s1_pos).dot(s0_duv)
-            + s0_dv.dot(s0_du)
-            + s0_du.dot(s0_dv)
-            + s0_duv.dot(s0_pos - s1_pos);
+            // Row 1
+            let ba = (s0_pos - s1_pos).dot(s0_duv)
+                + s0_dv.dot(s0_du)
+                + s0_du.dot(s0_dv)
+                + s0_duv.dot(s0_pos - s1_pos);
 
-        let bb =
-            (s0_pos - s1_pos).dot(s0_dvv) + 2.0 * s0_dv.dot(s0_dv) + s0_dvv.dot(s0_pos - s1_pos);
+            let bb =
+                (s0_pos - s1_pos).dot(s0_dvv) + 2.0 * s0_dv.dot(s0_dv) + s0_dvv.dot(s0_pos - s1_pos);
 
-        let bc = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
+            let bc = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
 
-        let bd = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
+            let bd = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
 
-        // Row 2
-        let ca = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
+            // Row 2
+            let ca = s0_du.dot(-s1_du) + (-s1_du).dot(s0_du);
 
-        let cb = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
+            let cb = s0_dv.dot(-s1_du) + (-s1_du).dot(s0_dv);
 
-        let cc = (s0_pos - s1_pos).dot(-s1_duu)
-            + 2.0 * (-s1_du).dot(-s1_du)
-            + (-s1_duu).dot(s0_pos - s1_pos);
+            let cc = (s0_pos - s1_pos).dot(-s1_duu)
+                + 2.0 * (-s1_du).dot(-s1_du)
+                + (-s1_duu).dot(s0_pos - s1_pos);
 
-        let cd = (s0_pos - s1_pos).dot(-s1_duv)
-            + (-s1_dv).dot(-s1_du)
-            + (-s1_du).dot(-s1_dv)
-            + (-s1_duv).dot(s0_pos - s1_pos);
+            let cd = (s0_pos - s1_pos).dot(-s1_duv)
+                + (-s1_dv).dot(-s1_du)
+                + (-s1_du).dot(-s1_dv)
+                + (-s1_duv).dot(s0_pos - s1_pos);
 
-        // Row 3
-        let da = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
+            // Row 3
+            let da = (-s1_dv).dot(s0_du) + s0_du.dot(-s1_dv);
 
-        let db = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
+            let db = s0_dv.dot(-s1_dv) + (-s1_dv).dot(s0_dv);
 
-        let dc = (s0_pos - s1_pos).dot(-s1_duv)
-            + (-s1_dv).dot(-s1_du)
-            + (-s1_du).dot(-s1_dv)
-            + (-s1_duv).dot(s0_pos - s1_pos);
+            let dc = (s0_pos - s1_pos).dot(-s1_duv)
+                + (-s1_dv).dot(-s1_du)
+                + (-s1_du).dot(-s1_dv)
+                + (-s1_duv).dot(s0_pos - s1_pos);
 
-        let dd = (s0_pos - s1_pos).dot(-s1_dvv)
-            + 2.0 * (-s1_dv).dot(-s1_dv)
-            + (-s1_dvv).dot(s0_pos - s1_pos);
+            let dd = (s0_pos - s1_pos).dot(-s1_dvv)
+                + 2.0 * (-s1_dv).dot(-s1_dv)
+                + (-s1_dvv).dot(s0_pos - s1_pos);
 
-        Mat44::new(
-            aa, ab, ac, ad, //
-            ba, bb, bc, bd, //
-            ca, cb, cc, cd, //
-            da, db, dc, dd, //
-        )
-    }
+            Mat44::new(
+                aa, ab, ac, ad, //
+                ba, bb, bc, bd, //
+                ca, cb, cc, cd, //
+                da, db, dc, dd, //
+            )
+        }
+    */
 }
