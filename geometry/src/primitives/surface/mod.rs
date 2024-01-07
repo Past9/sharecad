@@ -101,7 +101,7 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         Self { s0, s1 }
     }
 
-    pub fn at(&self, uv0: Point2, uv1: Point2) -> SITResult {
+    pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
         let s0_point = self.s0.point(uv0);
         let s1_point = self.s1.point(uv1);
 
@@ -118,13 +118,18 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         let d_u1 = Mat33::from_col_vecs(c, s1_dv, s1_normal).determinant() / s1_normal.magnitude2();
         let d_v1 = Mat33::from_col_vecs(s1_du, c, s1_normal).determinant() / s1_normal.magnitude2();
 
+        /*
         println!();
         println!("d_u0 = {}", d_u0);
         println!("d_v0 = {}", d_v0);
         println!("d_u1 = {}", d_u1);
         println!("d_v1 = {}", d_v1);
+         */
 
-        SITResult {}
+        (
+            uv0 + point2(d_u0, d_v0).into_vec() * 0.01,
+            uv1 + point2(d_u1, d_v1).into_vec() * 0.01,
+        )
     }
 }
 
