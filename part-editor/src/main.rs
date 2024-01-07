@@ -128,7 +128,7 @@ fn build_scene() -> Scene {
         let sweep1 = model.create_sweep(profile1, path1);
         model.set_surface_material(sweep1, sweep1_material);
 
-        let x_offset = 2.0;
+        let x_offset = 1.5;
         let radius = 1.0;
         let profile2_start = model.create_point(point3(x_offset + radius, 0.0, -1.0));
         let profile2_end = model.create_point(point3(x_offset + radius, 0.0, 1.0));

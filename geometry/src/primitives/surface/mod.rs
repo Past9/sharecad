@@ -3,7 +3,7 @@ mod surface_solver;
 mod sweep;
 
 use crate::{
-    math::{point2, vec4, Mat44, Point2, Vec4},
+    math::{deg, point2, vec4, Mat44, Point2, Vec4},
     PrimitiveGeometry,
 };
 
@@ -102,13 +102,28 @@ impl<'a> SurfaceIntersection<'a> {
     pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
         println!();
         let params = vec4(uv0.u(), uv0.v(), uv1.u(), uv1.v());
+        let gradient = self.gradient(uv0, uv1);
+
+        let vlen = deg(360.0).radians();
+        let ulen = 1.0;
+
+        let gradient = vec4(
+            gradient.x / ulen,
+            gradient.y / vlen,
+            gradient.z / ulen,
+            gradient.w / vlen,
+        );
+
         println!("uv0, uv1 = {}, {}", uv0, uv1);
-        println!("gradient {}", self.gradient(uv0, uv1));
+        println!("gradient {}", gradient);
+        println!("gradient.magnitude() {}", gradient.magnitude());
         println!("dist2 {}", self.dist2(uv0, uv1));
         println!("dist {}", self.dist2(uv0, uv1).sqrt());
-        let sub = 0.01 * self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
-        println!("change {}", -sub);
-        let Vec4 { x, y, z, w } = params - sub;
+        //let sub = 1.0 * self.dist2(uv0, uv1) / self.gradient(uv0, uv1);
+        let sub = 0.001 * gradient.normalize();
+        println!("sub {}", sub);
+        println!("sub.magnitude() {}", sub.magnitude());
+        let Vec4 { x, y, z, w } = params - (sub);
         let out = (point2(x, y), point2(z, w));
 
         println!("out {:?}", out);
