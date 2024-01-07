@@ -129,7 +129,7 @@ impl<'a> SweepPoint<'a> {
     pub fn path_axes_mat(&self) -> &Mat33 {
         self.path_axes_mat.get_or_init(|| {
             let (x, y, z) = *self.path_axes();
-            Mat33::from_axes(x, y, z)
+            Mat33::from_col_vecs(x, y, z)
         })
     }
 
@@ -146,7 +146,7 @@ impl<'a> SweepPoint<'a> {
     pub fn path_axes_der1_mat(&self) -> &Mat33 {
         self.path_axes_der1_mat.get_or_init(|| {
             let (x, y, z) = *self.path_axes_der1();
-            Mat33::from_axes(x, y, z)
+            Mat33::from_col_vecs(x, y, z)
         })
     }
 
@@ -164,14 +164,14 @@ impl<'a> SweepPoint<'a> {
     pub fn path_axes_der2_mat(&self) -> &Mat33 {
         self.path_axes_der2_mat.get_or_init(|| {
             let (x, y, z) = *self.path_axes_der2();
-            Mat33::from_axes(x, y, z)
+            Mat33::from_col_vecs(x, y, z)
         })
     }
 
     pub fn path_axes_start_inverse_mat(&self) -> &Mat33 {
         self.path_axes_start_inverse_mat.get_or_init(|| {
             let (x, y, z) = axes(&self.path_start, self.sweep.path.never_tangent());
-            let matrix = Mat33::from_axes(x, y, z);
+            let matrix = Mat33::from_col_vecs(x, y, z);
             matrix.inverse().unwrap()
         })
     }

@@ -3,7 +3,7 @@ mod surface_solver;
 mod sweep;
 
 use crate::{
-    math::{deg, point2, vec4, Mat44, Point2, Vec4},
+    math::{deg, point2, vec4, Mat33, Mat44, Point2, Vec4},
     PrimitiveGeometry,
 };
 
@@ -87,6 +87,38 @@ mod helpers {
         let root = (h.powi(2) - k).sqrt();
 
         (h + root, h - root)
+    }
+}
+
+pub struct SITResult {}
+
+pub struct SurfaceIntersectionTransversal<'a> {
+    s0: &'a SurfaceSolver,
+    s1: &'a SurfaceSolver,
+}
+impl<'a> SurfaceIntersectionTransversal<'a> {
+    pub fn new(s0: &'a SurfaceSolver, s1: &'a SurfaceSolver) -> Self {
+        Self { s0, s1 }
+    }
+
+    pub fn at(&self, uv0: Point2, uv1: Point2) -> SITResult {
+        let s0_point = self.s0.point(uv0);
+        let s1_point = self.s1.point(uv1);
+
+        let (s0_du, s0_dv) = *s0_point.der1();
+        let s0_normal = s0_du.cross(s0_dv).normalize();
+
+        let (s1_du, s1_dv) = *s1_point.der1();
+        let s1_normal = s1_du.cross(s1_dv).normalize();
+
+        let c = s0_normal.cross(s1_normal).normalize();
+
+        let d_u0 = Mat33::from_col_vecs(c, s0_dv, s0_normal).determinant() / s0_normal.magnitude2();
+        let d_v0 = Mat33::from_col_vecs(s0_du, c, s0_normal).determinant() / s0_normal.magnitude2();
+        let d_u1 = Mat33::from_col_vecs(c, s1_dv, s1_normal).determinant() / s1_normal.magnitude2();
+        let d_v1 = Mat33::from_col_vecs(s1_du, c, s1_normal).determinant() / s1_normal.magnitude2();
+
+        SITResult {}
     }
 }
 

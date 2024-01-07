@@ -16,7 +16,7 @@ impl Mat33 {
         Self([[a, b, c], [d, e, f], [g, h, i]])
     }
 
-    pub fn from_axes(x: Vec3, y: Vec3, z: Vec3) -> Self {
+    pub fn from_col_vecs(x: Vec3, y: Vec3, z: Vec3) -> Self {
         Self([[x.x, y.x, z.x], [x.y, y.y, z.y], [x.z, y.z, z.z]])
     }
 

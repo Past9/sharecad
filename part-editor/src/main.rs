@@ -137,7 +137,31 @@ fn build_scene() -> Scene {
         let sweep2 = model.create_sweep(profile2, path2);
         model.set_surface_material(sweep2, sweep2_material);
 
+        // Transversal intersection
+        {
+            let sweep1_uv_start = point2(0.5 + 0.25 * 3f64.sqrt(), PI);
+            let sweep1_start = model.create_point(
+                *model
+                    .surface_solver(sweep1)
+                    .unwrap()
+                    .point(sweep1_uv_start)
+                    .pos(),
+            );
+            model.set_point_material(sweep1_start, start_point_material);
+
+            let sweep2_uv_start = point2(0.5, deg(120.0).radians());
+            let sweep2_start = model.create_point(
+                *model
+                    .surface_solver(sweep2)
+                    .unwrap()
+                    .point(sweep2_uv_start)
+                    .pos(),
+            );
+            model.set_point_material(sweep2_start, start_point_material);
+        }
+
         // Intersection
+        /*
         {
             let sweep1_uv_start = point2(0.55, 1.0 * PI);
             let sweep1_start = model.create_point(
@@ -179,6 +203,7 @@ fn build_scene() -> Scene {
                 model.set_point_material(s2_pos, walk_point_material_2);
             }
         }
+        */
 
         // Coordinate system
         {
