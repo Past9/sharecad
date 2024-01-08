@@ -63,9 +63,9 @@ impl<'a> ISurfaceSolver<'a> for SweepSolver {
 }
 
 pub struct SweepPoint<'a> {
-    profile_u: CurvePoint<'a>,
-    path_v: CurvePoint<'a>,
-    path_start: CurvePoint<'a>,
+    profile_u: CurvePoint,
+    path_v: CurvePoint,
+    path_start: CurvePoint,
 
     path_axes_start_inverse_mat: OnceCell<Mat33>,
 

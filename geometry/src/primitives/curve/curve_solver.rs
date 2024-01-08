@@ -8,7 +8,7 @@ use crate::{
 use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver};
 
 pub trait ICurveSolver<'a> {
-    type Point: ICurvePoint<'a>;
+    type Point: ICurvePoint;
 
     fn domain(&self) -> (f64, f64);
 

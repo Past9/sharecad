@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::{cell::OnceCell, f64::consts::TAU};
+use std::{cell::OnceCell, f64::consts::TAU, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Helix {
@@ -79,14 +79,14 @@ impl HelixSolver {
     }
 }
 impl<'a> ICurveSolver<'a> for HelixSolver {
-    type Point = HelixPoint<'a>;
+    type Point = HelixPoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.n * TAU)
     }
 
     fn point(&'a self, u: f64) -> Self::Point {
-        HelixPoint::new(self, u)
+        HelixPoint::new(self.clone(), u)
     }
 
     fn never_tangent(&self) -> &Vec3 {
@@ -95,17 +95,28 @@ impl<'a> ICurveSolver<'a> for HelixSolver {
     }
 }
 
-pub struct HelixPoint<'a> {
+pub struct HelixPoint {
+    inner: Arc<HelixPointInner>,
+}
+impl HelixPoint {
+    pub fn new(helix: HelixSolver, u: f64) -> Self {
+        Self {
+            inner: Arc::new(HelixPointInner::new(helix, u)),
+        }
+    }
+}
+
+struct HelixPointInner {
     u: f64,
-    helix: &'a HelixSolver,
+    helix: HelixSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
 }
-impl<'a> HelixPoint<'a> {
-    pub fn new(helix: &'a HelixSolver, u: f64) -> Self {
+impl HelixPointInner {
+    pub fn new(helix: HelixSolver, u: f64) -> Self {
         Self {
             u,
             helix,
@@ -117,52 +128,52 @@ impl<'a> HelixPoint<'a> {
         }
     }
 }
-impl<'a> ICurvePoint<'a> for HelixPoint<'a> {
+impl ICurvePoint for HelixPoint {
     fn u(&self) -> f64 {
-        self.u
+        self.inner.u
     }
 
     fn pos(&self) -> &Point3 {
-        self.eval.get_or_init(|| {
+        self.inner.eval.get_or_init(|| {
             let point = point3(
-                self.helix.r * self.u.cos(),
-                self.helix.r * self.u.sin(),
-                self.helix.h * self.u,
+                self.inner.helix.r * self.inner.u.cos(),
+                self.inner.helix.r * self.inner.u.sin(),
+                self.inner.helix.h * self.inner.u,
             );
-            self.helix.orientation * point + self.helix.translation
+            self.inner.helix.orientation * point + self.inner.helix.translation
         })
     }
 
     fn der1(&self) -> &Vec3 {
-        self.der1.get_or_init(|| {
+        self.inner.der1.get_or_init(|| {
             let der1 = vec3(
-                self.helix.r * -self.u.sin(),
-                self.helix.r * self.u.cos(),
-                self.helix.h,
+                self.inner.helix.r * -self.inner.u.sin(),
+                self.inner.helix.r * self.inner.u.cos(),
+                self.inner.helix.h,
             );
-            self.helix.orientation * der1
+            self.inner.helix.orientation * der1
         })
     }
 
     fn der2(&self) -> &Vec3 {
-        self.der2.get_or_init(|| {
+        self.inner.der2.get_or_init(|| {
             let der2 = vec3(
-                self.helix.r * -self.u.cos(),
-                self.helix.r * -self.u.sin(),
+                self.inner.helix.r * -self.inner.u.cos(),
+                self.inner.helix.r * -self.inner.u.sin(),
                 0.0,
             );
-            self.helix.orientation * der2
+            self.inner.helix.orientation * der2
         })
     }
 
     fn der3(&self) -> &Vec3 {
-        self.der3.get_or_init(|| {
+        self.inner.der3.get_or_init(|| {
             let der3 = vec3(
-                self.helix.r * self.u.sin(),
-                self.helix.r * -self.u.cos(),
+                self.inner.helix.r * self.inner.u.sin(),
+                self.inner.helix.r * -self.inner.u.cos(),
                 0.0,
             );
-            self.helix.orientation * der3
+            self.inner.helix.orientation * der3
         })
     }
 }

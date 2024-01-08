@@ -4,7 +4,7 @@ use crate::{
     IGeometry, PrimitiveGeometry,
 };
 use common::PointId;
-use std::cell::OnceCell;
+use std::{cell::OnceCell, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Line {
@@ -42,14 +42,14 @@ impl LineSolver {
     }
 }
 impl<'a> ICurveSolver<'a> for LineSolver {
-    type Point = LinePoint<'a>;
+    type Point = LinePoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, 1.0)
     }
 
     fn point(&'a self, u: f64) -> Self::Point {
-        LinePoint::new(self, u)
+        LinePoint::new(self.clone(), u)
     }
 
     fn never_tangent(&self) -> &Vec3 {
@@ -64,17 +64,28 @@ impl<'a> ICurveSolver<'a> for LineSolver {
     }
 }
 
-pub struct LinePoint<'a> {
+pub struct LinePoint {
+    inner: Arc<LinePointInner>,
+}
+impl LinePoint {
+    pub fn new(line: LineSolver, u: f64) -> Self {
+        Self {
+            inner: Arc::new(LinePointInner::new(line, u)),
+        }
+    }
+}
+
+struct LinePointInner {
     u: f64,
-    line: &'a LineSolver,
+    line: LineSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
 }
-impl<'a> LinePoint<'a> {
-    pub fn new(line: &'a LineSolver, u: f64) -> Self {
+impl LinePointInner {
+    pub fn new(line: LineSolver, u: f64) -> Self {
         Self {
             line,
             u,
@@ -86,26 +97,29 @@ impl<'a> LinePoint<'a> {
         }
     }
 }
-impl<'a> ICurvePoint<'a> for LinePoint<'a> {
+impl ICurvePoint for LinePoint {
     fn u(&self) -> f64 {
-        self.u
+        self.inner.u
     }
 
     fn pos(&self) -> &Point3 {
-        self.eval
-            .get_or_init(|| ((1.0 - self.u) * self.line.start + self.u * self.line.end))
+        self.inner.eval.get_or_init(|| {
+            ((1.0 - self.inner.u) * self.inner.line.start + self.inner.u * self.inner.line.end)
+        })
     }
 
     fn der1(&self) -> &Vec3 {
-        self.der1.get_or_init(|| self.line.end - self.line.start)
+        self.inner
+            .der1
+            .get_or_init(|| self.inner.line.end - self.inner.line.start)
     }
 
     fn der2(&self) -> &Vec3 {
-        self.der2.get_or_init(|| Vec3::ZERO)
+        self.inner.der2.get_or_init(|| Vec3::ZERO)
     }
 
     fn der3(&self) -> &Vec3 {
-        self.der3.get_or_init(|| Vec3::ZERO)
+        self.inner.der3.get_or_init(|| Vec3::ZERO)
     }
 
     fn curvature(&self) -> f64 {

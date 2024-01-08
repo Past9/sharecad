@@ -185,7 +185,7 @@ fn build_scene() -> Scene {
                 let s2_point = *s2_solver.point(s2_uv).pos();
                 let s1s2_dist = (s2_point - s1_point).magnitude();
 
-                println!("dist = {}, step = {}", s1s2_dist, step);
+                //println!("dist = {}, step = {}", s1s2_dist, step);
 
                 let new_point = (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
                 let len_inc = (new_point - last_point).magnitude();

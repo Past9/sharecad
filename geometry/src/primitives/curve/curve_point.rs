@@ -1,7 +1,7 @@
 use super::{ArcPoint, HelixPoint, LinePoint};
 use crate::math::{Point3, Vec3};
 
-pub trait ICurvePoint<'a> {
+pub trait ICurvePoint {
     fn u(&self) -> f64;
     fn pos(&self) -> &Point3;
     fn der1(&self) -> &Vec3;
@@ -13,12 +13,12 @@ pub trait ICurvePoint<'a> {
     }
 }
 
-pub enum CurvePoint<'a> {
-    Line(LinePoint<'a>),
-    Helix(HelixPoint<'a>),
-    Arc(ArcPoint<'a>),
+pub enum CurvePoint {
+    Line(LinePoint),
+    Helix(HelixPoint),
+    Arc(ArcPoint),
 }
-impl<'a> CurvePoint<'a> {
+impl CurvePoint {
     pub fn u(&self) -> f64 {
         match self {
             CurvePoint::Line(line) => line.u(),
@@ -67,23 +67,23 @@ impl<'a> CurvePoint<'a> {
         }
     }
 }
-impl<'a> From<LinePoint<'a>> for CurvePoint<'a> {
-    fn from(point: LinePoint<'a>) -> Self {
+impl From<LinePoint> for CurvePoint {
+    fn from(point: LinePoint) -> Self {
         Self::Line(point)
     }
 }
-impl<'a> From<HelixPoint<'a>> for CurvePoint<'a> {
-    fn from(point: HelixPoint<'a>) -> Self {
+impl From<HelixPoint> for CurvePoint {
+    fn from(point: HelixPoint) -> Self {
         Self::Helix(point)
     }
 }
-impl<'a> From<ArcPoint<'a>> for CurvePoint<'a> {
-    fn from(point: ArcPoint<'a>) -> Self {
+impl From<ArcPoint> for CurvePoint {
+    fn from(point: ArcPoint) -> Self {
         Self::Arc(point)
     }
 }
 
-pub(crate) fn axes<'a>(point: &CurvePoint<'a>, never_tangent: &Vec3) -> (Vec3, Vec3, Vec3) {
+pub(crate) fn axes<'a>(point: &CurvePoint, never_tangent: &Vec3) -> (Vec3, Vec3, Vec3) {
     let i1 = point.der1().normalize();
     let d = *never_tangent;
 
@@ -96,7 +96,7 @@ pub(crate) fn axes<'a>(point: &CurvePoint<'a>, never_tangent: &Vec3) -> (Vec3, V
 }
 
 pub(crate) fn axes_der1<'a>(
-    point: &CurvePoint<'a>,
+    point: &CurvePoint,
     never_tangent: &Vec3,
     axes: &(Vec3, Vec3, Vec3),
 ) -> (Vec3, Vec3, Vec3) {
@@ -119,7 +119,7 @@ pub(crate) fn axes_der1<'a>(
 }
 
 pub(crate) fn axes_der2<'a>(
-    point: &CurvePoint<'a>,
+    point: &CurvePoint,
     never_tangent: &Vec3,
     axes: &(Vec3, Vec3, Vec3),
     axes_der1: &(Vec3, Vec3, Vec3),

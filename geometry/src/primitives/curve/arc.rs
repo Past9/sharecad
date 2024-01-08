@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Angle, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::cell::OnceCell;
+use std::{cell::OnceCell, sync};
 
 #[derive(Clone, Debug)]
 pub struct Arc {
@@ -55,14 +55,14 @@ impl ArcSolver {
     }
 }
 impl<'a> ICurveSolver<'a> for ArcSolver {
-    type Point = ArcPoint<'a>;
+    type Point = ArcPoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.angle.radians())
     }
 
     fn point(&'a self, u: f64) -> Self::Point {
-        ArcPoint::new(self, u)
+        ArcPoint::new(self.clone(), u)
     }
 
     fn never_tangent(&self) -> &Vec3 {
@@ -71,17 +71,28 @@ impl<'a> ICurveSolver<'a> for ArcSolver {
     }
 }
 
-pub struct ArcPoint<'a> {
+pub struct ArcPoint {
+    inner: sync::Arc<ArcPointInner>,
+}
+impl ArcPoint {
+    pub fn new(arc: ArcSolver, u: f64) -> Self {
+        Self {
+            inner: sync::Arc::new(ArcPointInner::new(arc, u)),
+        }
+    }
+}
+
+struct ArcPointInner {
     u: f64,
-    arc: &'a ArcSolver,
+    arc: ArcSolver,
 
     eval: OnceCell<Point3>,
     der1: OnceCell<Vec3>,
     der2: OnceCell<Vec3>,
     der3: OnceCell<Vec3>,
 }
-impl<'a> ArcPoint<'a> {
-    pub fn new(arc: &'a ArcSolver, u: f64) -> Self {
+impl ArcPointInner {
+    pub fn new(arc: ArcSolver, u: f64) -> Self {
         Self {
             u,
             arc,
@@ -93,40 +104,56 @@ impl<'a> ArcPoint<'a> {
         }
     }
 }
-impl<'a> ICurvePoint<'a> for ArcPoint<'a> {
+impl ICurvePoint for ArcPoint {
     fn u(&self) -> f64 {
-        self.u
+        self.inner.u
     }
 
     fn pos(&self) -> &Point3 {
-        self.eval.get_or_init(|| {
-            let point = point3(self.arc.r * self.u.cos(), self.arc.r * self.u.sin(), 0.0);
-            self.arc.orientation * point + self.arc.translation
+        self.inner.eval.get_or_init(|| {
+            let point = point3(
+                self.inner.arc.r * self.inner.u.cos(),
+                self.inner.arc.r * self.inner.u.sin(),
+                0.0,
+            );
+            self.inner.arc.orientation * point + self.inner.arc.translation
         })
     }
 
     fn der1(&self) -> &Vec3 {
-        self.der1.get_or_init(|| {
-            let der1 = vec3(self.arc.r * -self.u.sin(), self.arc.r * self.u.cos(), 0.0);
-            self.arc.orientation * der1
+        self.inner.der1.get_or_init(|| {
+            let der1 = vec3(
+                self.inner.arc.r * -self.inner.u.sin(),
+                self.inner.arc.r * self.inner.u.cos(),
+                0.0,
+            );
+            self.inner.arc.orientation * der1
         })
     }
 
     fn der2(&self) -> &Vec3 {
-        self.der2.get_or_init(|| {
-            let der2 = vec3(self.arc.r * -self.u.cos(), self.arc.r * -self.u.sin(), 0.0);
-            self.arc.orientation * der2
+        self.inner.der2.get_or_init(|| {
+            let der2 = vec3(
+                self.inner.arc.r * -self.inner.u.cos(),
+                self.inner.arc.r * -self.inner.u.sin(),
+                0.0,
+            );
+            self.inner.arc.orientation * der2
         })
     }
 
     fn der3(&self) -> &Vec3 {
-        self.der3.get_or_init(|| {
-            let der3 = vec3(self.arc.r * self.u.sin(), self.arc.r * -self.u.cos(), 0.0);
-            self.arc.orientation * der3
+        self.inner.der3.get_or_init(|| {
+            let der3 = vec3(
+                self.inner.arc.r * self.inner.u.sin(),
+                self.inner.arc.r * -self.inner.u.cos(),
+                0.0,
+            );
+            self.inner.arc.orientation * der3
         })
     }
 
     fn curvature(&self) -> f64 {
-        1.0 / self.arc.r
+        1.0 / self.inner.arc.r
     }
 }
