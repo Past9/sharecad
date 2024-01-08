@@ -126,10 +126,10 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         let s1_point = self.s1.point(uv1);
 
         let (s0_du, s0_dv) = *s0_point.der1();
-        let s0_normal = s0_du.cross(s0_dv); //.normalize();
+        let s0_normal = s0_du.cross(s0_dv);
 
         let (s1_du, s1_dv) = *s1_point.der1();
-        let s1_normal = s1_du.cross(s1_dv); //.normalize();
+        let s1_normal = s1_du.cross(s1_dv);
 
         let c = s0_normal.cross(s1_normal).normalize();
 
