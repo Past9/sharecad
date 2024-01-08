@@ -81,29 +81,6 @@ impl ArcPoint {
         }
     }
 }
-
-struct ArcPointInner {
-    u: f64,
-    arc: ArcSolver,
-
-    eval: OnceCell<Point3>,
-    der1: OnceCell<Vec3>,
-    der2: OnceCell<Vec3>,
-    der3: OnceCell<Vec3>,
-}
-impl ArcPointInner {
-    pub fn new(arc: ArcSolver, u: f64) -> Self {
-        Self {
-            u,
-            arc,
-
-            eval: OnceCell::new(),
-            der1: OnceCell::new(),
-            der2: OnceCell::new(),
-            der3: OnceCell::new(),
-        }
-    }
-}
 impl ICurvePoint for ArcPoint {
     fn u(&self) -> f64 {
         self.inner.u
@@ -155,5 +132,28 @@ impl ICurvePoint for ArcPoint {
 
     fn curvature(&self) -> f64 {
         1.0 / self.inner.arc.r
+    }
+}
+
+struct ArcPointInner {
+    u: f64,
+    arc: ArcSolver,
+
+    eval: OnceCell<Point3>,
+    der1: OnceCell<Vec3>,
+    der2: OnceCell<Vec3>,
+    der3: OnceCell<Vec3>,
+}
+impl ArcPointInner {
+    pub fn new(arc: ArcSolver, u: f64) -> Self {
+        Self {
+            u,
+            arc,
+
+            eval: OnceCell::new(),
+            der1: OnceCell::new(),
+            der2: OnceCell::new(),
+            der3: OnceCell::new(),
+        }
     }
 }

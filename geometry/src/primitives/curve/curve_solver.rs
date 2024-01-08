@@ -5,7 +5,7 @@ use crate::{
     tessellate::{TessellatedCurve, TessellationTolerance},
 };
 
-use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver};
+use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver, SSCurveSolver};
 
 pub trait ICurveSolver {
     type Point: ICurvePoint;
@@ -27,6 +27,7 @@ pub enum CurveSolverKind {
     Line(LineSolver),
     Arc(ArcSolver),
     Helix(HelixSolver),
+    SSCurve(SSCurveSolver),
 }
 impl From<LineSolver> for CurveSolverKind {
     fn from(solver: LineSolver) -> Self {
@@ -43,6 +44,11 @@ impl From<HelixSolver> for CurveSolverKind {
         Self::Helix(solver)
     }
 }
+impl From<SSCurveSolver> for CurveSolverKind {
+    fn from(solver: SSCurveSolver) -> Self {
+        Self::SSCurve(solver)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PointToCurveProjection {
@@ -53,6 +59,7 @@ pub struct PointToCurveProjection {
     pub dist: f64,
 }
 
+#[derive(Debug)]
 pub struct CurveSolver {
     kind: CurveSolverKind,
     is_closed: OnceCell<bool>,
@@ -84,6 +91,7 @@ impl CurveSolver {
             CurveSolverKind::Line(line) => line.domain(),
             CurveSolverKind::Helix(helix) => helix.domain(),
             CurveSolverKind::Arc(arc) => arc.domain(),
+            CurveSolverKind::SSCurve(ss_curve) => ss_curve.domain(),
         }
     }
 
@@ -92,6 +100,7 @@ impl CurveSolver {
             CurveSolverKind::Line(line) => CurvePoint::from(line.point(u)),
             CurveSolverKind::Helix(helix) => CurvePoint::from(helix.point(u)),
             CurveSolverKind::Arc(arc) => CurvePoint::from(arc.point(u)),
+            CurveSolverKind::SSCurve(ss_curve) => CurvePoint::from(ss_curve.point(u)),
         }
     }
 
@@ -100,6 +109,7 @@ impl CurveSolver {
             CurveSolverKind::Line(line) => line.never_tangent(),
             CurveSolverKind::Helix(helix) => helix.never_tangent(),
             CurveSolverKind::Arc(arc) => arc.never_tangent(),
+            CurveSolverKind::SSCurve(ss_curve) => ss_curve.never_tangent(),
         }
     }
 
@@ -276,5 +286,10 @@ impl From<ArcSolver> for CurveSolver {
 impl From<HelixSolver> for CurveSolver {
     fn from(helix: HelixSolver) -> Self {
         Self::new(CurveSolverKind::Helix(helix))
+    }
+}
+impl From<SSCurveSolver> for CurveSolver {
+    fn from(ss_curve: SSCurveSolver) -> Self {
+        Self::new(CurveSolverKind::SSCurve(ss_curve))
     }
 }

@@ -74,29 +74,6 @@ impl LinePoint {
         }
     }
 }
-
-struct LinePointInner {
-    u: f64,
-    line: LineSolver,
-
-    eval: OnceCell<Point3>,
-    der1: OnceCell<Vec3>,
-    der2: OnceCell<Vec3>,
-    der3: OnceCell<Vec3>,
-}
-impl LinePointInner {
-    pub fn new(line: LineSolver, u: f64) -> Self {
-        Self {
-            line,
-            u,
-
-            eval: OnceCell::new(),
-            der1: OnceCell::new(),
-            der2: OnceCell::new(),
-            der3: OnceCell::new(),
-        }
-    }
-}
 impl ICurvePoint for LinePoint {
     fn u(&self) -> f64 {
         self.inner.u
@@ -124,5 +101,28 @@ impl ICurvePoint for LinePoint {
 
     fn curvature(&self) -> f64 {
         0.0
+    }
+}
+
+struct LinePointInner {
+    u: f64,
+    line: LineSolver,
+
+    eval: OnceCell<Point3>,
+    der1: OnceCell<Vec3>,
+    der2: OnceCell<Vec3>,
+    der3: OnceCell<Vec3>,
+}
+impl LinePointInner {
+    pub fn new(line: LineSolver, u: f64) -> Self {
+        Self {
+            line,
+            u,
+
+            eval: OnceCell::new(),
+            der1: OnceCell::new(),
+            der2: OnceCell::new(),
+            der3: OnceCell::new(),
+        }
     }
 }

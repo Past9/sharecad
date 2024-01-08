@@ -105,29 +105,6 @@ impl HelixPoint {
         }
     }
 }
-
-struct HelixPointInner {
-    u: f64,
-    helix: HelixSolver,
-
-    eval: OnceCell<Point3>,
-    der1: OnceCell<Vec3>,
-    der2: OnceCell<Vec3>,
-    der3: OnceCell<Vec3>,
-}
-impl HelixPointInner {
-    pub fn new(helix: HelixSolver, u: f64) -> Self {
-        Self {
-            u,
-            helix,
-
-            eval: OnceCell::new(),
-            der1: OnceCell::new(),
-            der2: OnceCell::new(),
-            der3: OnceCell::new(),
-        }
-    }
-}
 impl ICurvePoint for HelixPoint {
     fn u(&self) -> f64 {
         self.inner.u
@@ -175,5 +152,28 @@ impl ICurvePoint for HelixPoint {
             );
             self.inner.helix.orientation * der3
         })
+    }
+}
+
+struct HelixPointInner {
+    u: f64,
+    helix: HelixSolver,
+
+    eval: OnceCell<Point3>,
+    der1: OnceCell<Vec3>,
+    der2: OnceCell<Vec3>,
+    der3: OnceCell<Vec3>,
+}
+impl HelixPointInner {
+    fn new(helix: HelixSolver, u: f64) -> Self {
+        Self {
+            u,
+            helix,
+
+            eval: OnceCell::new(),
+            der1: OnceCell::new(),
+            der2: OnceCell::new(),
+            der3: OnceCell::new(),
+        }
     }
 }

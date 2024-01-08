@@ -39,6 +39,7 @@ impl Sweep {
     }
 }
 
+#[derive(Debug)]
 pub struct SweepSolver {
     profile: CurveSolver,
     path: CurveSolver,

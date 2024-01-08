@@ -1,4 +1,4 @@
-use super::{ArcPoint, HelixPoint, LinePoint};
+use super::{ArcPoint, HelixPoint, LinePoint, SSCurvePoint};
 use crate::math::{Point3, Vec3};
 
 pub trait ICurvePoint {
@@ -17,6 +17,7 @@ pub enum CurvePoint {
     Line(LinePoint),
     Helix(HelixPoint),
     Arc(ArcPoint),
+    SSCurve(SSCurvePoint),
 }
 impl CurvePoint {
     pub fn u(&self) -> f64 {
@@ -24,6 +25,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.u(),
             CurvePoint::Helix(helix) => helix.u(),
             CurvePoint::Arc(arc) => arc.u(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.u(),
         }
     }
 
@@ -32,6 +34,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.pos(),
             CurvePoint::Helix(helix) => helix.pos(),
             CurvePoint::Arc(arc) => arc.pos(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.pos(),
         }
     }
 
@@ -40,6 +43,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.der1(),
             CurvePoint::Helix(helix) => helix.der1(),
             CurvePoint::Arc(arc) => arc.der1(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.der1(),
         }
     }
 
@@ -48,6 +52,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.der2(),
             CurvePoint::Helix(helix) => helix.der2(),
             CurvePoint::Arc(arc) => arc.der2(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.der2(),
         }
     }
 
@@ -56,6 +61,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.der3(),
             CurvePoint::Helix(helix) => helix.der3(),
             CurvePoint::Arc(arc) => arc.der3(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.der3(),
         }
     }
 
@@ -64,6 +70,7 @@ impl CurvePoint {
             CurvePoint::Line(line) => line.curvature(),
             CurvePoint::Helix(helix) => helix.curvature(),
             CurvePoint::Arc(arc) => arc.curvature(),
+            CurvePoint::SSCurve(ss_curve) => ss_curve.curvature(),
         }
     }
 }
@@ -80,6 +87,11 @@ impl From<HelixPoint> for CurvePoint {
 impl From<ArcPoint> for CurvePoint {
     fn from(point: ArcPoint) -> Self {
         Self::Arc(point)
+    }
+}
+impl From<SSCurvePoint> for CurvePoint {
+    fn from(point: SSCurvePoint) -> Self {
+        Self::SSCurve(point)
     }
 }
 

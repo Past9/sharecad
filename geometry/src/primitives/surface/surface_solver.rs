@@ -7,7 +7,7 @@ use crate::{
     primitives::curve::CurveSolver,
     tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
-use std::cell::OnceCell;
+use std::{cell::OnceCell, rc::Rc};
 
 pub trait ISurfaceSolver<'a> {
     type Point: ISurfacePoint;
@@ -33,6 +33,7 @@ pub struct PointToSurfaceProjection {
     pub dist: f64,
 }
 
+#[derive(Debug)]
 pub enum SurfaceSolverKind {
     Sweep(SweepSolver),
 }
@@ -42,11 +43,12 @@ impl From<SweepSolver> for SurfaceSolverKind {
     }
 }
 
+#[derive(Debug)]
 pub struct SurfaceSolver {
     kind: SurfaceSolverKind,
     is_closed_u: OnceCell<bool>,
     is_closed_v: OnceCell<bool>,
-    projection_bsp: OnceCell<BspTree>,
+    projection_bsp: Rc<OnceCell<BspTree>>,
 }
 impl SurfaceSolver {
     pub(super) fn new(kind: SurfaceSolverKind) -> Self {
@@ -54,7 +56,7 @@ impl SurfaceSolver {
             kind,
             is_closed_u: OnceCell::new(),
             is_closed_v: OnceCell::new(),
-            projection_bsp: OnceCell::new(),
+            projection_bsp: Rc::new(OnceCell::new()),
         }
     }
 
