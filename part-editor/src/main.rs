@@ -166,16 +166,33 @@ fn build_scene() -> Scene {
             let intersection = SurfaceIntersectionTransversal::new(&s1_solver, &s2_solver);
             //intersection.next(sweep1_uv_start, sweep2_uv_start);
 
-            const MAX_ITER: usize = 60000;
+            let mut step: f64 = 0.01;
+            let max_iter: usize = (6.0 / step) as usize;
             let mut s1_uv = sweep1_uv_start;
             let mut s2_uv = sweep2_uv_start;
             let start = Instant::now();
-            for i in 0..MAX_ITER {
+            let mut len: f64 = 0.0;
+            let mut last_point =
+                (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
+            for i in 0..max_iter {
                 let uvs = vec4(s1_uv.x, s1_uv.y, s2_uv.x, s2_uv.y);
-                let new_uvs = intersection.rk_step(uvs, 0.1);
+                let new_uvs = intersection.rk_step(uvs, step);
 
                 s1_uv = point2(new_uvs.x, new_uvs.y);
                 s2_uv = point2(new_uvs.z, new_uvs.w);
+
+                let s1_point = *s1_solver.point(s1_uv).pos();
+                let s2_point = *s2_solver.point(s2_uv).pos();
+                let s1s2_dist = (s2_point - s1_point).magnitude();
+
+                println!("dist = {}, step = {}", s1s2_dist, step);
+
+                let new_point = (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
+                let len_inc = (new_point - last_point).magnitude();
+                //println!("len_inc = {}", len_inc);
+                len += len_inc;
+
+                last_point = new_point;
 
                 //println!("{}, {}", s1_uv, s2_uv);
 
@@ -186,6 +203,7 @@ fn build_scene() -> Scene {
             }
             let end = Instant::now();
             println!("{}us", (end - start).as_micros());
+            println!("len = {}", len);
         }
 
         // Intersection

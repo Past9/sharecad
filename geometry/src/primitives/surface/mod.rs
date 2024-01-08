@@ -139,13 +139,6 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         let d_v1 = Mat33::from_col_vecs(s1_du, c, s1_normal).determinant() / s1_normal.magnitude2();
 
         vec4(d_u0, d_v0, d_u1, d_v1)
-
-        /*
-        (
-            uv0 + point2(d_u0, d_v0).into_vec() * 0.01,
-            uv1 + point2(d_u1, d_v1).into_vec() * 0.01,
-        )
-         */
     }
 }
 
