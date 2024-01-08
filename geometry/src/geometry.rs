@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::math::{Angle, Point3, Quat, Vec3};
+use crate::{
+    math::{Angle, Point3, Quat, Vec3},
+    primitives::{SSCurve, SSCurveParams},
+};
 use common::{CurveId, IdSeries, PointId, SurfaceId};
 
 use crate::primitives::{Arc, Curve, CurveSolver, Helix, Line, Surface, SurfaceSolver, Sweep};
@@ -20,6 +23,12 @@ pub trait IGeometry {
     ) -> CurveId;
     fn create_arc(&mut self, r: f64, angle: Angle, orientation: Quat, translation: Vec3)
         -> CurveId;
+    fn create_ss_curve(
+        &mut self,
+        s0: SurfaceId,
+        s1: SurfaceId,
+        points: Vec<SSCurveParams>,
+    ) -> CurveId;
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId;
     fn point(&self, id: PointId) -> Option<&Point3>;
     fn curve(&self, id: CurveId) -> Option<&Curve>;
@@ -96,6 +105,15 @@ impl IGeometry for PrimitiveGeometry {
         translation: Vec3,
     ) -> CurveId {
         self.create_curve(Arc::new(r, angle, orientation, translation).into())
+    }
+
+    fn create_ss_curve(
+        &mut self,
+        s0: SurfaceId,
+        s1: SurfaceId,
+        points: Vec<SSCurveParams>,
+    ) -> CurveId {
+        self.create_curve(SSCurve::new(s0, s1, points).into())
     }
 
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId {

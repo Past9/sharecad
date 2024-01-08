@@ -3,7 +3,7 @@ use std::{cell::OnceCell, rc::Rc};
 use common::SurfaceId;
 
 use crate::{
-    math::{point2, vec4, Point2, Point3, Vec4},
+    math::{point2, vec4, Point2, Point3, Vec3, Vec4},
     primitives::{ISurfacePoint, SurfaceIntersectionTransversal, SurfaceSolver},
     IGeometry, PrimitiveGeometry,
 };
@@ -12,9 +12,9 @@ use super::{ICurvePoint, ICurveSolver};
 
 #[derive(Debug, Clone)]
 pub struct SSCurveParams {
-    u: f64,
-    s0: Point2,
-    s1: Point2,
+    pub u: f64,
+    pub s0: Point2,
+    pub s1: Point2,
 }
 
 #[derive(Clone, Debug)]
@@ -88,7 +88,7 @@ impl ICurveSolver for SSCurveSolver {
             }
         }
 
-        panic!("No sample point")
+        panic!("No sample point at {}", u)
     }
 
     fn never_tangent(&self) -> &crate::math::Vec3 {
@@ -145,11 +145,11 @@ impl ICurvePoint for SSCurvePoint {
     }
 
     fn der1(&self) -> &crate::math::Vec3 {
-        todo!()
+        self.inner.der1.get_or_init(|| Vec3::UNIT_X)
     }
 
     fn der2(&self) -> &crate::math::Vec3 {
-        todo!()
+        self.inner.der2.get_or_init(|| Vec3::UNIT_X)
     }
 
     fn der3(&self) -> &crate::math::Vec3 {
@@ -162,8 +162,8 @@ struct SSCurvePointInner {
     ss_curve: SSCurveSolver,
 
     pos: OnceCell<Point3>,
-    der1: OnceCell<Point3>,
-    der2: OnceCell<Point3>,
+    der1: OnceCell<Vec3>,
+    der2: OnceCell<Vec3>,
 }
 impl SSCurvePointInner {
     fn new(ss_curve: SSCurveSolver, params: SSCurveParams) -> Self {

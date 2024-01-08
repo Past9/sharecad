@@ -9,7 +9,7 @@ use eframe::{
 };
 use geometry::{
     math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
-    primitives::SurfaceIntersectionTransversal,
+    primitives::{SSCurveParams, SurfaceIntersectionTransversal},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -170,12 +170,25 @@ fn build_scene() -> Scene {
             let mut len: f64 = 0.0;
             let mut last_point =
                 (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
+
+            let mut curve_points: Vec<SSCurveParams> = vec![SSCurveParams {
+                u: 0.0,
+                s0: s1_uv,
+                s1: s2_uv,
+            }];
+
             for i in 0..max_iter {
                 let uvs = vec4(s1_uv.x, s1_uv.y, s2_uv.x, s2_uv.y);
                 let new_uvs = intersection.rk_step(uvs, step);
 
                 s1_uv = point2(new_uvs.x, new_uvs.y);
                 s2_uv = point2(new_uvs.z, new_uvs.w);
+
+                curve_points.push(SSCurveParams {
+                    u: curve_points[curve_points.len() - 1].u + step,
+                    s0: s1_uv,
+                    s1: s2_uv,
+                });
 
                 let s1_point = *s1_solver.point(s1_uv).pos();
                 let s2_point = *s2_solver.point(s2_uv).pos();
@@ -200,6 +213,8 @@ fn build_scene() -> Scene {
             let end = Instant::now();
             println!("{}us", (end - start).as_micros());
             println!("len = {}", len);
+
+            model.create_ss_curve(sweep1, sweep2, curve_points);
         }
 
         // Intersection

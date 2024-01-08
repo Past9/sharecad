@@ -1,7 +1,7 @@
 use common::{CurveId, PointId, SurfaceId};
 use geometry::{
     math::{Angle, Point3, Quat, Vec3},
-    primitives::{Curve, Surface},
+    primitives::{Curve, SSCurveParams, Surface},
     IGeometry, PrimitiveGeometry,
 };
 use std::collections::HashMap;
@@ -59,6 +59,15 @@ impl IGeometry for PrimitiveModel {
         translation: Vec3,
     ) -> CurveId {
         self.geometry.create_arc(r, angle, orientation, translation)
+    }
+
+    fn create_ss_curve(
+        &mut self,
+        s0: SurfaceId,
+        s1: SurfaceId,
+        points: Vec<SSCurveParams>,
+    ) -> CurveId {
+        self.geometry.create_ss_curve(s0, s1, points)
     }
 
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId {

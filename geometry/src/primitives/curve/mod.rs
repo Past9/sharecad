@@ -46,3 +46,8 @@ impl From<Helix> for Curve {
         Self::Helix(helix)
     }
 }
+impl From<SSCurve> for Curve {
+    fn from(ss_curve: SSCurve) -> Self {
+        Self::SSCurve(ss_curve)
+    }
+}
