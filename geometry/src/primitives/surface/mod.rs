@@ -101,15 +101,35 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         Self { s0, s1 }
     }
 
-    pub fn next(&self, uv0: Point2, uv1: Point2) -> (Point2, Point2) {
+    pub fn rk_step(
+        &self,
+        // Current surface UVs as curve param
+        y: Vec4,
+        // Step size along t (curve param)
+        h: f64,
+    ) -> Vec4 {
+        let k1 = h * self.ders(y);
+        let k2 = h * self.ders(y + 0.5 * k1);
+        let k3 = h * self.ders(y + 0.5 * k2);
+        let k4 = h * self.ders(y + k3);
+
+        y + (1.0 / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+    }
+
+    pub fn ders(&self, uvs: Vec4) -> Vec4 {
+        let (uv0, uv1) = {
+            let Vec4 { x, y, z, w } = uvs;
+            (point2(x, y), point2(z, w))
+        };
+
         let s0_point = self.s0.point(uv0);
         let s1_point = self.s1.point(uv1);
 
         let (s0_du, s0_dv) = *s0_point.der1();
-        let s0_normal = s0_du.cross(s0_dv).normalize();
+        let s0_normal = s0_du.cross(s0_dv); //.normalize();
 
         let (s1_du, s1_dv) = *s1_point.der1();
-        let s1_normal = s1_du.cross(s1_dv).normalize();
+        let s1_normal = s1_du.cross(s1_dv); //.normalize();
 
         let c = s0_normal.cross(s1_normal).normalize();
 
@@ -118,18 +138,14 @@ impl<'a> SurfaceIntersectionTransversal<'a> {
         let d_u1 = Mat33::from_col_vecs(c, s1_dv, s1_normal).determinant() / s1_normal.magnitude2();
         let d_v1 = Mat33::from_col_vecs(s1_du, c, s1_normal).determinant() / s1_normal.magnitude2();
 
-        /*
-        println!();
-        println!("d_u0 = {}", d_u0);
-        println!("d_v0 = {}", d_v0);
-        println!("d_u1 = {}", d_u1);
-        println!("d_v1 = {}", d_v1);
-         */
+        vec4(d_u0, d_v0, d_u1, d_v1)
 
+        /*
         (
             uv0 + point2(d_u0, d_v0).into_vec() * 0.01,
             uv1 + point2(d_u1, d_v1).into_vec() * 0.01,
         )
+         */
     }
 }
 

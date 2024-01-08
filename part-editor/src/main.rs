@@ -8,7 +8,7 @@ use eframe::{
     Renderer,
 };
 use geometry::{
-    math::{deg, point2, point3, vec3, Quat, Vec3},
+    math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
     primitives::{SurfaceIntersection, SurfaceIntersectionTransversal},
     tessellate::TessellationTolerance,
 };
@@ -93,6 +93,7 @@ fn build_scene() -> Scene {
     let sweep2_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
             .color(Rgb::PALE_TAUPE)
+            //.transmit_rgb(rgb(0.5, 0.5, 0.5))
             .semigloss(),
     );
 
@@ -165,12 +166,16 @@ fn build_scene() -> Scene {
             let intersection = SurfaceIntersectionTransversal::new(&s1_solver, &s2_solver);
             //intersection.next(sweep1_uv_start, sweep2_uv_start);
 
-            const MAX_ITER: usize = 310;
+            const MAX_ITER: usize = 60000;
             let mut s1_uv = sweep1_uv_start;
             let mut s2_uv = sweep2_uv_start;
             let start = Instant::now();
             for i in 0..MAX_ITER {
-                (s1_uv, s2_uv) = intersection.next(s1_uv, s2_uv);
+                let uvs = vec4(s1_uv.x, s1_uv.y, s2_uv.x, s2_uv.y);
+                let new_uvs = intersection.rk_step(uvs, 0.1);
+
+                s1_uv = point2(new_uvs.x, new_uvs.y);
+                s2_uv = point2(new_uvs.z, new_uvs.w);
 
                 //println!("{}, {}", s1_uv, s2_uv);
 
