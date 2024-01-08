@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::{cell::OnceCell, f64::consts::TAU, sync::Arc};
+use std::{cell::OnceCell, f64::consts::TAU, rc::Rc, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Helix {
@@ -96,12 +96,12 @@ impl<'a> ICurveSolver<'a> for HelixSolver {
 }
 
 pub struct HelixPoint {
-    inner: Arc<HelixPointInner>,
+    inner: Rc<HelixPointInner>,
 }
 impl HelixPoint {
     pub fn new(helix: HelixSolver, u: f64) -> Self {
         Self {
-            inner: Arc::new(HelixPointInner::new(helix, u)),
+            inner: Rc::new(HelixPointInner::new(helix, u)),
         }
     }
 }

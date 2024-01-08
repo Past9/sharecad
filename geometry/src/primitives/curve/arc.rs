@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Angle, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::{cell::OnceCell, sync};
+use std::{cell::OnceCell, rc::Rc, sync};
 
 #[derive(Clone, Debug)]
 pub struct Arc {
@@ -72,12 +72,12 @@ impl<'a> ICurveSolver<'a> for ArcSolver {
 }
 
 pub struct ArcPoint {
-    inner: sync::Arc<ArcPointInner>,
+    inner: Rc<ArcPointInner>,
 }
 impl ArcPoint {
     pub fn new(arc: ArcSolver, u: f64) -> Self {
         Self {
-            inner: sync::Arc::new(ArcPointInner::new(arc, u)),
+            inner: Rc::new(ArcPointInner::new(arc, u)),
         }
     }
 }
