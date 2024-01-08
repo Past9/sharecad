@@ -162,7 +162,7 @@ fn build_scene() -> Scene {
             let intersection = SurfaceIntersectionTransversal::new(&s1_solver, &s2_solver);
             //intersection.next(sweep1_uv_start, sweep2_uv_start);
 
-            let mut step: f64 = 0.01;
+            let mut step: f64 = 0.001;
             let max_iter: usize = (6.0 / step) as usize;
             let mut s1_uv = sweep1_uv_start;
             let mut s2_uv = sweep2_uv_start;
@@ -205,10 +205,10 @@ fn build_scene() -> Scene {
 
                 //println!("{}, {}", s1_uv, s2_uv);
 
-                let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
-                let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());
-                model.set_point_material(s1_pos, walk_point_material_1);
-                model.set_point_material(s2_pos, walk_point_material_2);
+                //let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
+                //let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());
+                //model.set_point_material(s1_pos, walk_point_material_1);
+                //model.set_point_material(s2_pos, walk_point_material_2);
             }
             let end = Instant::now();
             println!("{}us", (end - start).as_micros());

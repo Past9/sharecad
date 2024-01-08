@@ -63,6 +63,7 @@ impl ICurveSolver for SSCurveSolver {
     }
 
     fn point(&self, u: f64) -> Self::Point {
+        println!("u = {}", u);
         // TODO make this faster with a binary search or BTree
         for i in 0..self.inner.points.len() - 1 {
             let cur = &self.inner.points[i];
@@ -145,15 +146,74 @@ impl ICurvePoint for SSCurvePoint {
     }
 
     fn der1(&self) -> &crate::math::Vec3 {
-        self.inner.der1.get_or_init(|| Vec3::UNIT_X)
+        self.inner.der1.get_or_init(|| {
+            let s0_point = self.inner.ss_curve.inner.s0.point(self.inner.params.s0);
+            let s1_point = self.inner.ss_curve.inner.s1.point(self.inner.params.s1);
+
+            let (s0_du, s0_dv) = *s0_point.der1();
+            let (s1_du, s1_dv) = *s1_point.der1();
+
+            let np = s0_du.cross(s0_dv);
+            let nq = s1_du.cross(s1_dv);
+
+            let d1 = np.cross(nq).normalize();
+
+            println!("d1 = {}", d1);
+
+            d1
+        })
     }
 
     fn der2(&self) -> &crate::math::Vec3 {
-        self.inner.der2.get_or_init(|| Vec3::UNIT_X)
+        self.inner.der2.get_or_init(|| {
+            let s0_point = self.inner.ss_curve.inner.s0.point(self.inner.params.s0);
+            let s1_point = self.inner.ss_curve.inner.s1.point(self.inner.params.s1);
+
+            let (s0_du, s0_dv) = *s0_point.der1();
+            let (s1_du, s1_dv) = *s1_point.der1();
+
+            let (s0_duu, _, s0_dvv) = *s0_point.der2();
+            let (s1_duu, _, s1_dvv) = *s1_point.der2();
+
+            let np = s0_du.cross(s0_dv);
+            let nq = s1_du.cross(s1_dv);
+
+            let np_p = s0_duu.cross(s0_dv) + s0_du.cross(s0_dvv);
+            let nq_p = s1_duu.cross(s1_dv) + s1_du.cross(s1_dvv);
+
+            let r = np.cross(nq);
+            let r_p = np_p.cross(nq) + np.cross(nq_p);
+
+            let m = r.dot(r);
+            let m_p = r_p.dot(r) + r.dot(r_p);
+
+            let d2 = (r_p * m - r * m_p) / m.powi(2);
+
+            println!("d2 = {}", d2);
+
+            d2
+
+            /*
+            let d1_num = np.cross(nq);
+            let d1_den = d1_num.magnitude();
+
+            let d1_num_der1 = np_d.cross(nq) + np.cross(nq_d);
+            let d1_den_der1 = np_d.dot(nq) + np.dot(nq_d);``
+             */
+        })
     }
 
     fn der3(&self) -> &crate::math::Vec3 {
         todo!()
+    }
+
+    fn curvature(&self) -> f64 {
+        let k = (self.der1().magnitude().powi(3) / (self.der1().cross(*self.der2())).magnitude())
+            .recip();
+
+        println!("k = {}", k);
+
+        k
     }
 }
 
