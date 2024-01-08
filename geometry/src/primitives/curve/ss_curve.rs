@@ -156,7 +156,7 @@ impl ICurvePoint for SSCurvePoint {
             let np = s0_du.cross(s0_dv);
             let nq = s1_du.cross(s1_dv);
 
-            let d1 = np.cross(nq).normalize();
+            let d1 = np.cross(nq); //.normalize();
 
             println!("d1 = {}", d1);
 
@@ -183,6 +183,8 @@ impl ICurvePoint for SSCurvePoint {
 
             let r = np.cross(nq);
             let r_p = np_p.cross(nq) + np.cross(nq_p);
+
+            return r_p;
 
             let m = r.dot(r);
             let m_p = r_p.dot(r) + r.dot(r_p);
