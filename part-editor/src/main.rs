@@ -9,7 +9,7 @@ use eframe::{
 };
 use geometry::{
     math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
-    primitives::{SurfaceIntersection, SurfaceIntersectionTransversal},
+    primitives::SurfaceIntersectionTransversal,
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -20,11 +20,7 @@ use render::{
     render::MsaaSamples,
     scene::Scene,
 };
-use std::{
-    f64::consts::{PI, TAU},
-    sync::Arc,
-    time::Instant,
-};
+use std::{f64::consts::PI, sync::Arc, time::Instant};
 use visual::{
     color::{rgb, Rgb},
     material::{PointMaterialSpec, SurfaceMaterialSpec},

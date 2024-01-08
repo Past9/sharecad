@@ -4,7 +4,7 @@ use crate::{
     IGeometry, PrimitiveGeometry,
 };
 use common::PointId;
-use std::{cell::OnceCell, rc::Rc, sync::Arc};
+use std::{cell::OnceCell, rc::Rc};
 
 #[derive(Clone, Debug)]
 pub struct Line {
@@ -41,14 +41,14 @@ impl LineSolver {
         }
     }
 }
-impl<'a> ICurveSolver<'a> for LineSolver {
+impl ICurveSolver for LineSolver {
     type Point = LinePoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, 1.0)
     }
 
-    fn point(&'a self, u: f64) -> Self::Point {
+    fn point(&self, u: f64) -> Self::Point {
         LinePoint::new(self.clone(), u)
     }
 
@@ -104,7 +104,7 @@ impl ICurvePoint for LinePoint {
 
     fn pos(&self) -> &Point3 {
         self.inner.eval.get_or_init(|| {
-            ((1.0 - self.inner.u) * self.inner.line.start + self.inner.u * self.inner.line.end)
+            (1.0 - self.inner.u) * self.inner.line.start + self.inner.u * self.inner.line.end
         })
     }
 

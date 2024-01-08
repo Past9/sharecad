@@ -3,7 +3,7 @@ mod surface_solver;
 mod sweep;
 
 use crate::{
-    math::{deg, point2, vec4, Mat33, Mat44, Point2, Vec3, Vec4},
+    math::{deg, point2, vec4, Mat33, Point2, Vec4},
     PrimitiveGeometry,
 };
 

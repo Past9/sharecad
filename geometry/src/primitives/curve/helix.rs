@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::{cell::OnceCell, f64::consts::TAU, rc::Rc, sync::Arc};
+use std::{cell::OnceCell, f64::consts::TAU, rc::Rc};
 
 #[derive(Clone, Debug)]
 pub struct Helix {
@@ -78,14 +78,14 @@ impl HelixSolver {
         (self.h.powi(2) + self.r.powi(2)).sqrt() * u
     }
 }
-impl<'a> ICurveSolver<'a> for HelixSolver {
+impl ICurveSolver for HelixSolver {
     type Point = HelixPoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.n * TAU)
     }
 
-    fn point(&'a self, u: f64) -> Self::Point {
+    fn point(&self, u: f64) -> Self::Point {
         HelixPoint::new(self.clone(), u)
     }
 

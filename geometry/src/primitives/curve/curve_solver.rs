@@ -7,7 +7,7 @@ use crate::{
 
 use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver};
 
-pub trait ICurveSolver<'a> {
+pub trait ICurveSolver {
     type Point: ICurvePoint;
 
     fn domain(&self) -> (f64, f64);
@@ -17,7 +17,7 @@ pub trait ICurveSolver<'a> {
         max - min
     }
 
-    fn point(&'a self, u: f64) -> Self::Point;
+    fn point(&self, u: f64) -> Self::Point;
 
     fn never_tangent(&self) -> &Vec3;
 }

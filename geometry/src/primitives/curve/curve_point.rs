@@ -83,7 +83,7 @@ impl From<ArcPoint> for CurvePoint {
     }
 }
 
-pub(crate) fn axes<'a>(point: &CurvePoint, never_tangent: &Vec3) -> (Vec3, Vec3, Vec3) {
+pub(crate) fn axes(point: &CurvePoint, never_tangent: &Vec3) -> (Vec3, Vec3, Vec3) {
     let i1 = point.der1().normalize();
     let d = *never_tangent;
 
@@ -95,7 +95,7 @@ pub(crate) fn axes<'a>(point: &CurvePoint, never_tangent: &Vec3) -> (Vec3, Vec3,
     (i1, i2, i3)
 }
 
-pub(crate) fn axes_der1<'a>(
+pub(crate) fn axes_der1(
     point: &CurvePoint,
     never_tangent: &Vec3,
     axes: &(Vec3, Vec3, Vec3),
@@ -118,7 +118,7 @@ pub(crate) fn axes_der1<'a>(
     (i1_der1, i2_der1, i3_der1)
 }
 
-pub(crate) fn axes_der2<'a>(
+pub(crate) fn axes_der2(
     point: &CurvePoint,
     never_tangent: &Vec3,
     axes: &(Vec3, Vec3, Vec3),

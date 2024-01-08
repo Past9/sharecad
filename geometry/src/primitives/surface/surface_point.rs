@@ -1,4 +1,4 @@
-use super::{ISurfaceSolver, SurfaceSolver, SweepPoint};
+use super::SweepPoint;
 use crate::math::{Point2, Point3, Vec2, Vec3};
 
 pub trait ISurfacePoint {

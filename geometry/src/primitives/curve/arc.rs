@@ -3,7 +3,7 @@ use crate::{
     math::{point3, vec3, Angle, Point3, Quat, Vec3},
     PrimitiveGeometry,
 };
-use std::{cell::OnceCell, rc::Rc, sync};
+use std::{cell::OnceCell, rc::Rc};
 
 #[derive(Clone, Debug)]
 pub struct Arc {
@@ -54,14 +54,14 @@ impl ArcSolver {
         }
     }
 }
-impl<'a> ICurveSolver<'a> for ArcSolver {
+impl ICurveSolver for ArcSolver {
     type Point = ArcPoint;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.angle.radians())
     }
 
-    fn point(&'a self, u: f64) -> Self::Point {
+    fn point(&self, u: f64) -> Self::Point {
         ArcPoint::new(self.clone(), u)
     }
 

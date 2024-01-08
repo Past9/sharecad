@@ -7,7 +7,7 @@ use crate::{
     primitives::curve::CurveSolver,
     tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
-use std::{cell::OnceCell, time::Instant};
+use std::cell::OnceCell;
 
 pub trait ISurfaceSolver<'a> {
     type Point: ISurfacePoint;
@@ -160,7 +160,6 @@ impl SurfaceSolver {
 
         let bsp = self.projection_bsp();
 
-        let start = Instant::now();
         bsp.visit_spaces(&mut |n: f64, s: f64, w: f64, e: f64| {
             let nw = self.point(point2(w, n));
             let ne = self.point(point2(e, n));
@@ -219,7 +218,6 @@ impl SurfaceSolver {
                 start_params.push(point2((w + e) / 2.0, (s + n) / 2.0));
             }
         });
-        let end = Instant::now();
 
         start_params
     }
