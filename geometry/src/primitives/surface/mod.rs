@@ -3,13 +3,15 @@ mod surface_solver;
 mod sweep;
 
 use crate::{
-    math::{deg, point2, vec4, Mat33, Point2, Vec4},
+    math::{deg, point2, vec4, Coincidence, Mat33, Point2, Point3, Vec4},
     PrimitiveGeometry,
 };
 
 pub use surface_point::*;
 pub use surface_solver::*;
 pub use sweep::*;
+
+use super::{curve, SSCurveParams};
 
 #[derive(Debug)]
 pub enum Surface {
@@ -92,38 +94,115 @@ mod helpers {
 
 pub struct SITResult {}
 
-pub struct SurfaceIntersectionTransversal<'a> {
+pub struct SSCurveSampler<'a> {
+    points: Vec<SSCurveParams>,
     s0: &'a SurfaceSolver,
     s1: &'a SurfaceSolver,
 }
-impl<'a> SurfaceIntersectionTransversal<'a> {
-    pub fn new(s0: &'a SurfaceSolver, s1: &'a SurfaceSolver) -> Self {
-        Self { s0, s1 }
+impl<'a> SSCurveSampler<'a> {
+    pub fn new(s0: &'a SurfaceSolver, s1: &'a SurfaceSolver, uv0: Point2, uv1: Point2) -> Self {
+        Self::new_from_starting_params(
+            s0,
+            s1,
+            SSCurveParams {
+                u: 0.0,
+                pos: Self::curve_pos(s0, s1, uv0, uv1),
+                s0: uv0,
+                s1: uv1,
+            },
+        )
+    }
+
+    pub fn start(&self) -> &SSCurveParams {
+        &self.points[0]
+    }
+
+    pub fn last(&self) -> &SSCurveParams {
+        &self.points[self.points.len() - 1]
+    }
+
+    pub fn take_points(self) -> Vec<SSCurveParams> {
+        self.points
+    }
+
+    pub fn new_from_starting_params(
+        s0: &'a SurfaceSolver,
+        s1: &'a SurfaceSolver,
+        start_params: SSCurveParams,
+    ) -> Self {
+        Self {
+            points: vec![start_params],
+            s0,
+            s1,
+        }
+    }
+
+    fn curve_pos(s0: &SurfaceSolver, s1: &SurfaceSolver, uv0: Point2, uv1: Point2) -> Point3 {
+        let s0_point = *s0.point(uv0).pos();
+        let s1_point = *s1.point(uv1).pos();
+        (s0_point + s1_point) / 2.0
+    }
+
+    pub fn fill(&mut self, max_step: f64) {
+        while let Some(next) = self.next(max_step) {
+            self.points.push(next);
+        }
+    }
+
+    pub fn next(&self, max_step: f64) -> Option<SSCurveParams> {
+        let start = self.start();
+        let previous = self.last();
+        if self.points.len() > 1 && previous.pos.cc(start.pos) {
+            return None;
+        }
+
+        let next = Self::rk_step(&self.s0, &self.s1, previous, max_step);
+
+        let to_next = next.pos - previous.pos;
+        let to_start = start.pos - previous.pos;
+
+        let dist_to_start = to_start.magnitude();
+
+        if to_next.dot(to_start) > 0.0 && dist_to_start < max_step {
+            self.next(dist_to_start)
+        } else {
+            Some(next)
+        }
     }
 
     pub fn rk_step(
-        &self,
+        s0: &'a SurfaceSolver,
+        s1: &'a SurfaceSolver,
         // Current surface UVs as curve param
-        y: Vec4,
-        // Step size along t (curve param)
+        from: &SSCurveParams,
+        // Step size along u (curve param)
         h: f64,
-    ) -> Vec4 {
-        let k1 = h * self.ders(y);
-        let k2 = h * self.ders(y + 0.5 * k1);
-        let k3 = h * self.ders(y + 0.5 * k2);
-        let k4 = h * self.ders(y + k3);
+    ) -> SSCurveParams {
+        let y = vec4(from.s0.u(), from.s0.v(), from.s1.u(), from.s1.v());
 
-        y + (1.0 / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+        let k1 = h * Self::ders(s0, s1, y);
+        let k2 = h * Self::ders(s0, s1, y + 0.5 * k1);
+        let k3 = h * Self::ders(s0, s1, y + 0.5 * k2);
+        let k4 = h * Self::ders(s0, s1, y + k3);
+
+        let next = y + (1.0 / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+
+        let next_uv0 = point2(next.x, next.y);
+        let next_uv1 = point2(next.z, next.w);
+
+        let next_pos = Self::curve_pos(s0, s1, next_uv0, next_uv1);
+
+        SSCurveParams {
+            u: from.u + h,
+            pos: next_pos,
+            s0: next_uv0,
+            s1: next_uv1,
+        }
     }
 
-    pub fn ders(&self, uvs: Vec4) -> Vec4 {
-        let (uv0, uv1) = {
-            let Vec4 { x, y, z, w } = uvs;
-            (point2(x, y), point2(z, w))
-        };
-
-        let s0_point = self.s0.point(uv0);
-        let s1_point = self.s1.point(uv1);
+    fn ders(s0: &'a SurfaceSolver, s1: &'a SurfaceSolver, uvs: Vec4) -> Vec4 {
+        let s0_point = s0.point(point2(uvs.x, uvs.y));
+        let s1_point = s1.point(point2(uvs.z, uvs.w));
 
         let (s0_du, s0_dv) = *s0_point.der1();
         let s0_normal = s0_du.cross(s0_dv);

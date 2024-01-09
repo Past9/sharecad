@@ -4,7 +4,7 @@ use common::SurfaceId;
 
 use crate::{
     math::{point2, vec4, Point2, Point3, Vec3, Vec4},
-    primitives::{ISurfacePoint, SurfaceIntersectionTransversal, SurfaceSolver},
+    primitives::{ISurfacePoint, SSCurveSampler, SurfaceSolver},
     IGeometry, PrimitiveGeometry,
 };
 
@@ -13,6 +13,7 @@ use super::{ICurvePoint, ICurveSolver};
 #[derive(Debug, Clone)]
 pub struct SSCurveParams {
     pub u: f64,
+    pub pos: Point3,
     pub s0: Point2,
     pub s1: Point2,
 }
@@ -63,25 +64,23 @@ impl ICurveSolver for SSCurveSolver {
     }
 
     fn point(&self, u: f64) -> Self::Point {
-        println!("u = {}", u);
         // TODO make this faster with a binary search or BTree
         for i in 0..self.inner.points.len() - 1 {
             let cur = &self.inner.points[i];
             let next = &self.inner.points[i + 1];
 
             if cur.u < u && next.u > u {
-                let intersection =
-                    SurfaceIntersectionTransversal::new(&self.inner.s0, &self.inner.s1);
-                let Vec4 { x, y, z, w } =
-                    intersection.rk_step(vec4(cur.s0.x, cur.s0.y, cur.s1.x, cur.s1.y), u - cur.u);
-                return SSCurvePoint::new(
-                    self.clone(),
-                    SSCurveParams {
-                        u,
-                        s0: point2(x, y),
-                        s1: point2(z, w),
-                    },
+                /*
+                let intersection = SSCurveSampler::new_from_starting_params(
+                    &self.inner.s0,
+                    &self.inner.s1,
+                    self.inner.points[0].clone(),
                 );
+                 */
+                //let next = intersection.next(cur.clone(), u - cur.u).unwrap();
+                let next = SSCurveSampler::rk_step(&self.inner.s0, &self.inner.s1, cur, u - cur.u);
+
+                return SSCurvePoint::new(self.clone(), next);
             } else if cur.u == u {
                 return SSCurvePoint::new(self.clone(), cur.clone());
             } else if next.u == u {
@@ -158,8 +157,6 @@ impl ICurvePoint for SSCurvePoint {
 
             let d1 = np.cross(nq); //.normalize();
 
-            println!("d1 = {}", d1);
-
             d1
         })
     }
@@ -191,8 +188,6 @@ impl ICurvePoint for SSCurvePoint {
 
             let d2 = (r_p * m - r * m_p) / m.powi(2);
 
-            println!("d2 = {}", d2);
-
             d2
 
             /*
@@ -212,8 +207,6 @@ impl ICurvePoint for SSCurvePoint {
     fn curvature(&self) -> f64 {
         let k = (self.der1().magnitude().powi(3) / (self.der1().cross(*self.der2())).magnitude())
             .recip();
-
-        println!("k = {}", k);
 
         k
     }

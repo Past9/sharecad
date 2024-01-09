@@ -9,7 +9,7 @@ use eframe::{
 };
 use geometry::{
     math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
-    primitives::{SSCurveParams, SurfaceIntersectionTransversal},
+    primitives::{SSCurveParams, SSCurveSampler},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -159,62 +159,42 @@ fn build_scene() -> Scene {
             let s1_solver = model.surface_solver(sweep1).unwrap();
             let s2_solver = model.surface_solver(sweep2).unwrap();
 
-            let intersection = SurfaceIntersectionTransversal::new(&s1_solver, &s2_solver);
             //intersection.next(sweep1_uv_start, sweep2_uv_start);
 
-            let mut step: f64 = 0.001;
-            let max_iter: usize = (6.0 / step) as usize;
-            let mut s1_uv = sweep1_uv_start;
-            let mut s2_uv = sweep2_uv_start;
-            let start = Instant::now();
+            let step: f64 = 0.001;
+            //let max_iter: usize = (6.0 / step) as usize;
+            let s1_uv = sweep1_uv_start;
+            let s2_uv = sweep2_uv_start;
             let mut len: f64 = 0.0;
-            let mut last_point =
-                (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
 
-            let mut curve_points: Vec<SSCurveParams> = vec![SSCurveParams {
-                u: 0.0,
-                s0: s1_uv,
-                s1: s2_uv,
-            }];
+            let mut intersection = SSCurveSampler::new(&s1_solver, &s2_solver, s1_uv, s2_uv);
 
-            for i in 0..max_iter {
-                let uvs = vec4(s1_uv.x, s1_uv.y, s2_uv.x, s2_uv.y);
-                let new_uvs = intersection.rk_step(uvs, step);
-
-                s1_uv = point2(new_uvs.x, new_uvs.y);
-                s2_uv = point2(new_uvs.z, new_uvs.w);
-
-                curve_points.push(SSCurveParams {
-                    u: curve_points[curve_points.len() - 1].u + step,
-                    s0: s1_uv,
-                    s1: s2_uv,
-                });
-
-                let s1_point = *s1_solver.point(s1_uv).pos();
-                let s2_point = *s2_solver.point(s2_uv).pos();
-                let s1s2_dist = (s2_point - s1_point).magnitude();
-
-                //println!("dist = {}, step = {}", s1s2_dist, step);
-
-                let new_point = (s1_solver.point(s1_uv).pos() + s2_solver.point(s2_uv).pos()) / 2.0;
-                let len_inc = (new_point - last_point).magnitude();
-                //println!("len_inc = {}", len_inc);
-                len += len_inc;
-
-                last_point = new_point;
-
-                //println!("{}, {}", s1_uv, s2_uv);
-
-                //let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
-                //let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());
-                //model.set_point_material(s1_pos, walk_point_material_1);
-                //model.set_point_material(s2_pos, walk_point_material_2);
-            }
+            let start = Instant::now();
+            intersection.fill(step);
             let end = Instant::now();
             println!("{}us", (end - start).as_micros());
-            println!("len = {}", len);
 
-            model.create_ss_curve(sweep1, sweep2, curve_points);
+            let points = intersection.take_points();
+
+            let mut len = 0.0;
+            for i in 1..points.len() {
+                let p0 = &points[i - 1];
+                let p1 = &points[i];
+
+                len += (p1.pos - p0.pos).magnitude();
+            }
+
+            println!("len = {}", len);
+            println!("num points = {}", points.len());
+
+            println!("start = {:#?}", points[0]);
+            println!("end = {:#?}", points[points.len() - 1]);
+            println!(
+                "start -> end dist = {}",
+                (points[0].pos - points[points.len() - 1].pos).magnitude()
+            );
+
+            model.create_ss_curve(sweep1, sweep2, points);
         }
 
         // Intersection
@@ -276,7 +256,7 @@ fn build_scene() -> Scene {
 
     let sm = SceneModel::from_primitive_model(
         &model,
-        &TessellationTolerance::DistanceAndAngle(0.001, deg(3.0)),
+        &TessellationTolerance::DistanceAndAngle(0.0001, deg(0.30)),
     );
 
     scene.add_model(sm);
