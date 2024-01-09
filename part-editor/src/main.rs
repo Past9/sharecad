@@ -159,13 +159,9 @@ fn build_scene() -> Scene {
             let s1_solver = model.surface_solver(sweep1).unwrap();
             let s2_solver = model.surface_solver(sweep2).unwrap();
 
-            //intersection.next(sweep1_uv_start, sweep2_uv_start);
-
             let step: f64 = 0.001;
-            //let max_iter: usize = (6.0 / step) as usize;
             let s1_uv = sweep1_uv_start;
             let s2_uv = sweep2_uv_start;
-            let mut len: f64 = 0.0;
 
             let mut intersection = SSCurveSampler::new(&s1_solver, &s2_solver, s1_uv, s2_uv);
 
@@ -194,53 +190,12 @@ fn build_scene() -> Scene {
                 (points[0].pos - points[points.len() - 1].pos).magnitude()
             );
 
-            model.create_ss_curve(sweep1, sweep2, points);
+            let ss_curve_id = model.create_ss_curve(sweep1, sweep2, points);
+
+            let ss_curve_solver = model.curve_solver(ss_curve_id).unwrap();
+
+            println!("is closed: {}", ss_curve_solver.is_closed());
         }
-
-        // Intersection
-        /*
-        {
-            let sweep1_uv_start = point2(0.55, 1.0 * PI);
-            let sweep1_start = model.create_point(
-                *model
-                    .surface_solver(sweep1)
-                    .unwrap()
-                    .point(sweep1_uv_start)
-                    .pos(),
-            );
-            model.set_point_material(sweep1_start, start_point_material);
-
-            let sweep2_uv_start = point2(0.45, 1.0 * PI);
-            let sweep2_start = model.create_point(
-                *model
-                    .surface_solver(sweep2)
-                    .unwrap()
-                    .point(sweep2_uv_start)
-                    .pos(),
-            );
-            model.set_point_material(sweep2_start, start_point_material);
-
-            let s1_solver = model.surface_solver(sweep1).unwrap();
-            let s2_solver = model.surface_solver(sweep2).unwrap();
-            //let s2_solver = model.surface_solver(sweep1).unwrap();
-
-            let intersection = SurfaceIntersection::new(&s1_solver, &s2_solver);
-
-            const MAX_ITER: usize = 100;
-            let mut s1_uv = sweep1_uv_start;
-            let mut s2_uv = sweep2_uv_start;
-            for i in 0..MAX_ITER {
-                (s1_uv, s2_uv) = intersection.next(s1_uv, s2_uv);
-
-                //println!("{}, {}", s1_uv, s2_uv);
-
-                let s1_pos = model.create_point(*s1_solver.point(s1_uv).pos());
-                let s2_pos = model.create_point(*s2_solver.point(s2_uv).pos());
-                model.set_point_material(s1_pos, walk_point_material_1);
-                model.set_point_material(s2_pos, walk_point_material_2);
-            }
-        }
-        */
 
         // Coordinate system
         {
