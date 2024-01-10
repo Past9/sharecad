@@ -55,14 +55,14 @@ impl ArcSolver {
     }
 }
 impl ICurveSolver for ArcSolver {
-    type Point = ArcPoint;
+    type PointSolver = ArcPointSolver;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.angle.radians())
     }
 
-    fn point(&self, u: f64) -> Self::Point {
-        ArcPoint::new(self.clone(), u)
+    fn point(&self, u: f64) -> Self::PointSolver {
+        ArcPointSolver::new(self.clone(), u)
     }
 
     fn never_tangent(&self) -> &Vec3 {
@@ -71,17 +71,17 @@ impl ICurveSolver for ArcSolver {
     }
 }
 
-pub struct ArcPoint {
+pub struct ArcPointSolver {
     inner: Rc<ArcPointInner>,
 }
-impl ArcPoint {
+impl ArcPointSolver {
     pub fn new(arc: ArcSolver, u: f64) -> Self {
         Self {
             inner: Rc::new(ArcPointInner::new(arc, u)),
         }
     }
 }
-impl ICurvePoint for ArcPoint {
+impl ICurvePoint for ArcPointSolver {
     fn u(&self) -> f64 {
         self.inner.u
     }

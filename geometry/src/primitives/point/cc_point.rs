@@ -10,12 +10,12 @@ pub enum CCPointKind {
 
 #[derive(Debug, Clone)]
 pub struct CCPoint {
-    kind: CCPointKind,
-    pos: Point3,
-    c0: CurveId,
-    c1: CurveId,
-    c0_u: f64,
-    c1_u: f64,
+    pub kind: CCPointKind,
+    pub pos: Point3,
+    pub c0: CurveId,
+    pub c1: CurveId,
+    pub c0_u: f64,
+    pub c1_u: f64,
 }
 impl CCPoint {
     pub fn new(

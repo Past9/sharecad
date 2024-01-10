@@ -2,13 +2,14 @@ use std::cell::OnceCell;
 
 use crate::{
     math::{deg, Angle, Coincidence, Point3, Quat, Vec3},
+    primitives::Point,
     tessellate::{TessellatedCurve, TessellationTolerance},
 };
 
 use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver, SSCurveSolver};
 
 pub trait ICurveSolver {
-    type Point: ICurvePoint;
+    type PointSolver: ICurvePoint;
 
     fn domain(&self) -> (f64, f64);
 
@@ -17,7 +18,7 @@ pub trait ICurveSolver {
         max - min
     }
 
-    fn point(&self, u: f64) -> Self::Point;
+    fn point(&self, u: f64) -> Self::PointSolver;
 
     fn never_tangent(&self) -> &Vec3;
 }
@@ -74,7 +75,7 @@ impl CurveSolver {
         }
     }
 
-    pub fn line(start: Point3, end: Point3) -> Self {
+    pub fn line(start: Point, end: Point) -> Self {
         LineSolver::new(start, end).into()
     }
 

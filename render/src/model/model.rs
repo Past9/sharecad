@@ -96,7 +96,7 @@ impl SceneModel {
 
         for (point_id, point) in model.points() {
             scene_model.add_point(ScenePoint::new(
-                *point,
+                point.pos(),
                 model.get_point_material(*point_id),
                 6.0,
             ));

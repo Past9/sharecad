@@ -54,7 +54,7 @@ impl SSCurveSolver {
     }
 }
 impl ICurveSolver for SSCurveSolver {
-    type Point = SSCurvePoint;
+    type PointSolver = SSCurvePoint;
 
     fn domain(&self) -> (f64, f64) {
         (
@@ -63,7 +63,7 @@ impl ICurveSolver for SSCurveSolver {
         )
     }
 
-    fn point(&self, u: f64) -> Self::Point {
+    fn point(&self, u: f64) -> Self::PointSolver {
         // TODO make this faster with a binary search or BTree
         for i in 0..self.inner.points.len() - 1 {
             let cur = &self.inner.points[i];

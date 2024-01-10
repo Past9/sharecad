@@ -1,7 +1,7 @@
 use common::{CurveId, PointId, SurfaceId};
 use geometry::{
     math::{Angle, Point3, Quat, Vec3},
-    primitives::{Curve, SSCurveParams, Surface},
+    primitives::{Curve, Point, SSCurveParams, Surface},
     IGeometry, PrimitiveGeometry,
 };
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ impl PrimitiveModel {
     }
 }
 impl IGeometry for PrimitiveModel {
-    fn create_point(&mut self, point: Point3) -> PointId {
+    fn create_point(&mut self, point: Point) -> PointId {
         self.geometry.create_point(point)
     }
 
@@ -33,6 +33,10 @@ impl IGeometry for PrimitiveModel {
 
     fn create_surface(&mut self, surface: Surface) -> SurfaceId {
         self.geometry.create_surface(surface)
+    }
+
+    fn create_point3(&mut self, point: Point3) -> PointId {
+        self.create_point(Point::Point(point))
     }
 
     fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId {
@@ -74,7 +78,7 @@ impl IGeometry for PrimitiveModel {
         self.geometry.create_sweep(profile, path)
     }
 
-    fn point(&self, id: PointId) -> Option<&Point3> {
+    fn point(&self, id: PointId) -> Option<&Point> {
         self.geometry.point(id)
     }
 
@@ -102,7 +106,7 @@ impl IGeometry for PrimitiveModel {
         self.geometry.curves()
     }
 
-    fn points(&self) -> &HashMap<PointId, Point3> {
+    fn points(&self) -> &HashMap<PointId, Point> {
         self.geometry.points()
     }
 }

@@ -1,4 +1,4 @@
-use super::{ArcPoint, HelixPoint, LinePoint, SSCurvePoint};
+use super::{ArcPointSolver, HelixPointSolver, LinePointSolver, SSCurvePoint};
 use crate::math::{Point3, Vec3};
 
 pub trait ICurvePoint {
@@ -14,9 +14,9 @@ pub trait ICurvePoint {
 }
 
 pub enum CurvePoint {
-    Line(LinePoint),
-    Helix(HelixPoint),
-    Arc(ArcPoint),
+    Line(LinePointSolver),
+    Helix(HelixPointSolver),
+    Arc(ArcPointSolver),
     SSCurve(SSCurvePoint),
 }
 impl CurvePoint {
@@ -74,18 +74,18 @@ impl CurvePoint {
         }
     }
 }
-impl From<LinePoint> for CurvePoint {
-    fn from(point: LinePoint) -> Self {
+impl From<LinePointSolver> for CurvePoint {
+    fn from(point: LinePointSolver) -> Self {
         Self::Line(point)
     }
 }
-impl From<HelixPoint> for CurvePoint {
-    fn from(point: HelixPoint) -> Self {
+impl From<HelixPointSolver> for CurvePoint {
+    fn from(point: HelixPointSolver) -> Self {
         Self::Helix(point)
     }
 }
-impl From<ArcPoint> for CurvePoint {
-    fn from(point: ArcPoint) -> Self {
+impl From<ArcPointSolver> for CurvePoint {
+    fn from(point: ArcPointSolver) -> Self {
         Self::Arc(point)
     }
 }

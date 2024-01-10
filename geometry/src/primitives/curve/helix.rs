@@ -79,14 +79,14 @@ impl HelixSolver {
     }
 }
 impl ICurveSolver for HelixSolver {
-    type Point = HelixPoint;
+    type PointSolver = HelixPointSolver;
 
     fn domain(&self) -> (f64, f64) {
         (0.0, self.n * TAU)
     }
 
-    fn point(&self, u: f64) -> Self::Point {
-        HelixPoint::new(self.clone(), u)
+    fn point(&self, u: f64) -> Self::PointSolver {
+        HelixPointSolver::new(self.clone(), u)
     }
 
     fn never_tangent(&self) -> &Vec3 {
@@ -95,17 +95,17 @@ impl ICurveSolver for HelixSolver {
     }
 }
 
-pub struct HelixPoint {
+pub struct HelixPointSolver {
     inner: Rc<HelixPointInner>,
 }
-impl HelixPoint {
+impl HelixPointSolver {
     pub fn new(helix: HelixSolver, u: f64) -> Self {
         Self {
             inner: Rc::new(HelixPointInner::new(helix, u)),
         }
     }
 }
-impl ICurvePoint for HelixPoint {
+impl ICurvePoint for HelixPointSolver {
     fn u(&self) -> f64 {
         self.inner.u
     }

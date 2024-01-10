@@ -2,16 +2,17 @@ use std::collections::HashMap;
 
 use crate::{
     math::{Angle, Point3, Quat, Vec3},
-    primitives::{SSCurve, SSCurveParams},
+    primitives::{Point, SSCurve, SSCurveParams},
 };
 use common::{CurveId, IdSeries, PointId, SurfaceId};
 
 use crate::primitives::{Arc, Curve, CurveSolver, Helix, Line, Surface, SurfaceSolver, Sweep};
 
 pub trait IGeometry {
-    fn create_point(&mut self, point: Point3) -> PointId;
+    fn create_point(&mut self, point: Point) -> PointId;
     fn create_curve(&mut self, curve: Curve) -> CurveId;
     fn create_surface(&mut self, surface: Surface) -> SurfaceId;
+    fn create_point3(&mut self, point: Point3) -> PointId;
     fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId;
     fn create_helix(
         &mut self,
@@ -30,21 +31,21 @@ pub trait IGeometry {
         points: Vec<SSCurveParams>,
     ) -> CurveId;
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId;
-    fn point(&self, id: PointId) -> Option<&Point3>;
+    fn point(&self, id: PointId) -> Option<&Point>;
     fn curve(&self, id: CurveId) -> Option<&Curve>;
     fn surface(&self, id: SurfaceId) -> Option<&Surface>;
     fn curve_solver(&self, id: CurveId) -> Option<CurveSolver>;
     fn surface_solver(&self, id: SurfaceId) -> Option<SurfaceSolver>;
     fn surfaces(&self) -> &HashMap<SurfaceId, Surface>;
     fn curves(&self) -> &HashMap<CurveId, Curve>;
-    fn points(&self) -> &HashMap<PointId, Point3>;
+    fn points(&self) -> &HashMap<PointId, Point>;
 }
 
 #[derive(Debug)]
 pub struct PrimitiveGeometry {
     surfaces: HashMap<SurfaceId, Surface>,
     curves: HashMap<CurveId, Curve>,
-    points: HashMap<PointId, Point3>,
+    points: HashMap<PointId, Point>,
 
     surface_ids: IdSeries<SurfaceId>,
     curve_ids: IdSeries<CurveId>,
@@ -64,7 +65,7 @@ impl PrimitiveGeometry {
     }
 }
 impl IGeometry for PrimitiveGeometry {
-    fn create_point(&mut self, point: Point3) -> PointId {
+    fn create_point(&mut self, point: Point) -> PointId {
         let id = self.point_ids.next();
         self.points.insert(id, point);
         id
@@ -80,6 +81,10 @@ impl IGeometry for PrimitiveGeometry {
         let id = self.surface_ids.next();
         self.surfaces.insert(id, surface);
         id
+    }
+
+    fn create_point3(&mut self, point3: Point3) -> PointId {
+        self.create_point(Point::Point(point3))
     }
 
     fn create_line_between(&mut self, start: PointId, end: PointId) -> CurveId {
@@ -123,7 +128,7 @@ impl IGeometry for PrimitiveGeometry {
         id
     }
 
-    fn point(&self, id: PointId) -> Option<&Point3> {
+    fn point(&self, id: PointId) -> Option<&Point> {
         self.points.get(&id)
     }
 
@@ -151,7 +156,7 @@ impl IGeometry for PrimitiveGeometry {
         &self.curves
     }
 
-    fn points(&self) -> &HashMap<PointId, Point3> {
+    fn points(&self) -> &HashMap<PointId, Point> {
         &self.points
     }
 }

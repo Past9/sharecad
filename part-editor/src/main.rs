@@ -112,8 +112,8 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let profile1_start = model.create_point(point3(-1.0, -1.0, 0.0));
-        let profile1_end = model.create_point(point3(-1.0, 1.0, 0.0));
+        let profile1_start = model.create_point3(point3(-1.0, -1.0, 0.0));
+        let profile1_end = model.create_point3(point3(-1.0, 1.0, 0.0));
         let profile1 = model.create_line_between(profile1_start, profile1_end);
         let path1 = model.create_arc(
             1.0,
@@ -127,8 +127,8 @@ fn build_scene() -> Scene {
 
         let x_offset = 1.5;
         let radius = 1.0;
-        let profile2_start = model.create_point(point3(x_offset + radius, 0.0, -1.0));
-        let profile2_end = model.create_point(point3(x_offset + radius, 0.0, 1.0));
+        let profile2_start = model.create_point3(point3(x_offset + radius, 0.0, -1.0));
+        let profile2_end = model.create_point3(point3(x_offset + radius, 0.0, 1.0));
         let profile2 = model.create_line_between(profile2_start, profile2_end);
         let path2 = model.create_arc(radius, deg(350.0), Quat::ZERO, vec3(x_offset, 0.0, 0.0));
         let sweep2 = model.create_sweep(profile2, path2);
@@ -137,7 +137,7 @@ fn build_scene() -> Scene {
         // Transversal intersection
         {
             let sweep1_uv_start = point2(0.5 + 0.25 * 3f64.sqrt(), PI);
-            let sweep1_start = model.create_point(
+            let sweep1_start = model.create_point3(
                 *model
                     .surface_solver(sweep1)
                     .unwrap()
@@ -147,7 +147,7 @@ fn build_scene() -> Scene {
             model.set_point_material(sweep1_start, start_point_material);
 
             let sweep2_uv_start = point2(0.5, deg(120.0).radians());
-            let sweep2_start = model.create_point(
+            let sweep2_start = model.create_point3(
                 *model
                     .surface_solver(sweep2)
                     .unwrap()
@@ -199,10 +199,10 @@ fn build_scene() -> Scene {
 
         // Coordinate system
         {
-            let origin = model.create_point(point3(0.0, 0.0, 0.0));
-            let x_extent = model.create_point(point3(3.0, 0.0, 0.0));
-            let y_extent = model.create_point(point3(0.0, 3.0, 0.0));
-            let z_extent = model.create_point(point3(0.0, 0.0, 3.0));
+            let origin = model.create_point3(point3(0.0, 0.0, 0.0));
+            let x_extent = model.create_point3(point3(3.0, 0.0, 0.0));
+            let y_extent = model.create_point3(point3(0.0, 3.0, 0.0));
+            let z_extent = model.create_point3(point3(0.0, 0.0, 3.0));
             model.create_line_between(origin, x_extent);
             model.create_line_between(origin, y_extent);
             model.create_line_between(origin, z_extent);
