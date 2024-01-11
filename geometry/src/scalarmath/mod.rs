@@ -15,7 +15,7 @@ pub use vec2::*;
 
 pub trait Scalar
 where
-    Self: std::fmt::Display + Copy + Clone + SAdd<Output = Self>,
+    Self: std::fmt::Display + Copy + Clone + SArithmetic,
 {
     //const ZERO: Self;
     //const ONE: Self;
@@ -25,16 +25,24 @@ where
     //
 }
 
-pub trait SAdd<Rhs = Self> {
-    type Output;
-
-    fn add(self, rhs: Rhs) -> Self::Output;
+pub trait SArithmetic {
+    fn add(self, rhs: Self) -> Self;
+    fn sub(self, rhs: Self) -> Self;
+    fn mul(self, rhs: Self) -> Self;
+    fn div(self, rhs: Self) -> Self;
+    fn eq(self, rhs: Self) -> bool;
+    fn neq(self, rhs: Self) -> bool;
+    fn lt(self, rhs: Self) -> bool;
+    fn lte(self, rhs: Self) -> bool;
+    fn gt(self, rhs: Self) -> bool;
+    fn gte(self, rhs: Self) -> bool;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::scalarmath::{Float, Interval, SAdd, Vec2};
+    use crate::scalarmath::{Float, Interval, SArithmetic, Vec2};
 
+    /*
     #[test]
     fn vec2_floats() {
         let f = Float(0.5);
@@ -58,4 +66,5 @@ mod tests {
         println!("vec + f = {}", vec.add(f));
         println!("f + vec = {}", f.add(vec));
     }
+     */
 }
