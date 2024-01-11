@@ -1,14 +1,18 @@
+use std::ops::{Add, Div, Mul, Neg, Sub};
+
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 
-use super::{rad, Angle, Point2};
+use super::{Point2, Scalar};
 
-pub fn vec2(x: f64, y: f64) -> Vec2 {
+pub fn vec2<S: Scalar>(x: S, y: S) -> Vec2<S> {
     Vec2::new(x, y)
 }
 
+/*
 pub fn vec2_f32s(x: f32, y: f32) -> Vec2 {
     Vec2::new(x as f64, y as f64)
 }
+ */
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TurnDir {
@@ -19,25 +23,37 @@ pub enum TurnDir {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Vec2 {
-    pub x: f64,
-    pub y: f64,
+pub struct Vec2<S: Scalar> {
+    pub x: S,
+    pub y: S,
 }
-impl Vec2 {
-    pub const ONES: Self = Self { x: 1.0, y: 1.0 };
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
-    pub const UNIT_X: Self = Self { x: 1.0, y: 0.0 };
-    pub const UNIT_Y: Self = Self { x: 0.0, y: 1.0 };
+impl<S: Scalar> Vec2<S> {
+    pub const ONES: Self = Self {
+        x: S::ONE,
+        y: S::ONE,
+    };
+    pub const ZERO: Self = Self {
+        x: S::ZERO,
+        y: S::ZERO,
+    };
+    pub const UNIT_X: Self = Self {
+        x: S::ONE,
+        y: S::ZERO,
+    };
+    pub const UNIT_Y: Self = Self {
+        x: S::ZERO,
+        y: S::ONE,
+    };
 
-    pub fn new(x: f64, y: f64) -> Self {
+    pub fn new(x: S, y: S) -> Self {
         Self { x, y }
     }
 
-    pub fn u(&self) -> f64 {
+    pub fn u(&self) -> S {
         self.x
     }
 
-    pub fn v(&self) -> f64 {
+    pub fn v(&self) -> S {
         self.y
     }
 
@@ -48,19 +64,21 @@ impl Vec2 {
         }
     }
 
+    /*
     pub fn angle(&self) -> Angle {
         rad(self.y.atan2(self.x))
     }
+     */
 
-    pub fn magnitude2(&self) -> f64 {
+    pub fn magnitude2(&self) -> S {
         self.x.powi(2) + self.y.powi(2)
     }
 
-    pub fn magnitude(&self) -> f64 {
+    pub fn magnitude(&self) -> S {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot(&self, other: Vec2) -> f64 {
+    pub fn dot(&self, other: Vec2<S>) -> S {
         self.x * other.x + self.y * other.y
     }
 
@@ -79,10 +97,11 @@ impl Vec2 {
         }
     }
 
-    pub fn into_point(&self) -> Point2 {
+    pub fn into_point(&self) -> Point2<S> {
         (*self).into()
     }
 
+    /*
     pub fn to_f64s(&self) -> [f64; 2] {
         [self.x, self.y]
     }
@@ -90,19 +109,217 @@ impl Vec2 {
     pub fn to_f32s(&self) -> [f32; 2] {
         [self.x as f32, self.y as f32]
     }
+     */
 
-    pub fn lerp(&self, other: Self, t: f64) -> Self {
+    pub fn lerp(&self, other: Self, t: S) -> Self {
+        let x = self - t;
         (Self::ONES - t) * self + t * other
     }
 }
-impl From<Point2> for Vec2 {
-    fn from(point: Point2) -> Self {
+
+impl<S: Scalar> Add<Vec2<S>> for Vec2<S> {
+    type Output = Self;
+
+    fn add(self, rhs: Vec2<S>) -> Self::Output {
+        todo!()
+    }
+}
+
+impl<S: Scalar> Add<S> for Vec2<S> {
+    type Output = Self;
+
+    fn add(self, rhs: S) -> Self::Output {
+        todo!()
+    }
+}
+
+impl<S: Scalar> Add<Vec2<S>> for S {
+    type Output = Vec2<S>;
+
+    fn add(self, rhs: Vec2<S>) -> Self::Output {
+        todo!()
+    }
+}
+
+/*
+impl_op_ex!(+ <S: Scalar> |l: &Vec2<S>, r: &Vec2<S>| -> Vec2<S> {
+    Vec2 {
+        x: l.x + r.x,
+        y: l.y + r.y
+    }
+});
+impl_op_ex!(- <S: Scalar> |l: &Vec2<S>, r: &Vec2<S>| -> Vec2<S> {
+    Vec2 {
+        x: l.x - r.x,
+        y: l.y - r.y
+    }
+});
+impl_op_ex!(* <S: Scalar> |l: &Vec2<S>, r: &Vec2<S>| -> Vec2<S> {
+    Vec2 {
+        x: l.x * r.x,
+        y: l.y * r.y
+    }
+});
+impl_op_ex!(/ <S: Scalar> |l: &Vec2<S>, r: &Vec2<S>| -> Vec2<S> {
+    Vec2 {
+        x: l.x / r.x,
+        y: l.y / r.y
+    }
+});
+
+impl_op_ex!(- <S: Scalar> |l: &Vec2<S>, r: S| -> Vec2<S> {
+    Vec2 {
+        x: l.x - r,
+        y: l.y - r
+    }
+});
+*/
+
+/*
+impl_op_ex_commutative!(- <S: Scalar> |l: &Vec2<S>, r: S| -> Vec2<S> {
+    Vec2 {
+        x: l.x - r,
+        y: l.y - r
+    }
+});
+impl_op_ex_commutative!(+ <S: Scalar> |l: &Vec2<S>, r: S| -> Vec2<S> {
+    Vec2 {
+        x: l.x + r,
+        y: l.y + r
+    }
+});
+impl_op_ex_commutative!(* <S: Scalar> |l: &Vec2<S>, r: S| -> Vec2<S> {
+    Vec2 {
+        x: l.x * r,
+        y: l.y * r
+    }
+});
+impl_op_ex_commutative!(/ <S: Scalar> |l: &Vec2<S>, r: S| -> Vec2<S> {
+    Vec2 {
+        x: l.x / r,
+        y: l.y / r
+    }
+});
+ */
+
+/*
+#[opimps::impl_op(Add)]
+fn add<S: Scalar>(self: Vec2<S>, rhs: S) -> Vec2<S> {
+    Vec2 {
+        x: self.x + rhs,
+        y: self.y + rhs,
+    }
+}
+#[opimps::impl_op(Sub)]
+fn sub<S: Scalar>(self: Vec2<S>, rhs: S) -> Vec2<S> {
+    Vec2 {
+        x: self.x - rhs,
+        y: self.y - rhs,
+    }
+}
+#[opimps::impl_op(Mul)]
+fn mul<S: Scalar>(self: Vec2<S>, rhs: S) -> Vec2<S> {
+    Vec2 {
+        x: self.x * rhs,
+        y: self.y * rhs,
+    }
+}
+ */
+/*
+#[opimps::impl_op(Sub)]
+fn sub<S: Scalar>(self: &Vec2<S>, rhs: &S) -> Vec2<S> {
+    Vec2 {
+        x: self.x + *rhs,
+        y: self.y + *rhs,
+    }
+}
+#[opimps::impl_op(Sub)]
+fn sub<S: Scalar>(self: Vec2<S>, rhs: &S) -> Vec2<S> {
+    Vec2 {
+        x: self.x + *rhs,
+        y: self.y + *rhs,
+    }
+}
+#[opimps::impl_op(Sub)]
+fn sub<S: Scalar>(self: &Vec2<S>, rhs: S) -> Vec2<S> {
+    Vec2 {
+        x: self.x + rhs,
+        y: self.y + rhs,
+    }
+}
+ */
+
+/*
+impl<S: Scalar> Neg for Vec2<S> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+impl<S: Scalar> Add<S> for Vec2<S> {
+    type Output = Self;
+
+    fn add(self, rhs: S) -> Self::Output {
+        Self {
+            x: self.x + rhs,
+            y: self.y + rhs,
+        }
+    }
+}
+impl<S: Scalar> Add<Vec2<S>> for S {
+    type Output = Vec2<S>;
+
+    fn add(self, rhs: Vec2<S>) -> Self::Output {
+        Vec2 {
+            x: self + rhs.x,
+            y: self + rhs.y,
+        }
+    }
+}
+impl<S: Scalar> Sub<S> for Vec2<S> {
+    type Output = Self;
+
+    fn sub(self, rhs: S) -> Self::Output {
+        Self {
+            x: self.x - rhs,
+            y: self.y - rhs,
+        }
+    }
+}
+impl<S: Scalar> Mul<S> for Vec2<S> {
+    type Output = Self;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+impl<S: Scalar> Div<S> for Vec2<S> {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+impl<S: Scalar> From<Point2<S>> for Vec2<S> {
+    fn from(point: Point2<S>) -> Self {
         Self {
             x: point.x,
             y: point.y,
         }
     }
 }
+*/
+/*
 impl From<[f64; 2]> for Vec2 {
     fn from(floats: [f64; 2]) -> Self {
         Self {
@@ -119,18 +336,20 @@ impl From<[f32; 2]> for Vec2 {
         }
     }
 }
-impl std::fmt::Display for Vec2 {
+ */
+impl<S: Scalar> std::fmt::Display for Vec2<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}]", self.x, self.y))
     }
 }
-impl std::fmt::Debug for Vec2 {
+impl<S: Scalar> std::fmt::Debug for Vec2<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}]", self.x, self.y))
     }
 }
 
-impl_op_ex!(-|a: &Vec2| -> Vec2 { vec2(-a.x, -a.y) });
+/*
+impl_op_ex!(-|a: &Vec2| -> Vec2<S> { vec2(-a.x, -a.y) });
 impl_op_ex!(+|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x + b.x, a.y + b.y) });
 impl_op_ex!(-|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x - b.x, a.y - b.y) });
 impl_op_ex!(*|a: &Vec2, b: &Vec2| -> Vec2 { vec2(a.x * b.x, a.y * b.y) });
@@ -139,6 +358,7 @@ impl_op_ex_commutative!(*|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x * s, v.y * s) })
 impl_op_ex!(-|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x - s, v.y - s) });
 impl_op_ex!(/|v: &Vec2, s: &f64| -> Vec2 { vec2(v.x / s, v.y / s) });
 impl_op_ex!(/|s: &f64, v: &Vec2| -> Vec2 { vec2(s / v.x, s / v.y) });
+ */
 
 #[cfg(test)]
 mod tests {
@@ -146,6 +366,7 @@ mod tests {
 
     use super::*;
 
+    /*
     #[test]
     fn gets_magnitude2() {
         assert_eq!(2.0, vec2(1.0, 1.0).magnitude2());
@@ -255,4 +476,5 @@ mod tests {
     fn vec_to_point() {
         assert_cc!(point2(-3.0, 14.0), vec2(-3.0, 14.0).into_point());
     }
+    */
 }

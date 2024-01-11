@@ -7,5 +7,8 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../common" }
-auto_ops = "0.3.0"
+#auto_ops = "0.3.0"
+auto_ops = { git = "https://github.com/carbotaniuman/auto_ops" }
 delaunator = { version = "1.0.2" }
+opimps = "0.2.2"
+auto_impl = "1.1.0"
