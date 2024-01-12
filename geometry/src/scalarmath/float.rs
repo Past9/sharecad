@@ -3,7 +3,7 @@ use std::ops::Rem;
 use auto_ops::impl_op_ex;
 use float_cmp::Ulps;
 
-use super::{SArithmetic, Scalar};
+use super::Scalar;
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Float(pub f64);
@@ -85,41 +85,9 @@ impl Scalar for Float {
         Self(self.0.tan())
     }
 }
-impl SArithmetic for Float {
-    fn neg(self) -> Self {
-        Self(-self.0)
-    }
-
-    fn mul(self, rhs: Self) -> Self {
-        Self(self.0 * rhs.0)
-    }
-
-    fn div(self, rhs: Self) -> Self {
-        Self(self.0 / rhs.0)
-    }
-
-    fn eq(self, rhs: Self) -> bool {
-        self.0 == rhs.0
-    }
-
-    fn neq(self, rhs: Self) -> bool {
-        self.0 != rhs.0
-    }
-
-    fn lt(self, rhs: Self) -> bool {
-        self.0 < rhs.0
-    }
-
-    fn lte(self, rhs: Self) -> bool {
-        self.0 <= rhs.0
-    }
-
-    fn gt(self, rhs: Self) -> bool {
-        self.0 > rhs.0
-    }
-
-    fn gte(self, rhs: Self) -> bool {
-        self.0 >= rhs.0
+impl PartialOrd for Float {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
     }
 }
 impl std::fmt::Display for Float {
@@ -128,5 +96,8 @@ impl std::fmt::Display for Float {
     }
 }
 
+impl_op_ex!(-|f: &Float| -> Float { Float(-f.0) });
 impl_op_ex!(+|l: &Float, r: &Float| -> Float { Float(l.0 + r.0) });
 impl_op_ex!(-|l: &Float, r: &Float| -> Float { Float(l.0 - r.0) });
+impl_op_ex!(*|l: &Float, r: &Float| -> Float { Float(l.0 * r.0) });
+impl_op_ex!(/|l: &Float, r: &Float| -> Float { Float(l.0 / r.0) });

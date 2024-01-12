@@ -1,4 +1,4 @@
-use super::{SArithmetic, Scalar};
+use super::Scalar;
 
 #[derive(Copy, Clone)]
 pub struct Vec2<S: Scalar> {

@@ -1,42 +1,29 @@
-use std::ops::Add;
-
+use super::{Float, Scalar};
 use auto_ops::impl_op_ex;
-use float_cmp::Ulps;
-
-use super::{Float, SArithmetic, Scalar};
-
-pub enum IntervalRelToFloat {
-    LessThanFloat,
-    ContainsFloat,
-    GreaterThanFloat,
-}
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Interval(pub Float, pub Float);
 impl Interval {
     pub const EMPTY: Self = Self(Float::NAN, Float::NAN);
 
-    const S_POS: Self = Self(Float(0.0), Float::FRAC_PI_2);
-    const S_NEG: Self = Self(Float(-std::f64::consts::FRAC_PI_2), Float(0.0));
-
     pub fn thin(val: Float) -> Self {
         Self(val, val)
     }
 
     pub fn is_empty(self) -> bool {
-        self.eq(Self::EMPTY)
+        self == Self::EMPTY
     }
 
     pub fn is_subset_of(self, rhs: Self) -> bool {
-        rhs.0.lte(self.0) && self.1.lte(rhs.1)
+        rhs.0 <= self.0 && self.1 <= rhs.1
     }
 
     pub fn is_proper_subset_of(self, rhs: Self) -> bool {
-        self.is_subset_of(rhs) && self.neq(rhs)
+        self.is_subset_of(rhs) && self != rhs
     }
 
     pub fn is_strict_subset_of(self, rhs: Self) -> bool {
-        rhs.0.lt(self.0) && self.1.lt(rhs.1)
+        rhs.0 < self.0 && self.1 < rhs.1
     }
 
     pub fn intersection(self, rhs: Self) -> Self {
@@ -52,29 +39,19 @@ impl Interval {
             return false;
         }
 
-        !(self.1.lt(rhs.0) || rhs.1.lt(self.0))
+        !(self.1 < rhs.0 || rhs.1 < self.0)
     }
 
     pub fn rad(self) -> Float {
-        (self.1 - self.0).div(Float(2.0))
+        (self.1 - self.0) / Float(2.0)
     }
 
     pub fn mid(self) -> Float {
-        (self.1 + self.0).div(Float(2.0))
-    }
-
-    pub fn rel_to_float(self, val: Float) -> IntervalRelToFloat {
-        if self.0.lt(val) && self.1.lt(val) {
-            IntervalRelToFloat::LessThanFloat
-        } else if self.0.gt(val) && self.1.gt(val) {
-            IntervalRelToFloat::GreaterThanFloat
-        } else {
-            IntervalRelToFloat::ContainsFloat
-        }
+        (self.1 + self.0) / Float(2.0)
     }
 
     pub fn contains_exact(self, val: Float) -> bool {
-        self.0.lte(val) && self.1.gte(val)
+        self.0 <= val && self.1 >= val
     }
 
     pub fn contains_zero(self) -> bool {
@@ -130,7 +107,7 @@ impl Scalar for Interval {
         } else if n == 0 {
             Self(Float(1.0), Float(1.0))
         } else if n.is_negative() && !self.contains_zero() {
-            Self(Float(1.0).div(self.1), Float(1.0).div(self.0))
+            Self(Float(1.0) / self.1, Float(1.0) / self.0)
                 .powi(-n)
                 .round_out()
         } else {
@@ -162,16 +139,7 @@ impl Scalar for Interval {
         let diff = Float(self.0 .0.rem_euclid(std::f64::consts::TAU) - self.0 .0);
         let norm = self + Self::thin(diff);
         let has_peak = norm.intersects(Self::FRAC_PI_2);
-        let has_trough = norm.intersects(Self::FRAC_PI_2.mul(Self::thin(Float(3.0))));
-
-        /*
-        println!("Self::FRAC_PI_2 = {}", Self::FRAC_PI_2);
-        println!("self = {}", self);
-        println!("diff = {}", diff);
-        println!("norm = {}", norm);
-        println!("has_peak = {}", has_peak);
-        println!("has_trough = {}", has_trough);
-         */
+        let has_trough = norm.intersects(Self::FRAC_PI_2 * Self::thin(Float(3.0)));
 
         match (has_trough, has_peak) {
             (true, true) => Self(Float(-1.0), Float(1.0)),
@@ -190,109 +158,7 @@ impl Scalar for Interval {
     }
 
     fn tan(self) -> Self {
-        self.sin().div(self.cos())
-    }
-}
-impl SArithmetic for Interval {
-    fn neg(self) -> Self {
-        Self(self.1.neg(), self.0.neg())
-    }
-
-    fn mul(self, rhs: Self) -> Self {
-        if self.is_empty() || rhs.is_empty() {
-            return Self::EMPTY;
-        }
-
-        let l0r0 = self.0.mul(rhs.0);
-        let l1r0 = self.1.mul(rhs.0);
-        let l0r1 = self.0.mul(rhs.1);
-        let l1r1 = self.1.mul(rhs.1);
-
-        Self(
-            l0r0.min(l1r0).min(l0r1).min(l1r1),
-            l0r0.max(l1r0).max(l0r1).max(l1r1),
-        )
-        .round_out()
-    }
-
-    fn div(self, rhs: Self) -> Self {
-        if self.is_empty() || rhs.is_empty() {
-            return Self::EMPTY;
-        }
-
-        if rhs.contains_zero() {
-            panic!("denominator of {}/{} straddles zero", self, rhs);
-        }
-
-        let l0r0 = self.0.div(rhs.0);
-        let l1r0 = self.1.div(rhs.0);
-        let l0r1 = self.0.div(rhs.1);
-        let l1r1 = self.1.div(rhs.1);
-
-        Self(
-            l0r0.min(l1r0).min(l0r1).min(l1r1),
-            l0r0.max(l1r0).max(l0r1).max(l1r1),
-        )
-        .round_out()
-
-        /*
-        let a = self;
-        let b = rhs;
-
-        if !b.contains_zero() {
-            a.mul(Self(Float(1.0).div(b.1), Float(1.0).div(b.0)))
-        } else if a.contains_zero() && b.contains_zero() {
-            Self(Float::NEG_INFINITY, Float::INFINITY)
-        } else if a.1.lt(Float(0.0)) {
-            if b.0.lt(b.1) && b.1.eq(Float(0.0)) {
-                Self(a.1.div(b.0), Float::INFINITY)
-            } else if b.0.lt(Float(0.0)) && b.1.gt(Float(0.0)) {
-                Self(a.1.div(b.0), a.1.div(b.1))
-            } else if Float(0.0).eq(b.0) && b.0.lt(b.1) {
-                Self(Float::NEG_INFINITY, a.1.div(b.1))
-            } else {
-                panic!("Div case 1");
-            }
-        } else if Float(0.0).lt(a.0) {
-            if b.0.lt(b.1) && b.1.eq(Float(0.0)) {
-                Self(Float::NEG_INFINITY, a.0.div(b.0))
-            } else if b.0.lt(Float(0.0)) && b.1.gt(Float(0.0)) {
-                Self(a.0.div(b.1), a.0.div(b.0))
-            } else if Float(0.0).eq(b.0) && b.0.lt(b.1) {
-                Self(a.0.div(b.1), Float::INFINITY)
-            } else {
-                panic!("Div case 2")
-            }
-        } else if !a.contains_zero() {
-            Self::EMPTY
-        } else {
-            panic!("Div case 3")
-        }
-         */
-    }
-
-    fn eq(self, rhs: Self) -> bool {
-        self.0.eq(rhs.0) && self.1.eq(rhs.1)
-    }
-
-    fn neq(self, rhs: Self) -> bool {
-        !self.eq(rhs)
-    }
-
-    fn lt(self, rhs: Self) -> bool {
-        self.1.lt(rhs.0)
-    }
-
-    fn lte(self, rhs: Self) -> bool {
-        self.0.lte(rhs.0) && self.1.eq(rhs.1)
-    }
-
-    fn gt(self, rhs: Self) -> bool {
-        self.0.gt(rhs.1)
-    }
-
-    fn gte(self, rhs: Self) -> bool {
-        self.0.eq(rhs.0) && self.1.gte(rhs.1)
+        self.sin() / self.cos()
     }
 }
 impl std::fmt::Display for Interval {
@@ -305,6 +171,13 @@ impl std::fmt::Debug for Interval {
         std::fmt::Display::fmt(self, f)
     }
 }
+
+impl_op_ex!(-|i: &Interval| -> Interval {
+    if i.is_empty() {
+        return Interval::EMPTY;
+    }
+    Interval(-i.1, -i.0)
+});
 
 impl_op_ex!(+|l: &Interval, r: &Interval| -> Interval {
     if l.is_empty() || r.is_empty() {
@@ -321,6 +194,44 @@ impl_op_ex!(-|l: &Interval, r: &Interval| -> Interval {
     Interval(l.0 - r.1, l.1 - r.0).round_out()
 });
 
+impl_op_ex!(*|l: &Interval, r: &Interval| -> Interval {
+    if l.is_empty() || r.is_empty() {
+        return Interval::EMPTY;
+    }
+
+    let l0r0 = l.0 * r.0;
+    let l1r0 = l.1 * r.0;
+    let l0r1 = l.0 * r.1;
+    let l1r1 = l.1 * r.1;
+
+    Interval(
+        l0r0.min(l1r0).min(l0r1).min(l1r1),
+        l0r0.max(l1r0).max(l0r1).max(l1r1),
+    )
+    .round_out()
+});
+
+impl_op_ex!(/|l: &Interval, r: &Interval| -> Interval {
+    if l.is_empty() || r.is_empty() {
+        return Interval::EMPTY;
+    }
+
+    if r.contains_zero() {
+        panic!("denominator of {}/{} straddles zero", l, r);
+    }
+
+    let l0r0 = l.0 / r.0;
+    let l1r0 = l.1 / r.0;
+    let l0r1 = l.0 / r.1;
+    let l1r1 = l.1 / r.1;
+
+    Interval(
+        l0r0.min(l1r0).min(l0r1).min(l1r1),
+        l0r0.max(l1r0).max(l0r1).max(l1r1),
+    )
+    .round_out()
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,7 +240,7 @@ mod tests {
     fn sin() {
         assert_eq!(
             Interval(Float::FRAC_1_SQRT_2, Float(1.0)),
-            Interval(Float::FRAC_PI_4, Float::FRAC_PI_4.mul(Float(3.0))).sin()
+            Interval(Float::FRAC_PI_4, Float::FRAC_PI_4 * Float(3.0)).sin()
         );
     }
 
@@ -337,14 +248,14 @@ mod tests {
     fn cos() {
         assert_eq!(
             Interval(
-                Float::FRAC_1_SQRT_2.neg().prev(),
+                (-Float::FRAC_1_SQRT_2).prev(),
                 Float::FRAC_1_SQRT_2.next().next().next()
             ),
-            Interval(Float::FRAC_PI_4, Float::FRAC_PI_4.mul(Float(3.0))).cos()
+            Interval(Float::FRAC_PI_4, Float::FRAC_PI_4 * Float(3.0)).cos()
         );
         assert_eq!(
             Interval(Float(-1.0), Float(1.0),),
-            Interval(Float::FRAC_PI_4.neg(), Float::FRAC_PI_2.mul(Float(3.0))).cos()
+            Interval(-Float::FRAC_PI_4, Float::FRAC_PI_2 * Float(3.0)).cos()
         );
     }
 
@@ -355,7 +266,7 @@ mod tests {
                 Float(-1.0).prev().prev().prev(),
                 Float(1.0).next().next().next(),
             ),
-            Interval(Float::FRAC_PI_4.neg(), Float::FRAC_PI_4).tan()
+            Interval(-Float::FRAC_PI_4, Float::FRAC_PI_4).tan()
         );
         assert_eq!(
             Interval(Float(-0.5463024898437907), Float(0.5463024898437907)),
@@ -366,7 +277,7 @@ mod tests {
             Interval(Float(0.0), Float(0.5)).tan()
         );
         assert_eq!(
-            Interval(Float(-0.5463024898437907), Float(0.0.next())),
+            Interval(Float(-0.5463024898437907), Float(0.0).next()),
             Interval(Float(-0.5), Float(0.0)).tan()
         );
     }

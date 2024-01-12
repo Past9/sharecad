@@ -5,11 +5,6 @@ mod vec2;
 
 //use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use std::ops::Add;
-
-use auto_impl::auto_impl;
-use float_cmp::Ulps;
-
 pub use float::*;
 pub use interval::*;
 //pub use point2::*;
@@ -17,7 +12,7 @@ pub use vec2::*;
 
 pub trait Scalar
 where
-    Self: std::fmt::Display + Copy + Clone + SArithmetic,
+    Self: std::fmt::Display + Copy + Clone,
 {
     const E: Self;
     const FRAC_1_PI: Self;
@@ -49,23 +44,8 @@ where
     fn tan(self) -> Self;
 }
 
-pub trait SArithmetic {
-    fn neg(self) -> Self;
-    //fn s_add(self, rhs: Self) -> Self;
-    //fn s_sub(self, rhs: Self) -> Self;
-    fn mul(self, rhs: Self) -> Self;
-    fn div(self, rhs: Self) -> Self;
-    fn eq(self, rhs: Self) -> bool;
-    fn neq(self, rhs: Self) -> bool;
-    fn lt(self, rhs: Self) -> bool;
-    fn lte(self, rhs: Self) -> bool;
-    fn gt(self, rhs: Self) -> bool;
-    fn gte(self, rhs: Self) -> bool;
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::scalarmath::{Float, Interval, SArithmetic, Vec2};
 
     /*
     #[test]
