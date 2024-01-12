@@ -69,6 +69,7 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 fn build_scene() -> Scene {
+    let start = Instant::now();
     let mut scene = Scene::new();
 
     scene.set_ambient_light(AmbientLight::new(rgb(0.35, 0.35, 0.35)));
@@ -165,10 +166,7 @@ fn build_scene() -> Scene {
 
             let mut intersection = SSCurveSampler::new(&s1_solver, &s2_solver, s1_uv, s2_uv);
 
-            let start = Instant::now();
             intersection.fill(step);
-            let end = Instant::now();
-            println!("{}us", (end - start).as_micros());
 
             let points = intersection.take_points();
 
@@ -180,21 +178,9 @@ fn build_scene() -> Scene {
                 len += (p1.pos - p0.pos).magnitude();
             }
 
-            println!("len = {}", len);
-            println!("num points = {}", points.len());
-
-            println!("start = {:#?}", points[0]);
-            println!("end = {:#?}", points[points.len() - 1]);
-            println!(
-                "start -> end dist = {}",
-                (points[0].pos - points[points.len() - 1].pos).magnitude()
-            );
-
             let ss_curve_id = model.create_ss_curve(sweep1, sweep2, points);
 
             let ss_curve_solver = model.curve_solver(ss_curve_id).unwrap();
-
-            println!("is closed: {}", ss_curve_solver.is_closed());
         }
 
         // Coordinate system
@@ -215,6 +201,9 @@ fn build_scene() -> Scene {
     );
 
     scene.add_model(sm);
+
+    let end = Instant::now();
+    println!("Model built in {}us", (end - start).as_micros());
 
     scene
 }
