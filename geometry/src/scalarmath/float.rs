@@ -1,5 +1,6 @@
 use std::ops::Rem;
 
+use auto_ops::impl_op_ex;
 use float_cmp::Ulps;
 
 use super::{SArithmetic, Scalar};
@@ -89,14 +90,6 @@ impl SArithmetic for Float {
         Self(-self.0)
     }
 
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0 + rhs.0)
-    }
-
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0 - rhs.0)
-    }
-
     fn mul(self, rhs: Self) -> Self {
         Self(self.0 * rhs.0)
     }
@@ -134,3 +127,6 @@ impl std::fmt::Display for Float {
         self.0.fmt(f)
     }
 }
+
+impl_op_ex!(+|l: &Float, r: &Float| -> Float { Float(l.0 + r.0) });
+impl_op_ex!(-|l: &Float, r: &Float| -> Float { Float(l.0 - r.0) });

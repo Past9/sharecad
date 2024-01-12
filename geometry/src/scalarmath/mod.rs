@@ -5,6 +5,8 @@ mod vec2;
 
 //use std::ops::{Add, Div, Mul, Neg, Sub};
 
+use std::ops::Add;
+
 use auto_impl::auto_impl;
 use float_cmp::Ulps;
 
@@ -49,8 +51,8 @@ where
 
 pub trait SArithmetic {
     fn neg(self) -> Self;
-    fn add(self, rhs: Self) -> Self;
-    fn sub(self, rhs: Self) -> Self;
+    //fn s_add(self, rhs: Self) -> Self;
+    //fn s_sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
     fn eq(self, rhs: Self) -> bool;

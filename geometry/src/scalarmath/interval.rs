@@ -1,3 +1,6 @@
+use std::ops::Add;
+
+use auto_ops::impl_op_ex;
 use float_cmp::Ulps;
 
 use super::{Float, SArithmetic, Scalar};
@@ -53,11 +56,11 @@ impl Interval {
     }
 
     pub fn rad(self) -> Float {
-        self.1.sub(self.0).div(Float(2.0))
+        (self.1 - self.0).div(Float(2.0))
     }
 
     pub fn mid(self) -> Float {
-        self.1.add(self.0).div(Float(2.0))
+        (self.1 + self.0).div(Float(2.0))
     }
 
     pub fn rel_to_float(self, val: Float) -> IntervalRelToFloat {
@@ -91,7 +94,7 @@ impl Interval {
     }
 
     pub fn hausdorff(self, rhs: Self) -> Float {
-        self.0.sub(rhs.0).abs().max(self.1.sub(rhs.1).abs())
+        (self.0 - rhs.0).abs().max(self.1 - rhs.1.abs())
     }
 
     pub fn round_out(self) -> Self {
@@ -157,7 +160,7 @@ impl Scalar for Interval {
         }
 
         let diff = Float(self.0 .0.rem_euclid(std::f64::consts::TAU) - self.0 .0);
-        let norm = self.add(Self::thin(diff));
+        let norm = self + Self::thin(diff);
         let has_peak = norm.intersects(Self::FRAC_PI_2);
         let has_trough = norm.intersects(Self::FRAC_PI_2.mul(Self::thin(Float(3.0))));
 
@@ -183,7 +186,7 @@ impl Scalar for Interval {
     }
 
     fn cos(self) -> Self {
-        self.add(Self::FRAC_PI_2).sin()
+        (self + Self::FRAC_PI_2).sin()
     }
 
     fn tan(self) -> Self {
@@ -193,22 +196,6 @@ impl Scalar for Interval {
 impl SArithmetic for Interval {
     fn neg(self) -> Self {
         Self(self.1.neg(), self.0.neg())
-    }
-
-    fn add(self, rhs: Self) -> Self {
-        if self.is_empty() || rhs.is_empty() {
-            return Self::EMPTY;
-        }
-
-        Self(self.0.add(rhs.0), self.1.add(rhs.1)).round_out()
-    }
-
-    fn sub(self, rhs: Self) -> Self {
-        if self.is_empty() || rhs.is_empty() {
-            return Self::EMPTY;
-        }
-
-        Self(self.0.sub(rhs.1), self.1.sub(rhs.0)).round_out()
     }
 
     fn mul(self, rhs: Self) -> Self {
@@ -318,6 +305,21 @@ impl std::fmt::Debug for Interval {
         std::fmt::Display::fmt(self, f)
     }
 }
+
+impl_op_ex!(+|l: &Interval, r: &Interval| -> Interval {
+    if l.is_empty() || r.is_empty() {
+        return Interval::EMPTY;
+    }
+    Interval(l.0 + r.0, l.1 + r.1).round_out()
+});
+
+impl_op_ex!(-|l: &Interval, r: &Interval| -> Interval {
+    if l.is_empty() || r.is_empty() {
+        return Interval::EMPTY;
+    }
+
+    Interval(l.0 - r.1, l.1 - r.0).round_out()
+});
 
 #[cfg(test)]
 mod tests {
