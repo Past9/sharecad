@@ -79,8 +79,6 @@ impl<S: Scalar> Mat44<S> {
     }
 
     pub fn look_to_rh_translation(eye: Vec3<S>) -> Self {
-        let eye = eye.into_vec();
-
         #[cfg_attr(rustfmt, rustfmt_skip)]
         let translation = Mat44::new(
             S::ONE, S::ZERO, S::ZERO, -eye.x,
@@ -106,12 +104,10 @@ impl<S: Scalar> Mat44<S> {
 
     pub fn inverse(self) -> Option<Self> {
         let det = self.determinant();
-        println!("mat44 = {:?}", self);
-        println!("mat44 det = {}", det);
-        if det == 0.0 {
+        if det == S::ZERO {
             None
         } else {
-            Some(det.recip() * self.adjoint())
+            Some(self.adjoint() * det.recip())
         }
     }
 
@@ -153,7 +149,7 @@ impl<S: Scalar> Mat44<S> {
         )
     }
 
-    pub fn determinant(self) -> f64 {
+    pub fn determinant(self) -> S {
         let a = self[0][0];
         let b = self[0][1];
         let c = self[0][2];
@@ -182,11 +178,12 @@ impl<S: Scalar> Mat44<S> {
     pub fn powi(self, power: u32) -> Self {
         let mut result = Self::IDENTITY;
         for _ in 0..power {
-            result = result * *self;
+            result = result * self;
         }
         result
     }
 
+    /*
     pub fn approx_eq(self, other: Self, tol: f64) -> bool {
         let mut equal = true;
         for r in 0..4 {
@@ -198,9 +195,10 @@ impl<S: Scalar> Mat44<S> {
         }
         equal
     }
+     */
 }
 impl<S: Scalar> Index<usize> for Mat44<S> {
-    type Output = [f64; 4];
+    type Output = [S; 4];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
@@ -332,6 +330,7 @@ gen_ops!(
             ],
         ])
     };
+    where S: Scalar
 );
 
 gen_ops!(
@@ -340,31 +339,32 @@ gen_ops!(
     for * call |l: &Mat44<S>, r: &S| {
         Self([
             [
-                l[0][0] * r,
-                l[0][1] * r,
-                l[0][2] * r,
-                l[0][3] * r,
+                l[0][0] * *r,
+                l[0][1] * *r,
+                l[0][2] * *r,
+                l[0][3] * *r,
             ],
             [
-                l[1][0] * r,
-                l[1][1] * r,
-                l[1][2] * r,
-                l[1][3] * r,
+                l[1][0] * *r,
+                l[1][1] * *r,
+                l[1][2] * *r,
+                l[1][3] * *r,
             ],
             [
-                l[2][0] * r,
-                l[2][1] * r,
-                l[2][2] * r,
-                l[2][3] * r,
+                l[2][0] * *r,
+                l[2][1] * *r,
+                l[2][2] * *r,
+                l[2][3] * *r,
             ],
             [
-                l[3][0] * r,
-                l[3][1] * r,
-                l[3][2] * r,
-                l[3][3] * r,
+                l[3][0] * *r,
+                l[3][1] * *r,
+                l[3][2] * *r,
+                l[3][3] * *r,
             ],
         ])
     };
+    where S: Scalar
 );
 
 /*

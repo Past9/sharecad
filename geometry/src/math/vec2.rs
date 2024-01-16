@@ -64,10 +64,6 @@ impl<S: Scalar> Vec2<S> {
         }
     }
 
-    pub fn angle(self) -> Angle<S> {
-        rad(self.y.atan2(self.x))
-    }
-
     pub fn magnitude2(self) -> S {
         self.dot(self)
     }
@@ -100,22 +96,22 @@ impl<S: Scalar> Vec2<S> {
     }
 
     pub fn lerp(self, other: Self, t: S) -> Self {
-        (Self::ONES - t) * self + t * other
+        (Self::ONES - t) * self + other * t
     }
 }
 impl<S: Scalar> From<[f64; 2]> for Vec2<S> {
     fn from(floats: [f64; 2]) -> Self {
         Self {
-            x: floats[0],
-            y: floats[1],
+            x: S::exact(floats[0]),
+            y: S::exact(floats[1]),
         }
     }
 }
 impl<S: Scalar> From<[f32; 2]> for Vec2<S> {
     fn from(floats: [f32; 2]) -> Self {
         Self {
-            x: floats[0] as f64,
-            y: floats[1] as f64,
+            x: S::exact(floats[0] as f64),
+            y: S::exact(floats[1] as f64),
         }
     }
 }
@@ -185,16 +181,16 @@ gen_ops!(
     <S>;
     types Vec2<S>, S => Vec2<S>;
     for + call |l: &Vec2<S>, r: &S| {
-        vec2(l.x + r, l.y + r)
+        vec2(l.x + *r, l.y + *r)
     };
     for - call |l: &Vec2<S>, r: &S| {
-        vec2(l.x - r, l.y - r)
+        vec2(l.x - *r, l.y - *r)
     };
     for * call |l: &Vec2<S>, r: &S| {
-        vec2(l.x * r, l.y * r)
+        vec2(l.x * *r, l.y * *r)
     };
     for / call |l: &Vec2<S>, r: &S| {
-        vec2(l.x / r, l.y / r)
+        vec2(l.x / *r, l.y / *r)
     };
     where S: Scalar
 );

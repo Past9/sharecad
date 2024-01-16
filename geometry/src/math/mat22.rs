@@ -30,13 +30,14 @@ impl<S: Scalar> Mat22<S> {
 
     pub fn inverse(self) -> Option<Self> {
         let det = self.determinant();
-        if det == 0.0 {
+        if det == S::ZERO {
             None
         } else {
-            Some(det.recip() * self.adjoint())
+            Some(self.adjoint() * det.recip())
         }
     }
 
+    /*
     pub fn approx_eq(self, other: Self, tol: S) -> bool {
         let mut equal = true;
         for r in 0..2 {
@@ -48,9 +49,10 @@ impl<S: Scalar> Mat22<S> {
         }
         equal
     }
+     */
 }
 impl<S: Scalar> Index<usize> for Mat22<S> {
-    type Output = [f64; 2];
+    type Output = [S; 2];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
@@ -58,14 +60,17 @@ impl<S: Scalar> Index<usize> for Mat22<S> {
 }
 impl<S: Scalar> From<Mat22<S>> for [[f64; 2]; 2] {
     fn from(mat: Mat22<S>) -> Self {
-        mat.0
+        [
+            [mat[0][0].as_f64(), mat[0][1].as_f64()],
+            [mat[1][0].as_f64(), mat[1][1].as_f64()],
+        ]
     }
 }
 impl<S: Scalar> From<Mat22<S>> for [[f32; 2]; 2] {
     fn from(mat: Mat22<S>) -> Self {
         [
-            [mat[0][0] as f32, mat[0][1] as f32],
-            [mat[1][0] as f32, mat[1][1] as f32],
+            [mat[0][0].as_f32(), mat[0][1].as_f32()],
+            [mat[1][0].as_f32(), mat[1][1].as_f32()],
         ]
     }
 }
@@ -90,6 +95,7 @@ gen_ops!(
             ],
         ])
     };
+    where S: Scalar
 );
 
 gen_ops!(
@@ -98,15 +104,16 @@ gen_ops!(
     for * call |l: &Mat22<S>, r: &S| {
         Self([
             [
-                l[0][0] * r,
-                l[0][1] * r,
+                l[0][0] * *r,
+                l[0][1] * *r,
             ],
             [
-                l[1][0] * r,
-                l[1][1] * r,
+                l[1][0] * *r,
+                l[1][1] * *r,
             ],
         ])
     };
+    where S: Scalar
 );
 
 /*

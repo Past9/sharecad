@@ -59,7 +59,7 @@ impl<S: Scalar> Mat33<S> {
 
     pub fn inverse(self) -> Option<Self> {
         let det = self.determinant();
-        if det == 0.0 {
+        if det == S::ZERO {
             None
         } else {
             let a = self[0][0];
@@ -82,13 +82,13 @@ impl<S: Scalar> Mat33<S> {
             let i_h = -(a * f - c * d);
             let i_i = a * e - b * d;
 
-            let inv =
-                self.determinant().recip() * Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i);
+            let inv = Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i) * det.recip();
 
             Some(inv)
         }
     }
 
+    /*
     pub fn approx_eq(self, other: Self, tol: f64) -> bool {
         let mut equal = true;
         for r in 0..3 {
@@ -100,6 +100,7 @@ impl<S: Scalar> Mat33<S> {
         }
         equal
     }
+     */
 
     pub fn col0(self) -> Vec3<S> {
         vec3(self[0][0], self[1][0], self[2][0])
@@ -122,15 +123,19 @@ impl<S: Scalar> Index<usize> for Mat33<S> {
 }
 impl<S: Scalar> From<Mat33<S>> for [[f64; 3]; 3] {
     fn from(mat: Mat33<S>) -> Self {
-        mat.0
+        [
+            [mat[0][0].as_f64(), mat[0][1].as_f64(), mat[0][2].as_f64()],
+            [mat[1][0].as_f64(), mat[1][1].as_f64(), mat[1][2].as_f64()],
+            [mat[2][0].as_f64(), mat[2][1].as_f64(), mat[2][2].as_f64()],
+        ]
     }
 }
 impl<S: Scalar> From<Mat33<S>> for [[f32; 3]; 3] {
     fn from(mat: Mat33<S>) -> Self {
         [
-            [mat[0][0] as f32, mat[0][1] as f32, mat[0][2] as f32],
-            [mat[1][0] as f32, mat[1][1] as f32, mat[1][2] as f32],
-            [mat[2][0] as f32, mat[2][1] as f32, mat[2][2] as f32],
+            [mat[0][0].as_f32(), mat[0][1].as_f32(), mat[0][2].as_f32()],
+            [mat[1][0].as_f32(), mat[1][1].as_f32(), mat[1][2].as_f32()],
+            [mat[2][0].as_f32(), mat[2][1].as_f32(), mat[2][2].as_f32()],
         ]
     }
 }
@@ -188,6 +193,7 @@ gen_ops!(
             ],
         ])
     };
+    where S: Scalar
 );
 
 gen_ops!(
@@ -196,22 +202,23 @@ gen_ops!(
     for * call |l: &Mat33<S>, r: &S| {
         Self([
             [
-                l[0][0] * r,
-                l[0][1] * r,
-                l[0][2] * r,
+                l[0][0] * *r,
+                l[0][1] * *r,
+                l[0][2] * *r,
             ],
             [
-                l[1][0] * r,
-                l[1][1] * r,
-                l[1][2] * r,
+                l[1][0] * *r,
+                l[1][1] * *r,
+                l[1][2] * *r,
             ],
             [
-                l[2][0] * r,
-                l[2][1] * r,
-                l[2][2] * r,
+                l[2][0] * *r,
+                l[2][1] * *r,
+                l[2][2] * *r,
             ],
         ])
     };
+    where S: Scalar
 );
 
 /*

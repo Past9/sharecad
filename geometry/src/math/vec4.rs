@@ -61,19 +61,19 @@ impl<S: Scalar> Vec4<S> {
         Self { x, y, z, w }
     }
 
-    pub fn magnitude2(&self) -> S {
-        self.dot(*self)
+    pub fn magnitude2(self) -> S {
+        self.dot(self)
     }
 
-    pub fn magnitude(&self) -> S {
+    pub fn magnitude(self) -> S {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot(&self, other: Self) -> S {
+    pub fn dot(self, other: Self) -> S {
         self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
     }
 
-    pub fn normalize(&self) -> Self {
+    pub fn normalize(self) -> Self {
         let mag = self.magnitude();
         self / mag
     }
@@ -154,16 +154,16 @@ gen_ops!(
     <S>;
     types Vec4<S>, S => Vec4<S>;
     for + call |l: &Vec4<S>, r: &S| {
-        vec4(l.x + r, l.y + r, l.z + r, l.w + r)
+        vec4(l.x + *r, l.y + *r, l.z + *r, l.w + *r)
     };
     for - call |l: &Vec4<S>, r: &S| {
-        vec4(l.x - r, l.y - r, l.z - r, l.w - r)
+        vec4(l.x - *r, l.y - *r, l.z - *r, l.w - *r)
     };
     for * call |l: &Vec4<S>, r: &S| {
-        vec4(l.x * r, l.y * r, l.z * r, l.w * r)
+        vec4(l.x * *r, l.y * *r, l.z * *r, l.w * *r)
     };
     for / call |l: &Vec4<S>, r: &S| {
-        vec4(l.x / r, l.y / r, l.z / r, l.w / r)
+        vec4(l.x / *r, l.y / *r, l.z / *r, l.w / *r)
     };
     where S: Scalar
 );

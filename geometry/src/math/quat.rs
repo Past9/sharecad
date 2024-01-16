@@ -6,7 +6,7 @@ use super::{vec3, Angle, Mat33, Mat44, Scalar, Vec3};
 #[derive(Debug, Clone, Copy)]
 pub struct Quat<S: Scalar> {
     pub v: Vec3<S>,
-    pub s: f64,
+    pub s: S,
 }
 impl<S: Scalar> Quat<S> {
     pub const ZERO: Self = Self {
@@ -28,11 +28,11 @@ impl<S: Scalar> Quat<S> {
     }
 
     pub fn to_mat33(self) -> Mat33<S> {
-        (*self).into()
+        self.into()
     }
 
     pub fn to_mat44(self) -> Mat44<S> {
-        (*self).into()
+        self.into()
     }
 
     pub fn dot(self, other: Self) -> S {
@@ -40,7 +40,7 @@ impl<S: Scalar> Quat<S> {
     }
 
     pub fn magnitude2(self) -> S {
-        self.dot(*self)
+        self.dot(self)
     }
 
     pub fn magnitude(self) -> S {

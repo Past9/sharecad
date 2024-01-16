@@ -52,15 +52,15 @@ impl<S: Scalar> Vec3<S> {
         Self { x, y, z }
     }
 
-    pub fn magnitude2(self) -> f64 {
+    pub fn magnitude2(self) -> S {
         self.dot(self)
     }
 
-    pub fn magnitude(self) -> f64 {
+    pub fn magnitude(self) -> S {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot(self, other: Self) -> f64 {
+    pub fn dot(self, other: Self) -> S {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
@@ -97,7 +97,7 @@ impl<S: Scalar> Vec3<S> {
     }
 
     pub fn lerp(self, other: Self, t: S) -> Self {
-        (Self::ONES - t) * self + t * other
+        (Self::ONES - t) * self + other * t
     }
 
     /// Returns the first derivative of `self.normalize()`, given the first
@@ -110,7 +110,7 @@ impl<S: Scalar> Vec3<S> {
 
         let g_p_over_g_mag = g_p / g_mag;
 
-        g_p_over_g_mag - f.dot(g_p_over_g_mag) * f
+        g_p_over_g_mag - f * f.dot(g_p_over_g_mag)
     }
 
     /// Returns the second derivative of `self.normalize()`, given the first
@@ -126,8 +126,8 @@ impl<S: Scalar> Vec3<S> {
         let f_p = self.norm_der1(der1);
 
         g_pp_over_g_mag
-            - S::TWO * (f.dot(g_p_over_g_mag)) * f_p
-            - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
+            - (f_p * (f.dot(g_p_over_g_mag))) * S::TWO
+            - f * (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag))
     }
 }
 impl<S: Scalar> Default for Vec3<S> {
@@ -138,18 +138,18 @@ impl<S: Scalar> Default for Vec3<S> {
 impl<S: Scalar> From<[f64; 3]> for Vec3<S> {
     fn from(floats: [f64; 3]) -> Self {
         Self {
-            x: floats[0],
-            y: floats[1],
-            z: floats[2],
+            x: S::exact(floats[0]),
+            y: S::exact(floats[1]),
+            z: S::exact(floats[2]),
         }
     }
 }
 impl<S: Scalar> From<[f32; 3]> for Vec3<S> {
     fn from(floats: [f32; 3]) -> Self {
         Self {
-            x: floats[0] as f64,
-            y: floats[1] as f64,
-            z: floats[2] as f64,
+            x: S::exact(floats[0] as f64),
+            y: S::exact(floats[1] as f64),
+            z: S::exact(floats[2] as f64),
         }
     }
 }
@@ -221,16 +221,16 @@ gen_ops!(
     <S>;
     types Vec3<S>, S => Vec3<S>;
     for + call |l: &Vec3<S>, r: &S| {
-        vec3(l.x + r, l.y + r, l.z + r)
+        vec3(l.x + *r, l.y + *r, l.z + *r)
     };
     for - call |l: &Vec3<S>, r: &S| {
-        vec3(l.x - r, l.y - r, l.z - r)
+        vec3(l.x - *r, l.y - *r, l.z - *r)
     };
     for * call |l: &Vec3<S>, r: &S| {
-        vec3(l.x * r, l.y * r, l.z * r)
+        vec3(l.x * *r, l.y * *r, l.z * *r)
     };
     for / call |l: &Vec3<S>, r: &S| {
-        vec3(l.x / r, l.y / r, l.z / r)
+        vec3(l.x / *r, l.y / *r, l.z / *r)
     };
     where S: Scalar
 );
