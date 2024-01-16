@@ -141,6 +141,12 @@ impl Scalar for Interval {
         let has_peak = norm.intersects(Self::FRAC_PI_2);
         let has_trough = norm.intersects(Self::FRAC_PI_2 * Self::thin(Float(3.0)));
 
+        println!("self = {}", self);
+        println!("diff = {}", diff);
+        println!("norm = {}", norm);
+        println!("has_peak = {}", has_peak);
+        println!("has_trough = {}", has_trough);
+
         match (has_trough, has_peak) {
             (true, true) => Self(Float(-1.0), Float(1.0)),
             (true, false) => Self(Float(-1.0), self.0.sin().max(self.1.sin())),
@@ -280,5 +286,19 @@ mod tests {
             Interval(Float(-0.5463024898437907), Float(0.0).next()),
             Interval(Float(-0.5), Float(0.0)).tan()
         );
+    }
+
+    #[test]
+    fn test_func() {
+        let x = Interval(Float(0.1), Float(1.0));
+
+        println!("{}", x);
+        println!("{}", Interval::PI * x);
+        println!("{}", (Interval::PI * x).sin());
+        println!("{}", my_func(x));
+    }
+
+    fn my_func<S: Scalar>(x: S) -> S {
+        (S::PI * x).sin() / x
     }
 }

@@ -5,6 +5,8 @@ mod vec2;
 
 //use std::ops::{Add, Div, Mul, Neg, Sub};
 
+use std::ops::{Add, Div, Mul, Neg, Sub};
+
 pub use float::*;
 pub use interval::*;
 //pub use point2::*;
@@ -12,7 +14,14 @@ pub use vec2::*;
 
 pub trait Scalar
 where
-    Self: std::fmt::Display + Copy + Clone,
+    Self: std::fmt::Display
+        + Copy
+        + Clone
+        + Neg<Output = Self>
+        + Add<Self, Output = Self>
+        + Sub<Self, Output = Self>
+        + Mul<Self, Output = Self>
+        + Div<Self, Output = Self>,
 {
     const E: Self;
     const FRAC_1_PI: Self;

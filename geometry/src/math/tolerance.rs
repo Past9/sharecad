@@ -1,4 +1,4 @@
-use super::{Angle, Mat33, Mat44, Point2, Point3, Vec2, Vec3};
+use super::{Angle, Mat33, Mat44, Vec2, Vec3};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 pub const NEWTON_TOL: f64 = COINCIDENT_TOL * 0.1;

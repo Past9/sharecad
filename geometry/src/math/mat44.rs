@@ -1,40 +1,40 @@
-use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+use gen_ops::gen_ops;
 use std::ops::Index;
 
-use super::{Mat33, Point3, Quat, Vec3, Vec4};
+use super::{Mat33, Quat, Scalar, Vec3, Vec4};
 
 #[derive(Copy, Clone)]
-pub struct Mat44(pub [[f64; 4]; 4]);
-impl Mat44 {
+pub struct Mat44<S: Scalar>(pub [[S; 4]; 4]);
+impl<S: Scalar> Mat44<S> {
     pub const IDENTITY: Self = Self([
-        [1.0, 0.0, 0.0, 0.0], //
-        [0.0, 1.0, 0.0, 0.0], //
-        [0.0, 0.0, 1.0, 0.0], //
-        [0.0, 0.0, 0.0, 1.0], //
+        [S::ONE, S::ZERO, S::ZERO, S::ZERO], //
+        [S::ZERO, S::ONE, S::ZERO, S::ZERO], //
+        [S::ZERO, S::ZERO, S::ONE, S::ZERO], //
+        [S::ZERO, S::ZERO, S::ZERO, S::ONE], //
     ]);
 
     pub fn new(
-        a: f64,
-        b: f64,
-        c: f64,
-        d: f64,
-        e: f64,
-        f: f64,
-        g: f64,
-        h: f64,
-        i: f64,
-        j: f64,
-        k: f64,
-        l: f64,
-        m: f64,
-        n: f64,
-        o: f64,
-        p: f64,
+        a: S,
+        b: S,
+        c: S,
+        d: S,
+        e: S,
+        f: S,
+        g: S,
+        h: S,
+        i: S,
+        j: S,
+        k: S,
+        l: S,
+        m: S,
+        n: S,
+        o: S,
+        p: S,
     ) -> Self {
         Self([[a, b, c, d], [e, f, g, h], [i, j, k, l], [m, n, o, p]])
     }
 
-    pub fn transpose(&self) -> Self {
+    pub fn transpose(self) -> Self {
         let m = self.0;
         Self([
             [m[0][0], m[1][0], m[2][0], m[3][0]],
@@ -44,67 +44,67 @@ impl Mat44 {
         ])
     }
 
-    pub fn translation(vec: Vec3) -> Self {
+    pub fn translation(vec: Vec3<S>) -> Self {
         Self([
-            [1.0, 0.0, 0.0, vec.x], //
-            [0.0, 1.0, 0.0, vec.y], //
-            [0.0, 0.0, 1.0, vec.z], //
-            [0.0, 0.0, 0.0, 1.0],   //
+            [S::ONE, S::ZERO, S::ZERO, vec.x],   //
+            [S::ZERO, S::ONE, S::ZERO, vec.y],   //
+            [S::ZERO, S::ZERO, S::ONE, vec.z],   //
+            [S::ZERO, S::ZERO, S::ZERO, S::ONE], //
         ])
     }
 
-    pub fn scale(vec: Vec3) -> Self {
+    pub fn scale(vec: Vec3<S>) -> Self {
         Self([
-            [vec.x, 0.0, 0.0, 0.0], //
-            [0.0, vec.y, 0.0, 0.0], //
-            [0.0, 0.0, vec.z, 0.0], //
-            [0.0, 0.0, 0.0, 1.0],   //
+            [vec.x, S::ZERO, S::ZERO, S::ZERO],  //
+            [S::ZERO, vec.y, S::ZERO, S::ZERO],  //
+            [S::ZERO, S::ZERO, vec.z, S::ZERO],  //
+            [S::ZERO, S::ZERO, S::ZERO, S::ONE], //
         ])
     }
 
-    pub fn look_to_rh_rotation(dir: Vec3, up: Vec3) -> Self {
+    pub fn look_to_rh_rotation(dir: Vec3<S>, up: Vec3<S>) -> Self {
         let z = dir.normalize();
         let y = up.normalize();
         let x = y.cross(z).normalize();
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         let rotation = Mat44::new(
-            x.x, x.y, x.z, 0.0,
-            y.x, y.y, y.z, 0.0,
-            z.x, z.y, z.z, 0.0,
-            0.0, 0.0, 0.0, 1.0
+            x.x, x.y, x.z, S::ZERO,
+            y.x, y.y, y.z, S::ZERO,
+            z.x, z.y, z.z, S::ZERO,
+            S::ZERO, S::ZERO, S::ZERO, S::ONE
         );
 
         rotation
     }
 
-    pub fn look_to_rh_translation(eye: Point3) -> Self {
+    pub fn look_to_rh_translation(eye: Vec3<S>) -> Self {
         let eye = eye.into_vec();
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         let translation = Mat44::new(
-            1.0, 0.0, 0.0, -eye.x,
-            0.0, 1.0, 0.0, -eye.y,
-            0.0, 0.0, 1.0, -eye.z,
-            0.0, 0.0, 0.0, 1.0,
+            S::ONE, S::ZERO, S::ZERO, -eye.x,
+            S::ZERO, S::ONE, S::ZERO, -eye.y,
+            S::ZERO, S::ZERO, S::ONE, -eye.z,
+            S::ZERO, S::ZERO, S::ZERO, S::ONE,
         );
 
         translation
     }
 
-    pub fn look_to_rh(eye: Point3, dir: Vec3, up: Vec3) -> Self {
+    pub fn look_to_rh(eye: Vec3<S>, dir: Vec3<S>, up: Vec3<S>) -> Self {
         Self::look_to_rh_rotation(dir, up) * Self::look_to_rh_translation(eye)
     }
 
-    pub fn look_at_rh(eye: Point3, center: Point3, up: Vec3) -> Self {
+    pub fn look_at_rh(eye: Vec3<S>, center: Vec3<S>, up: Vec3<S>) -> Self {
         Self::look_to_rh(eye, center - eye, up)
     }
 
-    pub fn look_at_rh_rotation(eye: Point3, center: Point3, up: Vec3) -> Self {
+    pub fn look_at_rh_rotation(eye: Vec3<S>, center: Vec3<S>, up: Vec3<S>) -> Self {
         Self::look_to_rh_rotation(center - eye, up)
     }
 
-    pub fn inverse(&self) -> Option<Self> {
+    pub fn inverse(self) -> Option<Self> {
         let det = self.determinant();
         println!("mat44 = {:?}", self);
         println!("mat44 det = {}", det);
@@ -115,7 +115,7 @@ impl Mat44 {
         }
     }
 
-    pub fn adjoint(&self) -> Self {
+    pub fn adjoint(self) -> Self {
         let a = self[0][0];
         let b = self[0][1];
         let c = self[0][2];
@@ -153,7 +153,7 @@ impl Mat44 {
         )
     }
 
-    pub fn determinant(&self) -> f64 {
+    pub fn determinant(self) -> f64 {
         let a = self[0][0];
         let b = self[0][1];
         let c = self[0][2];
@@ -179,7 +179,7 @@ impl Mat44 {
         a * det1 - e * det2 + i * det3 - m * det4
     }
 
-    pub fn powi(&self, power: u32) -> Self {
+    pub fn powi(self, power: u32) -> Self {
         let mut result = Self::IDENTITY;
         for _ in 0..power {
             result = result * *self;
@@ -187,7 +187,7 @@ impl Mat44 {
         result
     }
 
-    pub fn approx_eq(&self, other: Self, tol: f64) -> bool {
+    pub fn approx_eq(self, other: Self, tol: f64) -> bool {
         let mut equal = true;
         for r in 0..4 {
             for c in 0..4 {
@@ -199,51 +199,77 @@ impl Mat44 {
         equal
     }
 }
-impl Index<usize> for Mat44 {
+impl<S: Scalar> Index<usize> for Mat44<S> {
     type Output = [f64; 4];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
 }
-impl From<Mat44> for [[f64; 4]; 4] {
-    fn from(mat: Mat44) -> Self {
-        mat.0
-    }
-}
-impl From<Mat44> for [[f32; 4]; 4] {
-    fn from(mat: Mat44) -> Self {
+impl<S: Scalar> From<Mat44<S>> for [[f64; 4]; 4] {
+    fn from(mat: Mat44<S>) -> Self {
         let m = mat.0;
         [
             [
-                m[0][0] as f32,
-                m[0][1] as f32,
-                m[0][2] as f32,
-                m[0][3] as f32,
+                m[0][0].as_f64(),
+                m[0][1].as_f64(),
+                m[0][2].as_f64(),
+                m[0][3].as_f64(),
             ],
             [
-                m[1][0] as f32,
-                m[1][1] as f32,
-                m[1][2] as f32,
-                m[1][3] as f32,
+                m[1][0].as_f64(),
+                m[1][1].as_f64(),
+                m[1][2].as_f64(),
+                m[1][3].as_f64(),
             ],
             [
-                m[2][0] as f32,
-                m[2][1] as f32,
-                m[2][2] as f32,
-                m[2][3] as f32,
+                m[2][0].as_f64(),
+                m[2][1].as_f64(),
+                m[2][2].as_f64(),
+                m[2][3].as_f64(),
             ],
             [
-                m[3][0] as f32,
-                m[3][1] as f32,
-                m[3][2] as f32,
-                m[3][3] as f32,
+                m[3][0].as_f64(),
+                m[3][1].as_f64(),
+                m[3][2].as_f64(),
+                m[3][3].as_f64(),
             ],
         ]
     }
 }
-impl From<Quat> for Mat44 {
-    fn from(quat: Quat) -> Self {
+impl<S: Scalar> From<Mat44<S>> for [[f32; 4]; 4] {
+    fn from(mat: Mat44<S>) -> Self {
+        let m = mat.0;
+        [
+            [
+                m[0][0].as_f32(),
+                m[0][1].as_f32(),
+                m[0][2].as_f32(),
+                m[0][3].as_f32(),
+            ],
+            [
+                m[1][0].as_f32(),
+                m[1][1].as_f32(),
+                m[1][2].as_f32(),
+                m[1][3].as_f32(),
+            ],
+            [
+                m[2][0].as_f32(),
+                m[2][1].as_f32(),
+                m[2][2].as_f32(),
+                m[2][3].as_f32(),
+            ],
+            [
+                m[3][0].as_f32(),
+                m[3][1].as_f32(),
+                m[3][2].as_f32(),
+                m[3][3].as_f32(),
+            ],
+        ]
+    }
+}
+impl<S: Scalar> From<Quat<S>> for Mat44<S> {
+    fn from(quat: Quat<S>) -> Self {
         let x2 = quat.v.x + quat.v.x;
         let y2 = quat.v.y + quat.v.y;
         let z2 = quat.v.z + quat.v.z;
@@ -262,19 +288,86 @@ impl From<Quat> for Mat44 {
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat44::new(
-            1.0 - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,        0.0,
-            xy2 + sz2,        1.0 - xx2 - zz2,  yz2 - sx2,        0.0,
-            xz2 - sy2,        yz2 + sx2,        1.0 - xx2 - yy2,  0.0,
-            0.0,              0.0,              0.0,              1.0
+            S::ONE - yy2 - zz2,  xy2 - sz2,           xz2 + sy2,           S::ZERO,
+            xy2 + sz2,           S::ONE - xx2 - zz2,  yz2 - sx2,           S::ZERO,
+            xz2 - sy2,           yz2 + sx2,           S::ONE - xx2 - yy2,  S::ZERO,
+            S::ZERO,             S::ZERO,             S::ZERO,             S::ONE
         )
     }
 }
-impl std::fmt::Debug for Mat44 {
+impl<S: Scalar> std::fmt::Debug for Mat44<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{:?}", self.0))
     }
 }
 
+gen_ops!(
+    <S>;
+    types Mat44<S>, Mat44<S> => Mat44<S>;
+    for * call |l: &Mat44<S>, r: &Mat44<S>| {
+        Self([
+            [
+                l[0][0] * r[0][0] + l[0][1] * r[1][0] + l[0][2] * r[2][0] + l[0][3] + r[3][0],
+                l[0][0] * r[0][1] + l[0][1] * r[1][1] + l[0][2] * r[2][1] + l[0][3] + r[3][1],
+                l[0][0] * r[0][2] + l[0][1] * r[1][2] + l[0][2] * r[2][2] + l[0][3] + r[3][2],
+                l[0][0] * r[0][3] + l[0][1] * r[1][3] + l[0][2] * r[2][3] + l[0][3] + r[3][3],
+            ],
+            [
+                l[1][0] * r[0][0] + l[1][1] * r[1][0] + l[1][2] * r[2][0] + l[1][3] + r[3][0],
+                l[1][0] * r[0][1] + l[1][1] * r[1][1] + l[1][2] * r[2][1] + l[1][3] + r[3][1],
+                l[1][0] * r[0][2] + l[1][1] * r[1][2] + l[1][2] * r[2][2] + l[1][3] + r[3][2],
+                l[1][0] * r[0][3] + l[1][1] * r[1][3] + l[1][2] * r[2][3] + l[1][3] + r[3][3],
+            ],
+            [
+                l[2][0] * r[0][0] + l[2][1] * r[1][0] + l[2][2] * r[2][0] + l[2][3] + r[3][0],
+                l[2][0] * r[0][1] + l[2][1] * r[1][1] + l[2][2] * r[2][1] + l[2][3] + r[3][1],
+                l[2][0] * r[0][2] + l[2][1] * r[1][2] + l[2][2] * r[2][2] + l[2][3] + r[3][2],
+                l[2][0] * r[0][3] + l[2][1] * r[1][3] + l[2][2] * r[2][3] + l[2][3] + r[3][3],
+            ],
+            [
+                l[3][0] * r[0][0] + l[3][1] * r[1][0] + l[3][2] * r[2][0] + l[3][3] + r[3][0],
+                l[3][0] * r[0][1] + l[3][1] * r[1][1] + l[3][2] * r[2][1] + l[3][3] + r[3][1],
+                l[3][0] * r[0][2] + l[3][1] * r[1][2] + l[3][2] * r[2][2] + l[3][3] + r[3][2],
+                l[3][0] * r[0][3] + l[3][1] * r[1][3] + l[3][2] * r[2][3] + l[3][3] + r[3][3],
+            ],
+        ])
+    };
+);
+
+gen_ops!(
+    <S>;
+    types Mat44<S>, S => Mat44<S>;
+    for * call |l: &Mat44<S>, r: &S| {
+        Self([
+            [
+                l[0][0] * r,
+                l[0][1] * r,
+                l[0][2] * r,
+                l[0][3] * r,
+            ],
+            [
+                l[1][0] * r,
+                l[1][1] * r,
+                l[1][2] * r,
+                l[1][3] * r,
+            ],
+            [
+                l[2][0] * r,
+                l[2][1] * r,
+                l[2][2] * r,
+                l[2][3] * r,
+            ],
+            [
+                l[3][0] * r,
+                l[3][1] * r,
+                l[3][2] * r,
+                l[3][3] * r,
+            ],
+        ])
+    };
+);
+
+/*
 impl_op_ex!(*|a: Mat44, b: Mat44| -> Self {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     Self([
@@ -343,6 +436,7 @@ impl_op_ex_commutative!(*|s: f64, m: &Mat44| -> Mat44 {
         m[3][3] * s,
     )
 });
+*/
 
 #[cfg(test)]
 mod tests {

@@ -1,60 +1,85 @@
 use auto_ops::impl_op_ex;
+use gen_ops::gen_ops;
 
-use super::{vec3, Angle, Mat33, Mat44, Point3, Vec3};
+use super::{vec3, Angle, Mat33, Mat44, Scalar, Vec3};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Quat {
-    pub v: Vec3,
+pub struct Quat<S: Scalar> {
+    pub v: Vec3<S>,
     pub s: f64,
 }
-impl Quat {
+impl<S: Scalar> Quat<S> {
     pub const ZERO: Self = Self {
         v: Vec3::ZERO,
-        s: 1.0,
+        s: S::ONE,
     };
 
-    pub fn new(w: f64, xi: f64, yj: f64, zk: f64) -> Self {
+    pub fn new(w: S, xi: S, yj: S, zk: S) -> Self {
         Self::from_sv(w, vec3(xi, yj, zk))
     }
 
-    pub fn from_sv(s: f64, v: Vec3) -> Self {
+    pub fn from_sv(s: S, v: Vec3<S>) -> Self {
         Quat { s: s, v: v }
     }
 
-    pub fn from_axis_angle(axis: Vec3, angle: Angle) -> Self {
-        let (sin, cos) = (angle * 0.5).sin_cos();
+    pub fn from_axis_angle(axis: Vec3<S>, angle: Angle<S>) -> Self {
+        let (sin, cos) = (angle * S::HALF).sin_cos();
         Self::from_sv(cos, axis.normalize() * sin)
     }
 
-    pub fn to_mat33(&self) -> Mat33 {
+    pub fn to_mat33(self) -> Mat33<S> {
         (*self).into()
     }
 
-    pub fn to_mat44(&self) -> Mat44 {
+    pub fn to_mat44(self) -> Mat44<S> {
         (*self).into()
     }
 
-    pub fn dot(&self, other: Self) -> f64 {
+    pub fn dot(self, other: Self) -> S {
         self.s * other.s + self.v.dot(other.v)
     }
 
-    pub fn magnitude2(&self) -> f64 {
+    pub fn magnitude2(self) -> S {
         self.dot(*self)
     }
 
-    pub fn magnitude(&self) -> f64 {
+    pub fn magnitude(self) -> S {
         self.magnitude2().sqrt()
     }
 
-    pub fn normalize(&self) -> Self {
-        let mag = self.magnitude();
-        Self {
-            v: self.v / mag,
-            s: self.s / mag,
-        }
+    pub fn normalize(self) -> Self {
+        self / self.magnitude()
     }
 }
 
+gen_ops!(
+    <S>;
+    types Quat<S> => Quat<S>;
+    for - call |q: &Quat<S>| {
+        Quat::from_sv(-q.s, -q.v)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Quat<S>, Quat<S> => Quat<S>;
+    for + call |l: &Quat<S>, r: &Quat<S>| {
+        Quat::from_sv(l.s + r.s, l.v + r.v)
+    };
+    for - call |l: &Quat<S>, r: &Quat<S>| {
+        Quat::from_sv(l.s - r.s, l.v - r.v)
+    };
+    for * call |l: &Quat<S>, r: &Quat<S>| {
+        Quat::from_sv(l.s * r.s - l.v.dot(r.v), l.s * r.v + r.s * l.v + l.v.cross(r.v))
+    };
+    for / call |l: &Quat<S>, r: &Quat<S>| {
+        Quat::from_sv(l.s / r.s, l.v / r.v)
+    };
+    where S: Scalar
+);
+
+/*
 // Unary
 impl_op_ex!(-|q: Quat| -> Quat { Quat::from_sv(-q.s, -q.v) });
 
@@ -93,6 +118,7 @@ impl_op_ex!(-= |a: &mut Quat, b: Quat| {
     a.s -= b.s;
     a.v -= b.v;
 });
+ */
 
 /*
 impl_operator!(<S: BaseFloat> Mul<S> for Quaternion<S> {

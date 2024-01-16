@@ -1,69 +1,70 @@
-use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+use super::{Mat33, Scalar};
+use gen_ops::gen_ops;
 
-use super::Point3;
-
-pub fn vec3(x: f64, y: f64, z: f64) -> Vec3 {
+pub fn vec3<S: Scalar>(x: S, y: S, z: S) -> Vec3<S> {
     Vec3::new(x, y, z)
 }
 
-pub fn vec3_f32s(x: f32, y: f32, z: f32) -> Vec3 {
-    Vec3::new(x as f64, y as f64, z as f64)
+pub fn vec3_f32s<S: Scalar>(x: f32, y: f32, z: f32) -> Vec3<S> {
+    Vec3::new(x.into(), y.into(), z.into())
 }
 
 #[derive(Copy, Clone)]
-pub struct Vec3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+pub struct Vec3<S: Scalar> {
+    pub x: S,
+    pub y: S,
+    pub z: S,
 }
-impl Vec3 {
+impl<S: Scalar> Vec3<S> {
     pub const ONES: Self = Self {
-        x: 1.0,
-        y: 1.0,
-        z: 1.0,
+        x: S::ONE,
+        y: S::ONE,
+        z: S::ONE,
     };
     pub const ZERO: Self = Self {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
+        x: S::ZERO,
+        y: S::ZERO,
+        z: S::ZERO,
     };
     pub const UNIT_X: Self = Self {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
+        x: S::ONE,
+        y: S::ZERO,
+        z: S::ZERO,
     };
     pub const UNIT_Y: Self = Self {
-        x: 0.0,
-        y: 1.0,
-        z: 0.0,
+        x: S::ZERO,
+        y: S::ONE,
+        z: S::ZERO,
     };
     pub const UNIT_Z: Self = Self {
-        x: 0.0,
-        y: 0.0,
-        z: 1.0,
+        x: S::ZERO,
+        y: S::ZERO,
+        z: S::ONE,
     };
 
+    /*
     pub fn is_zero(&self) -> bool {
         self.x == 0.0 && self.y == 0.0 && self.z == 0.0
     }
+     */
 
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    pub fn new(x: S, y: S, z: S) -> Self {
         Self { x, y, z }
     }
 
-    pub fn magnitude2(&self) -> f64 {
-        self.dot(*self)
+    pub fn magnitude2(self) -> f64 {
+        self.dot(self)
     }
 
-    pub fn magnitude(&self) -> f64 {
+    pub fn magnitude(self) -> f64 {
         self.magnitude2().sqrt()
     }
 
-    pub fn dot(&self, other: Self) -> f64 {
+    pub fn dot(self, other: Self) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn cross(&self, other: Self) -> Self {
+    pub fn cross(self, other: Self) -> Self {
         Self {
             x: (self.y * other.z) - (self.z * other.y),
             y: (self.z * other.x) - (self.x * other.z),
@@ -71,31 +72,19 @@ impl Vec3 {
         }
     }
 
-    pub fn normalize(&self) -> Self {
+    pub fn normalize(self) -> Self {
         self / self.magnitude()
     }
 
-    pub fn into_point(&self) -> Point3 {
-        (*self).into()
+    pub fn to_f64s(self) -> [f64; 3] {
+        [self.x.as_f64(), self.y.as_f64(), self.z.as_f64()]
     }
 
-    pub fn to_f64s(&self) -> [f64; 3] {
-        [self.x, self.y, self.z]
+    pub fn to_f32s(self) -> [f32; 3] {
+        [self.x.as_f32(), self.y.as_f32(), self.z.as_f32()]
     }
 
-    pub fn to_f32s(&self) -> [f32; 3] {
-        [self.x as f32, self.y as f32, self.z as f32]
-    }
-
-    pub fn has_nan(&self) -> bool {
-        self.x.is_nan() || self.y.is_nan() || self.z.is_nan()
-    }
-
-    pub fn dot_self(&self) -> f64 {
-        self.dot(*self)
-    }
-
-    pub fn powi(&self, n: i32) -> Self {
+    pub fn powi(self, n: i32) -> Self {
         Self {
             x: self.x.powi(n),
             y: self.y.powi(n),
@@ -103,17 +92,17 @@ impl Vec3 {
         }
     }
 
-    pub fn sum(&self) -> f64 {
+    pub fn sum(self) -> S {
         self.x + self.y + self.z
     }
 
-    pub fn lerp(&self, other: Self, t: f64) -> Self {
+    pub fn lerp(self, other: Self, t: S) -> Self {
         (Self::ONES - t) * self + t * other
     }
 
     /// Returns the first derivative of `self.normalize()`, given the first
     /// derivative of `self`.
-    pub fn norm_der1(&self, der1: Self) -> Self {
+    pub fn norm_der1(self, der1: Self) -> Self {
         let g = self;
         let g_p = der1;
         let g_mag = g.magnitude();
@@ -126,7 +115,7 @@ impl Vec3 {
 
     /// Returns the second derivative of `self.normalize()`, given the first
     /// two derivatives of `self`
-    pub fn norm_der2(&self, der1: Self, der2: Self) -> Self {
+    pub fn norm_der2(self, der1: Self, der2: Self) -> Self {
         let g = self;
         let g_p = der1;
         let g_pp = der2;
@@ -137,25 +126,16 @@ impl Vec3 {
         let f_p = self.norm_der1(der1);
 
         g_pp_over_g_mag
-            - 2.0 * (f.dot(g_p_over_g_mag)) * f_p
+            - S::TWO * (f.dot(g_p_over_g_mag)) * f_p
             - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
     }
 }
-impl Default for Vec3 {
+impl<S: Scalar> Default for Vec3<S> {
     fn default() -> Self {
         Self::ZERO
     }
 }
-impl From<Point3> for Vec3 {
-    fn from(point: Point3) -> Self {
-        Self {
-            x: point.x,
-            y: point.y,
-            z: point.z,
-        }
-    }
-}
-impl From<[f64; 3]> for Vec3 {
+impl<S: Scalar> From<[f64; 3]> for Vec3<S> {
     fn from(floats: [f64; 3]) -> Self {
         Self {
             x: floats[0],
@@ -164,7 +144,7 @@ impl From<[f64; 3]> for Vec3 {
         }
     }
 }
-impl From<[f32; 3]> for Vec3 {
+impl<S: Scalar> From<[f32; 3]> for Vec3<S> {
     fn from(floats: [f32; 3]) -> Self {
         Self {
             x: floats[0] as f64,
@@ -173,17 +153,89 @@ impl From<[f32; 3]> for Vec3 {
         }
     }
 }
-impl std::fmt::Display for Vec3 {
+impl<S: Scalar> std::fmt::Display for Vec3<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}, {}]", self.x, self.y, self.z))
     }
 }
-impl std::fmt::Debug for Vec3 {
+impl<S: Scalar> std::fmt::Debug for Vec3<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}, {}]", self.x, self.y, self.z))
     }
 }
 
+gen_ops!(
+    <S>;
+    types Vec3<S> => Vec3<S>;
+    for - call |v: &Vec3<S>| {
+        vec3(-v.x, -v.y, -v.z)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Vec3<S>, Vec3<S> => Vec3<S>;
+    for + call |l: &Vec3<S>, r: &Vec3<S>| {
+        vec3(l.x + r.x, l.y + r.y, l.z + r.z)
+    };
+    for - call |l: &Vec3<S>, r: &Vec3<S>| {
+        vec3(l.x - r.x, l.y - r.y, l.z - r.z)
+    };
+    for * call |l: &Vec3<S>, r: &Vec3<S>| {
+        vec3(l.x * r.x, l.y * r.y, l.z * r.z)
+    };
+    for / call |l: &Vec3<S>, r: &Vec3<S>| {
+        vec3(l.x / r.x, l.y / r.y, l.z / r.z)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Vec3<S>, Mat33<S> => Vec3<S>;
+    for * call |l: &Vec3<S>, r: &Mat33<S>| {
+        vec3(
+            l.x * r[0][0] + l.y * r[1][0] + l.z * r[2][0],
+            l.x * r[0][1] + l.y * r[1][1] + l.z * r[2][1],
+            l.x * r[0][2] + l.y * r[1][2] + l.z * r[2][2],
+        )
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Mat33<S>, Vec3<S> => Vec3<S>;
+    for * call |l: &Mat33<S>, r: &Vec3<S>| {
+        vec3(
+            l[0][0] * r.x + l[0][1] * r.y + l[0][2] * r.z,
+            l[1][0] * r.x + l[1][1] * r.y + l[1][2] * r.z,
+            l[2][0] * r.x + l[2][1] * r.y + l[2][2] * r.z,
+        )
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Vec3<S>, S => Vec3<S>;
+    for + call |l: &Vec3<S>, r: &S| {
+        vec3(l.x + r, l.y + r, l.z + r)
+    };
+    for - call |l: &Vec3<S>, r: &S| {
+        vec3(l.x - r, l.y - r, l.z - r)
+    };
+    for * call |l: &Vec3<S>, r: &S| {
+        vec3(l.x * r, l.y * r, l.z * r)
+    };
+    for / call |l: &Vec3<S>, r: &S| {
+        vec3(l.x / r, l.y / r, l.z / r)
+    };
+    where S: Scalar
+);
+
+/*
 // Unary
 impl_op_ex!(-|a: Vec3| -> Vec3 { vec3(-a.x, -a.y, -a.z) });
 
@@ -209,6 +261,7 @@ impl_op_ex_commutative!(*|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x * s, v.y * s, v.
 impl_op_ex!(-|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x - s, v.y - s, v.z - s) });
 impl_op_ex!(/|v: &Vec3, s: &f64| -> Vec3 { vec3(v.x / s, v.y / s, v.z / s) });
 impl_op_ex!(/|s: &f64, v: &Vec3| -> Vec3 { vec3(s / v.x, s / v.y, s / v.z) });
+*/
 
 #[cfg(test)]
 mod tests {
