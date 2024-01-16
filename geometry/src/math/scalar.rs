@@ -1,6 +1,9 @@
+use gen_ops::gen_ops;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use super::Coincidence;
+use crate::math::{vec3, vec4};
+
+use super::{vec2, Coincidence, Vec2, Vec3, Vec4};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 
@@ -17,6 +20,21 @@ pub trait Scalar:
     + Div<Self, Output = Self>
     + From<f32>
     + Coincidence<Self>
+    //
+    + Add<Vec2<Self>, Output = Vec2<Self>>
+    + Sub<Vec2<Self>, Output = Vec2<Self>>
+    + Mul<Vec2<Self>, Output = Vec2<Self>>
+    + Div<Vec2<Self>, Output = Vec2<Self>>
+    //
+    + Add<Vec3<Self>, Output = Vec3<Self>>
+    + Sub<Vec3<Self>, Output = Vec3<Self>>
+    + Mul<Vec3<Self>, Output = Vec3<Self>>
+    + Div<Vec3<Self>, Output = Vec3<Self>>
+    //
+    + Add<Vec4<Self>, Output = Vec4<Self>>
+    + Sub<Vec4<Self>, Output = Vec4<Self>>
+    + Mul<Vec4<Self>, Output = Vec4<Self>>
+    + Div<Vec4<Self>, Output = Vec4<Self>>
 {
     const ZERO: Self;
     const HALF: Self;
@@ -148,3 +166,84 @@ impl Scalar for f64 {
         self.clamp(min, max)
     }
 }
+
+gen_ops!(
+    types f64, Vec2<f64> => Vec2<f64>;
+    for + call |l: &f64, r: &Vec2<f64>| {
+        vec2(l + r.x, l + r.y)
+    };
+    for - call |l: &f64, r: &Vec2<f64>| {
+        vec2(l - r.x, l - r.y)
+    };
+    for * call |l: &f64, r: &Vec2<f64>| {
+        vec2(l * r.x, l * r.y)
+    };
+    for / call |l: &f64, r: &Vec2<f64>| {
+        vec2(l / r.x, l / r.y)
+    };
+);
+
+gen_ops!(
+    types f64, Vec3<f64> => Vec3<f64>;
+    for + call |l: &f64, r: &Vec3<f64>| {
+        vec3(l + r.x, l + r.y, l + r.z)
+    };
+    for - call |l: &f64, r: &Vec3<f64>| {
+        vec3(l - r.x, l - r.y, l - r.z)
+    };
+    for * call |l: &f64, r: &Vec3<f64>| {
+        vec3(l * r.x, l * r.y, l * r.z)
+    };
+    for / call |l: &f64, r: &Vec3<f64>| {
+        vec3(l / r.x, l / r.y, l / r.z)
+    };
+);
+
+gen_ops!(
+    types f64, Vec4<f64> => Vec4<f64>;
+    for + call |l: &f64, r: &Vec4<f64>| {
+        vec4(l + r.x, l + r.y, l + r.z, l + r.w)
+    };
+    for - call |l: &f64, r: &Vec4<f64>| {
+        vec4(l - r.x, l - r.y, l - r.z, l - r.w)
+    };
+    for * call |l: &f64, r: &Vec4<f64>| {
+        vec4(l * r.x, l * r.y, l * r.z, l * r.w)
+    };
+    for / call |l: &f64, r: &Vec4<f64>| {
+        vec4(l / r.x, l / r.y, l / r.z, l / r.w)
+    };
+);
+
+/*
+impl std::ops::Add<Vec2<f64>> for f64 {
+    type Output = Vec2<f64>;
+
+    fn add(self, rhs: Vec2<f64>) -> Self::Output {
+        vec2(self * rhs.x, self * rhs.y)
+    }
+}
+impl std::ops::Sub<Vec2<f64>> for f64 {
+    type Output = Vec2<f64>;
+
+    fn add(self, rhs: Vec2<f64>) -> Self::Output {
+        vec2(self * rhs.x, self * rhs.y)
+    }
+}
+impl std::ops::Mul<Vec2<f64>> for f64 {
+    type Output = Vec2<f64>;
+
+    fn add(self, rhs: Vec2<f64>) -> Self::Output {
+        vec2(self * rhs.x, self * rhs.y)
+    }
+}
+impl std::ops::Div<Vec2<f64>> for f64 {
+    type Output = Vec2<f64>;
+
+    fn add(self, rhs: Vec2<f64>) -> Self::Output {
+        vec2(self * rhs.x, self * rhs.y)
+    }
+}
+ */
+
+//+ Add<Vec2<Self>, Output = Vec2<Self>>

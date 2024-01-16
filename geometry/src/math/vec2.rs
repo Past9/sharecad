@@ -96,7 +96,7 @@ impl<S: Scalar> Vec2<S> {
     }
 
     pub fn lerp(self, other: Self, t: S) -> Self {
-        (Self::ONES - t) * self + other * t
+        (Self::ONES - t) * self + t * other
     }
 }
 impl<S: Scalar> From<[f64; 2]> for Vec2<S> {
