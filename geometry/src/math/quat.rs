@@ -79,6 +79,28 @@ gen_ops!(
     where S: Scalar
 );
 
+gen_ops!(
+    <S>;
+    types Quat<S>, S => Quat<S>;
+    for * call |l: &Quat<S>, r: &S| {
+        Quat::from_sv(l.s * *r, l.v * *r)
+    };
+    for / call |l: &Quat<S>, r: &S| {
+        Quat::from_sv(l.s / *r, l.v / *r)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Quat<S>, Vec3<S> => Vec3<S>;
+    for * call |q: &Quat<S>, v: &Vec3<S>| {
+        let tmp = q.v.cross(*v) + (*v * q.s);
+        (q.v.cross(tmp) * S::TWO) + *v
+    };
+    where S: Scalar
+);
+
 /*
 // Unary
 impl_op_ex!(-|q: Quat| -> Quat { Quat::from_sv(-q.s, -q.v) });

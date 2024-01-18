@@ -1,9 +1,9 @@
 use gen_ops::gen_ops;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use crate::math::{vec3, vec4};
+use crate::math::{vec3, vec4, Mat22, Mat33};
 
-use super::{vec2, Coincidence, Vec2, Vec3, Vec4};
+use super::{vec2, Coincidence, Mat44, Vec2, Vec3, Vec4};
 
 pub const COINCIDENT_TOL: f64 = 1e-10;
 
@@ -35,6 +35,21 @@ pub trait Scalar:
     + Sub<Vec4<Self>, Output = Vec4<Self>>
     + Mul<Vec4<Self>, Output = Vec4<Self>>
     + Div<Vec4<Self>, Output = Vec4<Self>>
+    //
+    + Add<Mat22<Self>, Output = Mat22<Self>>
+    + Sub<Mat22<Self>, Output = Mat22<Self>>
+    + Mul<Mat22<Self>, Output = Mat22<Self>>
+    + Div<Mat22<Self>, Output = Mat22<Self>>
+    //
+    + Add<Mat33<Self>, Output = Mat33<Self>>
+    + Sub<Mat33<Self>, Output = Mat33<Self>>
+    + Mul<Mat33<Self>, Output = Mat33<Self>>
+    + Div<Mat33<Self>, Output = Mat33<Self>>
+    //
+    + Add<Mat44<Self>, Output = Mat44<Self>>
+    + Sub<Mat44<Self>, Output = Mat44<Self>>
+    + Mul<Mat44<Self>, Output = Mat44<Self>>
+    + Div<Mat44<Self>, Output = Mat44<Self>>
 {
     const ZERO: Self;
     const HALF: Self;
@@ -212,6 +227,102 @@ gen_ops!(
     };
     for / call |l: &f64, r: &Vec4<f64>| {
         vec4(l / r.x, l / r.y, l / r.z, l / r.w)
+    };
+);
+
+gen_ops!(
+    types f64, Mat22<f64> => Mat22<f64>;
+    for + call |l: &f64, r: &Mat22<f64>| {
+        Mat22([
+            [l + r[0][0], l + r[0][1]],
+            [l + r[1][0], l + r[1][1]],
+        ])
+    };
+    for - call |l: &f64, r: &Mat22<f64>| {
+        Mat22([
+            [l - r[0][0], l - r[0][1]],
+            [l - r[1][0], l - r[1][1]],
+        ])
+    };
+    for * call |l: &f64, r: &Mat22<f64>| {
+        Mat22([
+            [l * r[0][0], l * r[0][1]],
+            [l * r[1][0], l * r[1][1]],
+        ])
+    };
+    for / call |l: &f64, r: &Mat22<f64>| {
+        Mat22([
+            [l / r[0][0], l / r[0][1]],
+            [l / r[1][0], l / r[1][1]],
+        ])
+    };
+);
+
+gen_ops!(
+    types f64, Mat33<f64> => Mat33<f64>;
+    for + call |l: &f64, r: &Mat33<f64>| {
+        Mat33([
+            [l + r[0][0], l + r[0][1], l + r[0][2]],
+            [l + r[1][0], l + r[1][1], l + r[1][2]],
+            [l + r[2][0], l + r[2][1], l + r[2][2]],
+        ])
+    };
+    for - call |l: &f64, r: &Mat33<f64>| {
+        Mat33([
+            [l - r[0][0], l - r[0][1], l - r[0][2]],
+            [l - r[1][0], l - r[1][1], l - r[1][2]],
+            [l - r[2][0], l - r[2][1], l - r[2][2]],
+        ])
+    };
+    for * call |l: &f64, r: &Mat33<f64>| {
+        Mat33([
+            [l * r[0][0], l * r[0][1], l * r[0][2]],
+            [l * r[1][0], l * r[1][1], l * r[1][2]],
+            [l * r[2][0], l * r[2][1], l * r[2][2]],
+        ])
+    };
+    for / call |l: &f64, r: &Mat33<f64>| {
+        Mat33([
+            [l / r[0][0], l / r[0][1], l / r[0][2]],
+            [l / r[1][0], l / r[1][1], l / r[1][2]],
+            [l / r[2][0], l / r[2][1], l / r[2][2]],
+        ])
+    };
+);
+
+gen_ops!(
+    types f64, Mat44<f64> => Mat44<f64>;
+    for + call |l: &f64, r: &Mat44<f64>| {
+        Mat44([
+            [l + r[0][0], l + r[0][1], l + r[0][2], l + r[0][3]],
+            [l + r[1][0], l + r[1][1], l + r[1][2], l + r[1][3]],
+            [l + r[2][0], l + r[2][1], l + r[2][2], l + r[2][3]],
+            [l + r[3][0], l + r[3][1], l + r[3][2], l + r[3][3]],
+        ])
+    };
+    for - call |l: &f64, r: &Mat44<f64>| {
+        Mat44([
+            [l - r[0][0], l - r[0][1], l - r[0][2], l - r[0][3]],
+            [l - r[1][0], l - r[1][1], l - r[1][2], l - r[1][3]],
+            [l - r[2][0], l - r[2][1], l - r[2][2], l - r[2][3]],
+            [l - r[3][0], l - r[3][1], l - r[3][2], l - r[3][3]],
+        ])
+    };
+    for * call |l: &f64, r: &Mat44<f64>| {
+        Mat44([
+            [l * r[0][0], l * r[0][1], l * r[0][2], l * r[0][3]],
+            [l * r[1][0], l * r[1][1], l * r[1][2], l * r[1][3]],
+            [l * r[2][0], l * r[2][1], l * r[2][2], l * r[2][3]],
+            [l * r[3][0], l * r[3][1], l * r[3][2], l * r[3][3]],
+        ])
+    };
+    for / call |l: &f64, r: &Mat44<f64>| {
+        Mat44([
+            [l / r[0][0], l / r[0][1], l / r[0][2], l / r[0][3]],
+            [l / r[1][0], l / r[1][1], l / r[1][2], l / r[1][3]],
+            [l / r[2][0], l / r[2][1], l / r[2][2], l / r[2][3]],
+            [l / r[3][0], l / r[3][1], l / r[3][2], l / r[3][3]],
+        ])
     };
 );
 

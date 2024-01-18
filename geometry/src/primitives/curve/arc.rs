@@ -131,7 +131,7 @@ impl<S: Scalar> ICurvePoint<S> for ArcPointSolver<S> {
     }
 
     fn curvature(&self) -> S {
-        1.0 / self.inner.arc.r
+        S::ONE / self.inner.arc.r
     }
 }
 

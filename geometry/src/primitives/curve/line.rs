@@ -51,7 +51,7 @@ impl<S: Scalar> ICurveSolver<S> for LineSolver<S> {
     type PointSolver = LinePointSolver<S>;
 
     fn domain(&self) -> (S, S) {
-        (0.0, 1.0)
+        (S::ZERO, S::ONE)
     }
 
     fn point(&self, u: S) -> Self::PointSolver {
