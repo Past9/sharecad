@@ -104,7 +104,7 @@ pub(crate) fn axes<S: Scalar>(
     let i1 = point.der1().normalize();
     let d = *never_tangent;
 
-    let d2 = d - i1 * (i1.dot(d));
+    let d2 = d - (i1.dot(d)) * i1;
 
     let i2 = d2.normalize();
     let i3 = i1.cross(i2);
@@ -120,14 +120,14 @@ pub(crate) fn axes_der1<S: Scalar>(
     let (i1, i2, _) = *axes;
 
     let d = *never_tangent;
-    let d2 = d - i1 * (i1.dot(d));
+    let d2 = d - (i1.dot(d)) * i1;
 
     let der1 = point.der1();
     let der2 = *point.der2();
     let i1_der1 = der1.norm_der1(der2);
 
     //let d2_der1 = -i1 * (i1_der1.dot(d));
-    let d2_der1 = (i1 * -i1_der1.dot(d)) - (i1_der1 * i1.dot(d));
+    let d2_der1 = (-i1_der1.dot(d) * i1) - (i1.dot(d) * i1_der1);
     let i2_der1 = d2.norm_der1(d2_der1);
 
     let i3_der1 = i1.cross(i2_der1) + i1_der1.cross(i2);
@@ -145,8 +145,8 @@ pub(crate) fn axes_der2<S: Scalar>(
     let (i1_der1, i2_der1, _) = *axes_der1;
 
     let d = *never_tangent;
-    let d2 = d - i1 * i1.dot(d);
-    let d2_der1 = (i1 * -i1_der1.dot(d)) - (i1_der1 * i1.dot(d));
+    let d2 = d - (i1.dot(d)) * i1;
+    let d2_der1 = (-i1_der1.dot(d) * i1) - (i1.dot(d) * i1_der1);
 
     let der1 = *point.der1();
     let der2 = *point.der2();

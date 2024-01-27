@@ -24,14 +24,14 @@ impl<S: Scalar> Angle<S> {
     pub const DEG_180: Self = Self(S::PI);
     pub const DEG_360: Self = Self(S::TAU);
     pub const DEG_90: Self = Self(S::FRAC_PI_2);
-    pub const DEG_45: Self = Self(S::FRAC_PI_8);
+    pub const DEG_45: Self = Self(S::FRAC_PI_4);
 
     pub fn is_zero(&self) -> bool {
         self.0 == S::ZERO
     }
 
     pub fn deg(deg: S) -> Self {
-        Self(deg * S::PI / S::exact(180.0))
+        Self(deg * (S::PI / S::exact(180.0)))
     }
 
     pub fn rad(rad: S) -> Self {
@@ -39,7 +39,7 @@ impl<S: Scalar> Angle<S> {
     }
 
     pub fn degrees(&self) -> S {
-        self.0 * S::exact(180.0) / S::PI
+        self.0 * (S::exact(180.0) / S::PI)
     }
 
     pub fn radians(&self) -> S {
