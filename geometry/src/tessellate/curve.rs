@@ -53,6 +53,8 @@ impl TessellatedCurve {
             }
         }
 
+        println!("points -> {}", points.len());
+
         Self {
             points: points
                 .into_iter()

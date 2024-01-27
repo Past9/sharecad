@@ -117,15 +117,13 @@ fn build_scene() -> Scene {
         let profile1_start = model.create_point3(vec3(0.0, 0.0, 0.0));
         let profile1_end = model.create_point3(vec3(0.0, 1.0, 0.0));
         let profile1 = model.create_line_between(profile1_start, profile1_end);
-        /*
         let path1 = model.create_arc(
             1.0,
-            deg(350.0),
+            deg(360.0),
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
             Vec3::ZERO,
         );
-         */
 
         /*
         let sweep1 = model.create_sweep(profile1, path1);
@@ -203,12 +201,12 @@ fn build_scene() -> Scene {
 
     let sm = SceneModel::from_primitive_model(
         &model,
-        &TessellationTolerance::DistanceAndAngle(0.0001, deg(0.30)),
+        &TessellationTolerance::DistanceAndAngle(0.0005, deg(3.0)),
     );
 
     scene.add_model(sm);
 
-    println!("scene = {:#?}", scene);
+    //println!("scene = {:#?}", scene);
 
     let end = Instant::now();
     println!("Model built in {}us", (end - start).as_micros());
