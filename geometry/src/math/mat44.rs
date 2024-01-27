@@ -107,7 +107,8 @@ impl<S: Scalar> Mat44<S> {
         if det == S::ZERO {
             None
         } else {
-            Some(self.adjoint() * det.recip())
+            //Some(self.adjoint() * det.recip())
+            Some(det.recip() * self.adjoint())
         }
     }
 

@@ -79,9 +79,11 @@ gen_ops!(
             l.s * r.v.z + l.v.z * r.s + l.v.x * r.v.y - l.v.y * r.v.x,
         )
     };
+    /*
     for / call |l: &Quat<S>, r: &Quat<S>| {
         Quat::from_sv(l.s / r.s, l.v / r.v)
     };
+     */
     where S: Scalar
 );
 

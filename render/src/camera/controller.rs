@@ -372,14 +372,13 @@ impl CameraController {
             let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
             params.rotation = params.rotation
-                * Quat::from_axis_angle(
+                * (Quat::from_axis_angle(
                     params.starting_camera.local_y(),
                     deg(x * ORBIT_SENSITIVITY),
-                )
-                + Quat::from_axis_angle(
+                ) + Quat::from_axis_angle(
                     params.starting_camera.local_x(),
                     deg(y * ORBIT_SENSITIVITY),
-                );
+                ));
 
             params.rotation = params.rotation.normalize();
 

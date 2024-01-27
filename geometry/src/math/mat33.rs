@@ -82,7 +82,7 @@ impl<S: Scalar> Mat33<S> {
             let i_h = -(a * f - c * d);
             let i_i = a * e - b * d;
 
-            let inv = Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i) * det.recip();
+            let inv = det.recip() * Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i);
 
             Some(inv)
         }
@@ -292,12 +292,12 @@ impl_op_ex_commutative!(*|s: f64, m: &Mat33| -> Mat33 {
 /*
 #[cfg(test)]
 mod tests {
-    use crate::math::{deg, point2};
+    use crate::math::{deg, vec2, Coincidence};
 
     use super::*;
 
-    fn approx_eq(a: Mat33, b: Mat33) {
-        if !a.approx_eq(b, 1e-9) {
+    fn approx_eq(a: Mat33<f64>, b: Mat33<f64>) {
+        if !a.cc_tol(b, 1e-9) {
             panic!("Matrices not approximaltey equal: {:?}, {:?}", a, b);
         }
     }

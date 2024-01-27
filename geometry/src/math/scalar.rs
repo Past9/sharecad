@@ -95,7 +95,7 @@ pub trait Scalar:
     fn clamp(self, min: Self, max: Self) -> Self;
 
     fn lerp(self, to: Self, t: Self) -> Self {
-        (Self::ONE - t) * self * t * to
+        (Self::ONE - t) * self + t * to
     }
 
 }
@@ -185,10 +185,6 @@ impl Scalar for f64 {
 
     fn clamp(self, min: Self, max: Self) -> Self {
         self.clamp(min, max)
-    }
-
-    fn lerp(self, to: Self, t: Self) -> Self {
-        (Self::ONE - t) * self * t * to
     }
 }
 

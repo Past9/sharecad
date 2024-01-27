@@ -109,7 +109,7 @@ impl<S: Scalar> Vec3<S> {
     }
 
     pub fn lerp(self, other: Self, t: S) -> Self {
-        (Self::ONES - t) * self + other * t
+        (Self::ONES - t) * self + t * other
     }
 
     /// Returns the first derivative of `self.normalize()`, given the first
@@ -122,7 +122,7 @@ impl<S: Scalar> Vec3<S> {
 
         let g_p_over_g_mag = g_p / g_mag;
 
-        g_p_over_g_mag - f * f.dot(g_p_over_g_mag)
+        g_p_over_g_mag - f.dot(g_p_over_g_mag) * f
     }
 
     /// Returns the second derivative of `self.normalize()`, given the first
@@ -138,8 +138,8 @@ impl<S: Scalar> Vec3<S> {
         let f_p = self.norm_der1(der1);
 
         g_pp_over_g_mag
-            - (f_p * (f.dot(g_p_over_g_mag))) * S::TWO
-            - f * (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag))
+            - S::TWO * (f.dot(g_p_over_g_mag)) * f_p
+            - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
     }
 }
 impl<S: Scalar> Default for Vec3<S> {
