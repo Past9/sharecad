@@ -1,7 +1,7 @@
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
 use common::PointId;
-use geometry::math::Point3;
+use geometry::math::Vec3;
 use std::cell::OnceCell;
 use visual::material::PointMaterialId;
 use wgpu::util::DeviceExt;
@@ -13,7 +13,7 @@ pub struct ScenePoint {
     pub width: f32,
 }
 impl ScenePoint {
-    pub fn new(position: Point3, material_id: Option<PointMaterialId>, width: f32) -> Self {
+    pub fn new(position: Vec3<f64>, material_id: Option<PointMaterialId>, width: f32) -> Self {
         Self {
             mesh: PointMesh::new(position),
             material_id,
@@ -50,7 +50,7 @@ pub struct PointMesh {
     index_buffer: OnceCell<wgpu::Buffer>,
 }
 impl PointMesh {
-    pub fn new(point: Point3) -> Self {
+    pub fn new(point: Vec3<f64>) -> Self {
         Self {
             vertices: [PointVertex { position: point }; 4],
             indices: [2, 0, 1, 2, 1, 3],
@@ -92,7 +92,7 @@ impl PointMesh {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PointVertex {
-    pub position: Point3,
+    pub position: Vec3<f64>,
 }
 impl PointVertex {
     pub fn to_raw(&self, id: &PointId, width: f32) -> PointVertexRaw {

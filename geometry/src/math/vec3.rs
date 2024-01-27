@@ -1,4 +1,4 @@
-use super::{Mat33, Scalar};
+use super::{Mat33, Mat44, Scalar};
 use gen_ops::gen_ops;
 
 pub fn vec3<S: Scalar>(x: S, y: S, z: S) -> Vec3<S> {
@@ -58,6 +58,18 @@ impl<S: Scalar> Vec3<S> {
 
     pub fn magnitude(self) -> S {
         self.magnitude2().sqrt()
+    }
+
+    pub fn transform(&self, m: Mat44<S>) -> Self {
+        let x = (self.x * m[0][0]) + (self.y * m[0][1]) + (self.z * m[0][2]) + m[0][3];
+        let y = (self.x * m[1][0]) + (self.y * m[1][1]) + (self.z * m[1][2]) + m[1][3];
+        let z = (self.x * m[2][0]) + (self.y * m[2][1]) + (self.z * m[2][2]) + m[2][3];
+        let w = (self.x * m[3][0]) + (self.y * m[3][1]) + (self.z * m[3][2]) + m[3][3];
+        Self {
+            x: x / w,
+            y: y / w,
+            z: z / w,
+        }
     }
 
     pub fn dot(self, other: Self) -> S {

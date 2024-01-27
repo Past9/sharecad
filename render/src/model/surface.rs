@@ -2,7 +2,7 @@ use std::cell::OnceCell;
 
 use bytemuck::{Pod, Zeroable};
 use common::SurfaceId;
-use geometry::math::{point2, vec2, Point2, Point3, Vec2, Vec3};
+use geometry::math::{vec2, Vec2, Vec3};
 use geometry::tessellate::{SurfaceVert, TessellatedSurface};
 use visual::material::SurfaceMaterialId;
 use wgpu::util::DeviceExt;
@@ -101,18 +101,18 @@ impl SurfaceMesh {
 
 #[derive(Debug)]
 pub struct SurfaceVertex {
-    pub position: Point3,
-    pub tex_coords: Point2,
-    pub normal: Vec3,
-    pub tangent: Vec3,
-    pub bitangent: Vec3,
-    pub param_coords: Vec2,
+    pub position: Vec3<f64>,
+    pub tex_coords: Vec2<f64>,
+    pub normal: Vec3<f64>,
+    pub tangent: Vec3<f64>,
+    pub bitangent: Vec3<f64>,
+    pub param_coords: Vec2<f64>,
 }
 impl SurfaceVertex {
     pub fn from_tessellator_vertex(vert: &SurfaceVert) -> Self {
         Self {
             position: vert.pos,
-            tex_coords: point2(vert.u, vert.v),
+            tex_coords: vec2(vert.u, vert.v),
             normal: vert.normal,
             tangent: vert.tangents.0,
             bitangent: vert.tangents.1,

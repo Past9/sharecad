@@ -36,7 +36,7 @@ pub struct TessellatedCurve {
 impl TessellatedCurve {
     pub fn create(curve: &CurveSolver<f64>, tolerance: &TessellationTolerance) -> Self {
         let (min_u, max_u) = curve.domain();
-        let mut points: Vec<CurvePoint> = vec![];
+        let mut points: Vec<CurvePoint<f64>> = vec![];
 
         loop {
             if points.len() == 0 {

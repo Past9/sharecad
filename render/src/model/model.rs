@@ -167,8 +167,8 @@ impl SceneModel {
 
 #[derive(Debug, Clone)]
 pub struct ModelInstance {
-    pub orientation: Quat,
-    pub translation: Vec3,
+    pub orientation: Quat<f64>,
+    pub translation: Vec3<f64>,
 }
 impl ModelInstance {
     fn to_raw(&self, id: &InstanceId) -> ModelInstanceRaw {

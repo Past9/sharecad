@@ -11,7 +11,7 @@ pub use surface_point::*;
 pub use surface_solver::*;
 pub use sweep::*;
 
-use super::SSCurveParams;
+//use super::SSCurveParams;
 
 #[derive(Debug)]
 pub enum Surface<S: Scalar> {
@@ -59,8 +59,8 @@ mod helpers {
     }
 
     pub fn normal_curvature<S: Scalar, P: ISurfacePoint<S>>(point: &P, direction: Vec2<S>) -> S {
-        let (e, f, g) = point.ff1();
-        let (l, m, n) = point.ff2();
+        let (e, f, g) = *point.ff1();
+        let (l, m, n) = *point.ff2();
 
         let du2 = direction.u().powi(2);
         let dudv = direction.u() * direction.v();
@@ -70,15 +70,15 @@ mod helpers {
     }
 
     pub fn mean_curvature<S: Scalar, P: ISurfacePoint<S>>(point: &P) -> S {
-        let (e, f, g) = point.ff1();
-        let (l, m, n) = point.ff2();
+        let (e, f, g) = *point.ff1();
+        let (l, m, n) = *point.ff2();
 
         S::HALF * (e * n - S::TWO * f * m + g * l) / (e * g - f.powi(2))
     }
 
     pub fn gaussian_curvature<S: Scalar, P: ISurfacePoint<S>>(point: &P) -> S {
-        let (e, f, g) = point.ff1();
-        let (l, m, n) = point.ff2();
+        let (e, f, g) = *point.ff1();
+        let (l, m, n) = *point.ff2();
         (l * n - m.powi(2)) / (e * g - f.powi(2))
     }
 
@@ -94,6 +94,7 @@ mod helpers {
 
 pub struct SITResult {}
 
+/*
 pub struct SSCurveSampler<'a, S: Scalar> {
     points: Vec<SSCurveParams<S>>,
     s0: &'a SurfaceSolver<S>,
@@ -230,6 +231,7 @@ impl<'a, S: Scalar> SSCurveSampler<'a, S> {
         vec4(d_u0, d_v0, d_u1, d_v1)
     }
 }
+ */
 
 pub struct SurfaceIntersection<'a, S: Scalar> {
     s0: &'a SurfaceSolver<S>,
@@ -273,16 +275,16 @@ impl<'a, S: Scalar> SurfaceIntersection<'a, S> {
     }
 
     pub fn dist2(&self, uv0: Vec2<S>, uv1: Vec2<S>) -> S {
-        (self.s0.point(uv0).pos() - self.s1.point(uv1).pos()).magnitude2()
+        (*self.s0.point(uv0).pos() - *self.s1.point(uv1).pos()).magnitude2()
     }
 
     pub fn gradient(&self, uv0: Vec2<S>, uv1: Vec2<S>) -> Vec4<S> {
         let s0_point = self.s0.point(uv0);
-        let s0_pos = s0_point.pos();
+        let s0_pos = *s0_point.pos();
         let (s0_du, s0_dv) = *s0_point.der1();
 
         let s1_point = self.s1.point(uv1);
-        let s1_pos = s1_point.pos();
+        let s1_pos = *s1_point.pos();
         let (s1_du, s1_dv) = *s1_point.der1();
 
         let d_u0 = (s0_pos - s1_pos).dot(s0_du) + s0_du.dot(s0_pos - s1_pos);

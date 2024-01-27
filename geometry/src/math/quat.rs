@@ -71,7 +71,13 @@ gen_ops!(
         Quat::from_sv(l.s - r.s, l.v - r.v)
     };
     for * call |l: &Quat<S>, r: &Quat<S>| {
-        Quat::from_sv(l.s * r.s - l.v.dot(r.v), l.s * r.v + r.s * l.v + l.v.cross(r.v))
+        //Quat::from_sv(l.s * r.s - l.v.dot(r.v), l.s * r.v + r.s * l.v + l.v.cross(r.v))
+        Quat::new(
+            l.s * r.s - l.v.x * r.v.x - l.v.y * r.v.y - l.v.z * r.v.z,
+            l.s * r.v.x + l.v.x * r.s + l.v.y * r.v.z - l.v.z * r.v.y,
+            l.s * r.v.y + l.v.y * r.s + l.v.z * r.v.x - l.v.x * r.v.z,
+            l.s * r.v.z + l.v.z * r.s + l.v.x * r.v.y - l.v.y * r.v.x,
+        )
     };
     for / call |l: &Quat<S>, r: &Quat<S>| {
         Quat::from_sv(l.s / r.s, l.v / r.v)

@@ -1,8 +1,6 @@
 use super::{ISurfacePoint, SurfacePoint, SweepSolver};
 use crate::{
-    math::{
-        deg, richardson_extrapolate, vec2, Coincidence, Mat22, Scalar, Vec2, Vec3, COINCIDENT_TOL,
-    },
+    math::{deg, richardson_extrapolate, vec2, Coincidence, Mat22, Scalar, Vec2, Vec3},
     primitives::curve::CurveSolver,
     tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
@@ -99,6 +97,7 @@ impl<S: Scalar> SurfaceSolver<S> {
         })
     }
 
+    /*
     pub fn project_point(&self, point: Vec3<S>) -> Vec<PointToSurfaceProjection<S>> {
         let initial_guesses = self.projection_starting_params(point, true, true);
         let mut results = vec![];
@@ -240,7 +239,7 @@ impl<S: Scalar> SurfaceSolver<S> {
 
         // perpendicular at p0 or p1
         (r1 == S::ZERO || r2 == S::ZERO) ||
-                // perpendicular from outside of curve or inside "focal point" 
+                // perpendicular from outside of curve or inside "focal point"
                 (allow_above_focal_point && r1 > S::ZERO && r2 > S::ZERO) ||
                 // perpendicular from below curve beyond the "focal point"
                 (allow_below_focal_point && r1 < S::ZERO && r2 < S::ZERO)
@@ -347,10 +346,13 @@ impl<S: Scalar> SurfaceSolver<S> {
 
         None
     }
+    */
 
     pub fn est_tangent_u(&self, uv: Vec2<S>) -> Option<Vec3<S>> {
+        panic!();
+        /*
         let (Vec2 { y: v_min, .. }, Vec2 { y: v_max, .. }) = self.domain();
-        const START_DIST: f64 = 0.1;
+        let start_dist = S::ONE / S::exact(10.0);
 
         let end_v = uv.v();
         let start_v = {
@@ -359,15 +361,15 @@ impl<S: Scalar> SurfaceSolver<S> {
 
             if dist_to_max < dist_to_min {
                 // If closer to top of U range, start from below
-                end_v - START_DIST
+                end_v - start_dist
             } else {
                 // Otherwise start from above
-                end_v + START_DIST
+                end_v + start_dist
             }
         };
 
         richardson_extrapolate(
-            |v: f64| {
+            |v: S| {
                 let point = self.point(vec2(uv.u(), v));
                 let (du, _) = point.der1();
                 du.normalize()
@@ -376,13 +378,17 @@ impl<S: Scalar> SurfaceSolver<S> {
             start_v,
             end_v,
             40,
-            COINCIDENT_TOL,
+            1e-10,
+            //COINCIDENT_TOL,
         )
+         */
     }
 
     pub fn est_tangent_v(&self, uv: Vec2<S>) -> Option<Vec3<S>> {
+        panic!();
+        /*
         let (Vec2 { x: u_min, .. }, Vec2 { x: u_max, .. }) = self.domain();
-        const START_DIST: f64 = 0.1;
+        let start_dist = S::ONE / S::exact(10.0);
 
         let end_u = uv.u();
         let start_u = {
@@ -391,15 +397,15 @@ impl<S: Scalar> SurfaceSolver<S> {
 
             if dist_to_max < dist_to_min {
                 // If closer to top of U range, start from below
-                end_u - START_DIST
+                end_u - start_dist
             } else {
                 // Otherwise start from above
-                end_u + START_DIST
+                end_u + start_dist
             }
         };
 
         richardson_extrapolate(
-            |u: f64| {
+            |u: S| {
                 let point = self.point(vec2(u, uv.v()));
                 let (_, dv) = point.der1();
                 dv.normalize()
@@ -408,8 +414,10 @@ impl<S: Scalar> SurfaceSolver<S> {
             start_u,
             end_u,
             40,
-            COINCIDENT_TOL,
+            1e-10,
+            //COINCIDENT_TOL,
         )
+         */
     }
 }
 impl<S: Scalar> From<SweepSolver<S>> for SurfaceSolver<S> {

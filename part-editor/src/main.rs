@@ -8,8 +8,7 @@ use eframe::{
     Renderer,
 };
 use geometry::{
-    math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
-    primitives::{SSCurveParams, SSCurveSampler},
+    math::{deg, vec3, vec4, Quat, Vec3},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -79,6 +78,7 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
     ]);
 
+    /*
     // Define materials
     let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
@@ -109,13 +109,15 @@ fn build_scene() -> Scene {
     let inverted_point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
+    */
 
     let mut model = PrimitiveModel::new();
 
     {
-        let profile1_start = model.create_point3(point3(-1.0, -1.0, 0.0));
-        let profile1_end = model.create_point3(point3(-1.0, 1.0, 0.0));
+        let profile1_start = model.create_point3(vec3(0.0, 0.0, 0.0));
+        let profile1_end = model.create_point3(vec3(0.0, 1.0, 0.0));
         let profile1 = model.create_line_between(profile1_start, profile1_end);
+        /*
         let path1 = model.create_arc(
             1.0,
             deg(350.0),
@@ -123,6 +125,9 @@ fn build_scene() -> Scene {
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
             Vec3::ZERO,
         );
+         */
+
+        /*
         let sweep1 = model.create_sweep(profile1, path1);
         model.set_surface_material(sweep1, sweep1_material);
 
@@ -193,6 +198,7 @@ fn build_scene() -> Scene {
             model.create_line_between(origin, y_extent);
             model.create_line_between(origin, z_extent);
         }
+         */
     }
 
     let sm = SceneModel::from_primitive_model(
@@ -201,6 +207,8 @@ fn build_scene() -> Scene {
     );
 
     scene.add_model(sm);
+
+    println!("scene = {:#?}", scene);
 
     let end = Instant::now();
     println!("Model built in {}us", (end - start).as_micros());

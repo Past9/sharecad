@@ -3,14 +3,14 @@ mod curve_point;
 mod curve_solver;
 mod helix;
 mod line;
-mod ss_curve;
+//mod ss_curve;
 
 pub use arc::*;
 pub use curve_point::*;
 pub use curve_solver::*;
 pub use helix::*;
 pub use line::*;
-pub use ss_curve::*;
+//pub use ss_curve::*;
 
 use crate::{math::Scalar, PrimitiveGeometry};
 
@@ -19,7 +19,7 @@ pub enum Curve<S: Scalar> {
     Line(Line<S>),
     Arc(Arc<S>),
     Helix(Helix<S>),
-    SSCurve(SSCurve<S>),
+    //SSCurve(SSCurve<S>),
 }
 impl<S: Scalar> Curve<S> {
     pub fn solver(&self, geometry: &PrimitiveGeometry<S>) -> CurveSolver<S> {
@@ -27,7 +27,7 @@ impl<S: Scalar> Curve<S> {
             Curve::Line(line) => CurveSolver::new(line.solver(geometry).into()),
             Curve::Arc(arc) => CurveSolver::new(arc.solver(geometry).into()),
             Curve::Helix(helix) => CurveSolver::new(helix.solver(geometry).into()),
-            Curve::SSCurve(ss_curve) => CurveSolver::new(ss_curve.solver(geometry).into()),
+            //Curve::SSCurve(ss_curve) => CurveSolver::new(ss_curve.solver(geometry).into()),
         }
     }
 }
@@ -46,8 +46,10 @@ impl<S: Scalar> From<Helix<S>> for Curve<S> {
         Self::Helix(helix)
     }
 }
+/*
 impl<S: Scalar> From<SSCurve<S>> for Curve<S> {
     fn from(ss_curve: SSCurve<S>) -> Self {
         Self::SSCurve(ss_curve)
     }
 }
+ */

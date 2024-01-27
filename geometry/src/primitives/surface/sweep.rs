@@ -189,18 +189,19 @@ impl<'a, S: Scalar> ISurfacePoint<S> for SweepPoint<'a, S> {
 
     fn pos(&self) -> &Vec3<S> {
         self.eval.get_or_init(|| {
-            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
-            self.path_v.pos() + m * (self.profile_u.pos() - self.path_start.pos())
+            let m = *self.path_axes_mat() * *self.path_axes_start_inverse_mat();
+            *self.path_v.pos() + m * (*self.profile_u.pos() - *self.path_start.pos())
         })
     }
 
     fn der1(&self) -> &(Vec3<S>, Vec3<S>) {
         self.der1.get_or_init(|| {
-            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
-            let du = m * self.profile_u.der1();
+            let m = *self.path_axes_mat() * *self.path_axes_start_inverse_mat();
+            let du = m * *self.profile_u.der1();
 
-            let m_der1 = self.path_axes_der1_mat() * self.path_axes_start_inverse_mat();
-            let dv = self.path_v.der1() + m_der1 * (self.profile_u.pos() - self.path_start.pos());
+            let m_der1 = *self.path_axes_der1_mat() * *self.path_axes_start_inverse_mat();
+            let dv =
+                *self.path_v.der1() + m_der1 * (*self.profile_u.pos() - *self.path_start.pos());
 
             (du, dv)
         })
@@ -208,14 +209,15 @@ impl<'a, S: Scalar> ISurfacePoint<S> for SweepPoint<'a, S> {
 
     fn der2(&self) -> &(Vec3<S>, Vec3<S>, Vec3<S>) {
         self.der2.get_or_init(|| {
-            let m = self.path_axes_mat() * self.path_axes_start_inverse_mat();
-            let duu = m * self.profile_u.der2();
+            let m = *self.path_axes_mat() * *self.path_axes_start_inverse_mat();
+            let duu = m * *self.profile_u.der2();
 
-            let m_der1 = self.path_axes_der1_mat() * self.path_axes_start_inverse_mat();
-            let duv = m_der1 * self.profile_u.der1();
+            let m_der1 = *self.path_axes_der1_mat() * *self.path_axes_start_inverse_mat();
+            let duv = m_der1 * *self.profile_u.der1();
 
-            let m_der2 = self.path_axes_der2_mat() * self.path_axes_start_inverse_mat();
-            let dvv = self.path_v.der2() + m_der2 * (self.profile_u.pos() - self.path_start.pos());
+            let m_der2 = *self.path_axes_der2_mat() * *self.path_axes_start_inverse_mat();
+            let dvv =
+                *self.path_v.der2() + m_der2 * (*self.profile_u.pos() - *self.path_start.pos());
 
             (duu, duv, dvv)
         })

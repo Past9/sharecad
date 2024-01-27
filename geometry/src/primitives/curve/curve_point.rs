@@ -1,4 +1,4 @@
-use super::{ArcPointSolver, HelixPointSolver, LinePointSolver, SSCurvePoint};
+use super::{ArcPointSolver, HelixPointSolver, LinePointSolver};
 use crate::math::{Scalar, Vec3};
 
 pub trait ICurvePoint<S: Scalar> {
@@ -17,7 +17,7 @@ pub enum CurvePoint<S: Scalar> {
     Line(LinePointSolver<S>),
     Helix(HelixPointSolver<S>),
     Arc(ArcPointSolver<S>),
-    SSCurve(SSCurvePoint<S>),
+    //SSCurve(SSCurvePoint<S>),
 }
 impl<S: Scalar> CurvePoint<S> {
     pub fn u(&self) -> S {
@@ -25,7 +25,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.u(),
             CurvePoint::Helix(helix) => helix.u(),
             CurvePoint::Arc(arc) => arc.u(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.u(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.u(),
         }
     }
 
@@ -34,7 +34,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.pos(),
             CurvePoint::Helix(helix) => helix.pos(),
             CurvePoint::Arc(arc) => arc.pos(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.pos(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.pos(),
         }
     }
 
@@ -43,7 +43,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.der1(),
             CurvePoint::Helix(helix) => helix.der1(),
             CurvePoint::Arc(arc) => arc.der1(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.der1(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.der1(),
         }
     }
 
@@ -52,7 +52,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.der2(),
             CurvePoint::Helix(helix) => helix.der2(),
             CurvePoint::Arc(arc) => arc.der2(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.der2(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.der2(),
         }
     }
 
@@ -61,7 +61,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.der3(),
             CurvePoint::Helix(helix) => helix.der3(),
             CurvePoint::Arc(arc) => arc.der3(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.der3(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.der3(),
         }
     }
 
@@ -70,7 +70,7 @@ impl<S: Scalar> CurvePoint<S> {
             CurvePoint::Line(line) => line.curvature(),
             CurvePoint::Helix(helix) => helix.curvature(),
             CurvePoint::Arc(arc) => arc.curvature(),
-            CurvePoint::SSCurve(ss_curve) => ss_curve.curvature(),
+            //CurvePoint::SSCurve(ss_curve) => ss_curve.curvature(),
         }
     }
 }
@@ -89,11 +89,13 @@ impl<S: Scalar> From<ArcPointSolver<S>> for CurvePoint<S> {
         Self::Arc(point)
     }
 }
+/*
 impl<S: Scalar> From<SSCurvePoint<S>> for CurvePoint<S> {
     fn from(point: SSCurvePoint<S>) -> Self {
         Self::SSCurve(point)
     }
 }
+ */
 
 pub(crate) fn axes<S: Scalar>(
     point: &CurvePoint<S>,

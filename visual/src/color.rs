@@ -975,7 +975,7 @@ impl Rgb {
 
     /// Convert a normal vector (as from a normal map texture) into RGB
     /// colorspace.
-    pub fn from_normal_vec(vec: Vec3) -> Self {
+    pub fn from_normal_vec(vec: Vec3<f64>) -> Self {
         let rgb_vec = (vec + vec3(1.0, 1.0, 1.0)) / 2.0;
         Self::new(rgb_vec.x as f32, rgb_vec.y as f32, rgb_vec.z as f32)
     }

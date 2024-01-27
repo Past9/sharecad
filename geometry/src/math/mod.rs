@@ -2,6 +2,7 @@
 mod tolerance;
 
 mod angle;
+mod interval;
 mod mat22;
 mod mat33;
 mod mat44;
@@ -13,6 +14,7 @@ mod vec3;
 mod vec4;
 
 pub use angle::*;
+pub use interval::*;
 pub use mat22::*;
 pub use mat33::*;
 pub use mat44::*;
@@ -24,6 +26,8 @@ pub use vec2::*;
 pub use vec3::*;
 pub use vec4::*;
 
+/*
 pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
     (1.0 - t) * a + t * b
 }
+ */

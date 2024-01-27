@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     math::{Angle, Quat, Scalar, Vec3},
-    primitives::{Point, SSCurve, SSCurveParams},
+    primitives::Point,
 };
 use common::{CurveId, IdSeries, PointId, SurfaceId};
 
@@ -29,12 +29,14 @@ pub trait IGeometry<S: Scalar> {
         orientation: Quat<S>,
         translation: Vec3<S>,
     ) -> CurveId;
+    /*
     fn create_ss_curve(
         &mut self,
         s0: SurfaceId,
         s1: SurfaceId,
         points: Vec<SSCurveParams<S>>,
     ) -> CurveId;
+     */
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId;
     fn point(&self, id: PointId) -> Option<&Point<S>>;
     fn curve(&self, id: CurveId) -> Option<&Curve<S>>;
@@ -117,6 +119,7 @@ impl<S: Scalar> IGeometry<S> for PrimitiveGeometry<S> {
         self.create_curve(Arc::new(r, angle, orientation, translation).into())
     }
 
+    /*
     fn create_ss_curve(
         &mut self,
         s0: SurfaceId,
@@ -125,6 +128,7 @@ impl<S: Scalar> IGeometry<S> for PrimitiveGeometry<S> {
     ) -> CurveId {
         self.create_curve(SSCurve::new(s0, s1, points).into())
     }
+     */
 
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId {
         let id = self.surface_ids.next();

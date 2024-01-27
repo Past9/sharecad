@@ -3,13 +3,12 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use crate::math::{vec3, vec4, Mat22, Mat33};
 
-use super::{vec2, Coincidence, Mat44, Vec2, Vec3, Vec4};
-
-pub const COINCIDENT_TOL: f64 = 1e-10;
+use super::{tolerance::COINCIDENT_TOL, vec2, Coincidence, Mat44, Vec2, Vec3, Vec4};
 
 pub trait Scalar:
     std::fmt::Debug
     + std::fmt::Display
+    + Sized
     + PartialEq
     + Clone
     + Copy
@@ -55,6 +54,7 @@ pub trait Scalar:
     const HALF: Self;
     const ONE: Self;
     const TWO: Self;
+    const FOUR: Self;
 
     const PI: Self;
     const TAU: Self;
@@ -93,6 +93,11 @@ pub trait Scalar:
     fn powi(self, n: i32) -> Self;
     fn sqrt(self) -> Self;
     fn clamp(self, min: Self, max: Self) -> Self;
+
+    fn lerp(self, to: Self, t: Self) -> Self {
+        (Self::ONE - t) * self * t * to
+    }
+
 }
 
 impl Scalar for f64 {
@@ -100,6 +105,7 @@ impl Scalar for f64 {
     const HALF: Self = 0.5;
     const ONE: Self = 1.0;
     const TWO: Self = 2.0;
+    const FOUR: Self = 4.0;
 
     const PI: Self = std::f64::consts::PI;
     const TAU: Self = std::f64::consts::TAU;
@@ -146,15 +152,15 @@ impl Scalar for f64 {
     }
 
     fn csc(self) -> Self {
-        self.csc()
+        Self::ONE / self.sin()
     }
 
     fn sec(self) -> Self {
-        self.sec()
+        Self::ONE / self.cos()
     }
 
     fn cot(self) -> Self {
-        self.cot()
+        Self::ONE / self.tan()
     }
 
     fn sin_cos(self) -> (Self, Self) {
@@ -162,7 +168,7 @@ impl Scalar for f64 {
     }
 
     fn recip(self) -> Self {
-        1.0 / self
+        self.recip()
     }
 
     fn abs(self) -> Self {
@@ -179,6 +185,10 @@ impl Scalar for f64 {
 
     fn clamp(self, min: Self, max: Self) -> Self {
         self.clamp(min, max)
+    }
+
+    fn lerp(self, to: Self, t: Self) -> Self {
+        (Self::ONE - t) * self * t * to
     }
 }
 

@@ -22,7 +22,7 @@ impl<S: Scalar> Arc<S> {
         }
     }
 
-    pub fn solver(&self, _geometry: &PrimitiveGeometry<f64>) -> ArcSolver<S> {
+    pub fn solver(&self, _geometry: &PrimitiveGeometry<S>) -> ArcSolver<S> {
         ArcSolver {
             r: self.r,
             angle: self.angle,
