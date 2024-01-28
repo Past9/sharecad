@@ -92,7 +92,6 @@ pub trait Scalar:
     fn abs(self) -> Self;
     fn powi(self, n: i32) -> Self;
     fn sqrt(self) -> Self;
-    fn clamp(self, min: Self, max: Self) -> Self;
 
     fn lerp(self, to: Self, t: Self) -> Self {
         (Self::ONE - t) * self + t * to
@@ -181,10 +180,6 @@ impl Scalar for f64 {
 
     fn sqrt(self) -> Self {
         self.sqrt()
-    }
-
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.clamp(min, max)
     }
 }
 

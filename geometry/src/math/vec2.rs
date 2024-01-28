@@ -57,13 +57,6 @@ impl<S: Scalar> Vec2<S> {
         self.y
     }
 
-    pub fn clamp(self, min: Self, max: Self) -> Self {
-        Self {
-            x: self.x.clamp(min.x, max.x),
-            y: self.y.clamp(min.y, max.y),
-        }
-    }
-
     pub fn magnitude2(self) -> S {
         self.dot(self)
     }
@@ -97,6 +90,11 @@ impl<S: Scalar> Vec2<S> {
 
     pub fn lerp(self, other: Self, t: S) -> Self {
         (Self::ONES - t) * self + t * other
+    }
+
+    pub fn recip(self) -> Self {
+        let mag_recip = self.magnitude().recip();
+        self.normalize() * mag_recip
     }
 }
 impl Vec2<f64> {

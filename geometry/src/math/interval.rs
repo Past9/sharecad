@@ -219,11 +219,7 @@ impl Scalar for Interval {
     }
 
     fn recip(self) -> Self {
-        todo!()
-    }
-
-    fn clamp(self, min: Self, max: Self) -> Self {
-        todo!()
+        Self::thin(1.0) / self
     }
 }
 impl From<f32> for Interval {
