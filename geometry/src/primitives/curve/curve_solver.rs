@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
 use crate::{
-    math::{deg, Angle, Coincidence, Quat, Scalar, Vec3},
+    math::{deg, vec2, Angle, Coincidence, Interval, Quat, Scalar, Vec2, Vec3},
     primitives::Point,
     tessellate::{TessellatedCurve, TessellationTolerance},
 };
@@ -29,6 +29,15 @@ pub enum CurveSolverKind<S: Scalar> {
     Arc(ArcSolver<S>),
     Helix(HelixSolver<S>),
     //SSCurve(SSCurveSolver<S>),
+}
+impl CurveSolverKind<f64> {
+    pub fn as_interval(&self) -> CurveSolverKind<Interval> {
+        match self {
+            CurveSolverKind::Line(line) => line.as_interval().into(),
+            CurveSolverKind::Arc(arc) => arc.as_interval().into(),
+            CurveSolverKind::Helix(helix) => helix.as_interval().into(),
+        }
+    }
 }
 impl<S: Scalar> From<LineSolver<S>> for CurveSolverKind<S> {
     fn from(solver: LineSolver<S>) -> Self {
@@ -62,18 +71,25 @@ pub struct PointToCurveProjection<S: Scalar> {
     pub dist: S,
 }
 
+#[derive(Debug, Clone)]
+pub struct CCIntersection<S: Scalar> {
+    pub u1: S,
+    pub u2: S,
+    pub pos: Vec3<S>,
+}
+
 #[derive(Debug)]
 pub struct CurveSolver<S: Scalar> {
     kind: CurveSolverKind<S>,
     is_closed: OnceCell<bool>,
-    projection_tessellation: OnceCell<TessellatedCurve>,
+    //projection_tessellation: OnceCell<TessellatedCurve>,
 }
 impl<S: Scalar> CurveSolver<S> {
     pub(super) fn new(kind: CurveSolverKind<S>) -> Self {
         Self {
             kind,
             is_closed: OnceCell::new(),
-            projection_tessellation: OnceCell::new(),
+            //projection_tessellation: OnceCell::new(),
         }
     }
 
@@ -277,6 +293,111 @@ impl<S: Scalar> CurveSolver<S> {
         None
     }
     */
+}
+impl CurveSolver<f64> {
+    pub fn as_interval(&self) -> CurveSolver<Interval> {
+        CurveSolver {
+            kind: self.kind.as_interval(),
+            is_closed: OnceCell::from(self.is_closed()),
+        }
+    }
+
+    pub fn intersect_curve(&self, other: &Self) -> Vec<CCIntersection<Interval>> {
+        let self_ivl: CurveSolver<Interval> = self.as_interval();
+        let other_ivl: CurveSolver<Interval> = other.as_interval();
+
+        let func = |u_ivls: Vec2<Interval>| -> (Interval, Vec2<Interval>) {
+            let p0 = self_ivl.point(Interval::thin(u_ivls.u().mid()));
+            let p1 = other_ivl.point(Interval::thin(u_ivls.v().mid()));
+            let dist2 = (*p0.pos() - *p1.pos()).magnitude2();
+
+            let p0_sub_p1 = *p0.pos() - *p1.pos();
+            let dist2_du0 = Interval::thin(2.0) * p0_sub_p1.dot(*p0.der1());
+            let dist2_du1 = Interval::thin(2.0) * p0_sub_p1.dot(-*p1.der1());
+            let gradient = vec2(dist2_du0, dist2_du1);
+
+            (dist2, gradient)
+        };
+
+        const MAX_ITER: u32 = 3;
+        let mut search_intervals: Vec<Vec2<Interval>> =
+            vec![vec2(self.domain().into(), other.domain().into())];
+        let mut converged_intervals: Vec<Vec2<Interval>> = vec![];
+
+        #[derive(PartialEq)]
+        struct NewInterval {
+            new: Vec2<Interval>,
+            from: Vec2<Interval>,
+        }
+
+        let mut iter = 0;
+        while iter < MAX_ITER {
+            iter += 1;
+
+            println!("ITER = {}", iter);
+            println!("search_intervals = {:#?}", search_intervals);
+
+            if search_intervals.len() == 0 {
+                break;
+            }
+
+            let mut new_intervals: Vec<NewInterval> = vec![];
+            for search_interval in search_intervals.iter() {
+                let (dist, gradient) = func(*search_interval);
+                let gradient_split = gradient.split_on_zero();
+                if gradient_split.len() > 1 {
+                    let mut pending_new_intervals = vec![];
+                    for gs in gradient_split.iter() {
+                        pending_new_intervals.push(NewInterval {
+                            new: (search_interval.mid().as_interval() - dist / *gs)
+                                .intersection(*search_interval),
+                            from: *gs,
+                        });
+
+                        while pending_new_intervals.len() > 0 {
+                            let last = pending_new_intervals.pop().unwrap();
+                            if !pending_new_intervals.iter().any(|pi| pi.new == last.new) {
+                                //if !pending_new_intervals.contains(&last) {
+                                //println!("PUSH {:?} -> {:?}", last.from, last.new);
+                                new_intervals.push(last);
+                            } else {
+                                println!("EJECT");
+                            }
+                        }
+                    }
+                } else {
+                    new_intervals.push(NewInterval {
+                        new: (search_interval.mid().as_interval() - dist / gradient)
+                            .intersection(*search_interval),
+                        from: *search_interval,
+                    })
+                }
+            }
+
+            search_intervals = vec![];
+
+            for new_interval in new_intervals {
+                if new_interval.new.is_empty() {
+                    continue;
+                }
+
+                if new_interval.new.intersection(new_interval.new).is_empty() {
+                    continue;
+                }
+
+                if new_interval.new == new_interval.from {
+                    converged_intervals.push(new_interval.new);
+                } else {
+                    search_intervals.push(new_interval.new);
+                }
+            }
+        }
+
+        println!("search_intervals = {:#?}", search_intervals);
+        println!("converged_intervals = {:#?}", converged_intervals);
+
+        todo!()
+    }
 }
 impl<S: Scalar> From<LineSolver<S>> for CurveSolver<S> {
     fn from(line: LineSolver<S>) -> Self {

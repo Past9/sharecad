@@ -124,7 +124,7 @@ impl ViewState {
             800.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
             Vec3::UNIT_Y,
-            deg(45.0),
+            deg(0.0),
         );
 
         let camera_controller = CameraController::new(camera);

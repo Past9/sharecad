@@ -1,6 +1,6 @@
 use super::{ICurvePoint, ICurveSolver};
 use crate::{
-    math::{vec3, Angle, Quat, Scalar, Vec3},
+    math::{vec3, Angle, Interval, Quat, Scalar, Vec3},
     PrimitiveGeometry,
 };
 use std::{cell::OnceCell, rc::Rc};
@@ -51,6 +51,17 @@ impl<S: Scalar> ArcSolver<S> {
             translation,
 
             never_tangent: OnceCell::new(),
+        }
+    }
+}
+impl ArcSolver<f64> {
+    pub fn as_interval(&self) -> ArcSolver<Interval> {
+        ArcSolver {
+            r: Interval::thin(self.r),
+            angle: self.angle.as_interval(),
+            orientation: self.orientation.as_interval(),
+            translation: self.translation.as_interval(),
+            never_tangent: OnceCell::from(self.never_tangent().as_interval()),
         }
     }
 }

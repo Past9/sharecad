@@ -1,6 +1,6 @@
 use super::{ICurvePoint, ICurveSolver};
 use crate::{
-    math::{vec3, Quat, Scalar, Vec3},
+    math::{vec3, Interval, Quat, Scalar, Vec3},
     PrimitiveGeometry,
 };
 use std::{cell::OnceCell, f64::consts::TAU, rc::Rc};
@@ -32,6 +32,18 @@ impl<S: Scalar> Helix<S> {
             orientation: self.orientation,
             translation: self.translation,
             never_tangent: OnceCell::new(),
+        }
+    }
+}
+impl HelixSolver<f64> {
+    pub fn as_interval(&self) -> HelixSolver<Interval> {
+        HelixSolver {
+            r: Interval::thin(self.r),
+            h: Interval::thin(self.h),
+            n: Interval::thin(self.n),
+            orientation: self.orientation.as_interval(),
+            translation: self.translation.as_interval(),
+            never_tangent: OnceCell::from(self.never_tangent().as_interval()),
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::{rad, Angle, Scalar};
+use super::{rad, Angle, Interval, Scalar};
 use crate::math::Mat22;
 use gen_ops::gen_ops;
 
@@ -97,6 +97,53 @@ impl<S: Scalar> Vec2<S> {
 
     pub fn lerp(self, other: Self, t: S) -> Self {
         (Self::ONES - t) * self + t * other
+    }
+}
+impl Vec2<f64> {
+    pub fn as_interval(&self) -> Vec2<Interval> {
+        Vec2 {
+            x: Interval::thin(self.x),
+            y: Interval::thin(self.y),
+        }
+    }
+}
+impl Vec2<Interval> {
+    pub fn split_on_zero(&self) -> Vec<Self> {
+        let x_ivls = self.x.split_on_zero();
+        let y_ivls = self.y.split_on_zero();
+        let mut split_vecs = vec![];
+        for x in x_ivls.iter() {
+            for y in y_ivls.iter() {
+                split_vecs.push(vec2(*x, *y));
+            }
+        }
+
+        split_vecs
+    }
+
+    pub fn mid(&self) -> Vec2<f64> {
+        vec2(self.x.mid(), self.y.mid())
+    }
+
+    pub fn intersection(&self, other: Self) -> Self {
+        let x_intersect = self.x.intersection(other.x);
+        let y_intersect = self.y.intersection(other.y);
+
+        if !x_intersect.is_empty() && !y_intersect.is_empty() {
+            Vec2 {
+                x: x_intersect,
+                y: y_intersect,
+            }
+        } else {
+            Vec2 {
+                x: Interval::EMPTY,
+                y: Interval::EMPTY,
+            }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.x.is_empty() || self.y.is_empty()
     }
 }
 impl<S: Scalar> From<[f64; 2]> for Vec2<S> {

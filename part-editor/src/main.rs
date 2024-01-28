@@ -8,7 +8,7 @@ use eframe::{
     Renderer,
 };
 use geometry::{
-    math::{deg, vec3, vec4, Quat, Vec3},
+    math::{deg, vec3, vec4, Quat, Scalar, Vec3},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -114,16 +114,24 @@ fn build_scene() -> Scene {
     let mut model = PrimitiveModel::new();
 
     {
-        let profile1_start = model.create_point3(vec3(0.0, 0.0, 0.0));
-        let profile1_end = model.create_point3(vec3(0.0, 1.0, 0.0));
-        let profile1 = model.create_line_between(profile1_start, profile1_end);
-        let path1 = model.create_arc(
+        let arc1 = model.create_arc(
             1.0,
-            deg(360.0),
+            deg(350.0),
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
             Vec3::ZERO,
         );
+        let arc2 = model.create_arc(
+            1.0,
+            deg(350.0),
+            Quat::ZERO,
+            vec3(0.0, f64::SQRT_2 / 2.0, f64::SQRT_2 / 2.0),
+        );
+
+        let arc1_solver = model.curve_solver(arc1).unwrap();
+        let arc2_solver = model.curve_solver(arc2).unwrap();
+
+        arc1_solver.intersect_curve(&arc2_solver);
 
         /*
         let sweep1 = model.create_sweep(profile1, path1);

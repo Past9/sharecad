@@ -84,6 +84,19 @@ impl Interval {
     pub fn round_out(self) -> Self {
         Self(self.0.prev(), self.1.next())
     }
+
+    pub fn split_on_zero(&self) -> Vec<Self> {
+        if self.0 < 0.0 && self.1 > 0.0 {
+            vec![Self(self.0, 0.0.prev()), Self(0.0.next(), self.1)]
+        } else {
+            vec![*self]
+        }
+    }
+}
+impl From<(f64, f64)> for Interval {
+    fn from(value: (f64, f64)) -> Self {
+        Self(value.0, value.1)
+    }
 }
 impl Scalar for Interval {
     const ZERO: Self = Self::thin(0.0);
@@ -144,11 +157,13 @@ impl Scalar for Interval {
         let has_peak = norm.intersects(Self::FRAC_PI_2);
         let has_trough = norm.intersects(Self::FRAC_PI_2 * Self::thin(3.0));
 
+        /*
         println!("self = {}", self);
         println!("diff = {}", diff);
         println!("norm = {}", norm);
         println!("has_peak = {}", has_peak);
         println!("has_trough = {}", has_trough);
+         */
 
         match (has_trough, has_peak) {
             (true, true) => Self(-1.0, 1.0),
@@ -268,7 +283,7 @@ gen_ops!(
         }
 
         if r.contains_zero() {
-            panic!("denominator of {}/{} straddles zero", l, r);
+            //panic!("denominator of {}/{} straddles zero", l, r);
         }
 
         let l0r0 = l.0 / r.0;

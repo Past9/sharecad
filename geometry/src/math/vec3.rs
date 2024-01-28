@@ -1,4 +1,4 @@
-use super::{Mat33, Mat44, Scalar};
+use super::{Interval, Mat33, Mat44, Scalar};
 use gen_ops::gen_ops;
 
 pub fn vec3<S: Scalar>(x: S, y: S, z: S) -> Vec3<S> {
@@ -140,6 +140,15 @@ impl<S: Scalar> Vec3<S> {
         g_pp_over_g_mag
             - S::TWO * (f.dot(g_p_over_g_mag)) * f_p
             - (f.dot(g_pp_over_g_mag) + f_p.dot(g_p_over_g_mag)) * f
+    }
+}
+impl Vec3<f64> {
+    pub fn as_interval(&self) -> Vec3<Interval> {
+        Vec3 {
+            x: Interval::thin(self.x),
+            y: Interval::thin(self.y),
+            z: Interval::thin(self.z),
+        }
     }
 }
 impl<S: Scalar> Default for Vec3<S> {

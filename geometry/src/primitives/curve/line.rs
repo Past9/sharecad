@@ -1,6 +1,6 @@
 use super::{ICurvePoint, ICurveSolver};
 use crate::{
-    math::{vec3, Coincidence, Scalar, Vec3},
+    math::{vec3, Coincidence, Interval, Scalar, Vec3},
     primitives::Point,
     IGeometry, PrimitiveGeometry,
 };
@@ -44,6 +44,15 @@ impl<S: Scalar> LineSolver<S> {
             start,
             end,
             never_tangent: OnceCell::new(),
+        }
+    }
+}
+impl LineSolver<f64> {
+    pub fn as_interval(&self) -> LineSolver<Interval> {
+        LineSolver {
+            start: self.start.as_interval(),
+            end: self.end.as_interval(),
+            never_tangent: OnceCell::from(self.never_tangent().as_interval()),
         }
     }
 }

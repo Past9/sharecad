@@ -1,7 +1,7 @@
 use auto_ops::impl_op_ex;
 use gen_ops::gen_ops;
 
-use super::{vec3, Angle, Mat33, Mat44, Scalar, Vec3};
+use super::{vec3, Angle, Interval, Mat33, Mat44, Scalar, Vec3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Quat<S: Scalar> {
@@ -49,6 +49,14 @@ impl<S: Scalar> Quat<S> {
 
     pub fn normalize(self) -> Self {
         self / self.magnitude()
+    }
+}
+impl Quat<f64> {
+    pub fn as_interval(&self) -> Quat<Interval> {
+        Quat {
+            v: self.v.as_interval(),
+            s: Interval::thin(self.s),
+        }
     }
 }
 

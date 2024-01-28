@@ -2,7 +2,7 @@ use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use gen_ops::gen_ops;
 use std::f64::consts::PI;
 
-use super::Scalar;
+use super::{Interval, Scalar};
 
 pub fn deg<S: Scalar>(deg: S) -> Angle<S> {
     Angle::deg(deg)
@@ -91,6 +91,11 @@ impl<S: Scalar> Angle<S> {
         rad(rads)
     }
      */
+}
+impl Angle<f64> {
+    pub fn as_interval(&self) -> Angle<Interval> {
+        Angle(Interval::thin(self.0))
+    }
 }
 impl<S: Scalar> From<Angle<S>> for f64 {
     fn from(value: Angle<S>) -> Self {
