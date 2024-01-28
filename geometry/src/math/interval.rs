@@ -11,14 +11,16 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 #[derive(Copy, Clone, PartialEq)]
 pub struct Interval(pub f64, pub f64);
 impl Interval {
-    pub const EMPTY: Self = Self(f64::NAN, f64::NAN);
+    //pub const EMPTY: Self = Self(f64::NAN, f64::NAN);
+    pub const EMPTY: Self = Self(f64::INFINITY, f64::NEG_INFINITY);
 
     pub const fn thin(val: f64) -> Self {
         Self(val, val)
     }
 
     pub fn is_empty(self) -> bool {
-        self == Self::EMPTY
+        //self == Self::EMPTY
+        self.0 > self.1
     }
 
     pub fn is_subset_of(self, rhs: Self) -> bool {
@@ -87,10 +89,13 @@ impl Interval {
 
     pub fn split_on_zero(&self) -> Vec<Self> {
         if self.0 < 0.0 && self.1 > 0.0 {
-            vec![Self(self.0, 0.0.prev()), Self(0.0.next(), self.1)]
+            vec![Self(self.0, (-0.0).prev()), Self(0.0.next(), self.1)]
         } else {
             vec![*self]
         }
+        .into_iter()
+        .filter(|ivl| !ivl.is_empty())
+        .collect()
     }
 }
 impl From<(f64, f64)> for Interval {

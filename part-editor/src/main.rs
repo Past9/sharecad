@@ -133,6 +133,12 @@ fn build_scene() -> Scene {
 
         arc1_solver.intersect_curve(&arc2_solver);
 
+        model.create_point3(*arc1_solver.point(5.497787143647968).pos());
+        model.create_point3(*arc2_solver.point(3.926990816713388).pos());
+
+        //model.create_point3(*arc1_solver.point(3.92699).pos());
+        //model.create_point3(*arc2_solver.point(5.49778).pos());
+
         /*
         let sweep1 = model.create_sweep(profile1, path1);
         model.set_surface_material(sweep1, sweep1_material);
