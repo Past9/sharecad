@@ -307,14 +307,6 @@ impl CurveSolver<f64> {
         let other_ivl: CurveSolver<Interval> = other.as_interval();
 
         let dist2 = |u_ivls: Vec2<f64>| -> Interval {
-            /*
-            let p0 = self_ivl.point(Interval::thin(u_ivls.u()));
-            let p1 = other_ivl.point(Interval::thin(u_ivls.v()));
-            let dist2 = (*p0.pos() - *p1.pos()).magnitude2();
-            //println!("dist2 {} -> {}", u_ivls, dist2);
-            dist2
-             */
-
             let p0 = self_ivl.point(Interval::thin(u_ivls.u()));
             let p1 = other_ivl.point(Interval::thin(u_ivls.v()));
 
@@ -322,18 +314,6 @@ impl CurveSolver<f64> {
         };
 
         let gradient = |u_ivls: Vec2<Interval>| -> Vec2<Interval> {
-            /*
-            let p0 = self_ivl.point(u_ivls.u());
-            let p1 = other_ivl.point(u_ivls.v());
-
-            let p0_sub_p1 = *p0.pos() - *p1.pos();
-            let dist2_du0 = Interval::thin(2.0) * p0_sub_p1.dot(*p0.der1());
-            let dist2_du1 = Interval::thin(2.0) * p0_sub_p1.dot(-*p1.der1());
-            let gradient = vec2(dist2_du0, dist2_du1);
-
-            gradient
-             */
-
             let p0 = self_ivl.point(u_ivls.u());
             let p1 = other_ivl.point(u_ivls.v());
 
@@ -344,20 +324,9 @@ impl CurveSolver<f64> {
         };
 
         let nf_der = |u_ivls: Vec2<Interval>, gradient: Vec2<Interval>| -> Vec2<Interval> {
-            /*
-            println!("nf_der u_ivls = {:?}", u_ivls);
-            println!("nf_der gradient = {:?}", gradient);
-            println!(
-                "nf_der func = {:?}",
-                (u_ivls.mid().as_interval() - dist2(u_ivls.mid()) * gradient.recip())
-            );
-            println!("dist2 = {:?}", dist2(u_ivls.mid()));
-             */
             (u_ivls.mid().as_interval() - dist2(u_ivls.mid()) * gradient.recip())
                 .intersection(u_ivls)
         };
-
-        //let nf = |u_ivls: Vec2<Interval>| -> Vec2<Interval> { nf_der(u_ivls, gradient(u_ivls)) };
 
         const MAX_ITER: u32 = 100;
         let domains: Vec2<Interval> = vec2(self.domain().into(), other.domain().into());
@@ -374,21 +343,17 @@ impl CurveSolver<f64> {
         while iter < MAX_ITER {
             iter += 1;
 
-            println!("\n\n\niter = {}", iter);
+            println!("\niter = {}", iter);
+            println!("search_intervals = {:#?}", search_intervals);
 
             if search_intervals.len() == 0 {
                 break;
             }
 
-            println!("search_intervals = {:#?}", search_intervals);
-
             let mut new_intervals: Vec<NewInterval> = vec![];
             for search_interval in search_intervals {
                 let mut pending_new_intervals = vec![];
                 for gs in gradient(search_interval).split_on_zero() {
-                    println!("search_interval = {}", search_interval);
-                    println!("gs = {}", gs);
-                    println!("nf_der = {}", nf_der(search_interval, gs));
                     pending_new_intervals.push(NewInterval {
                         new: nf_der(search_interval, gs).intersection(domains),
                         from: search_interval,
@@ -408,39 +373,26 @@ impl CurveSolver<f64> {
 
             search_intervals = vec![];
 
-            println!("{} new intervals", new_intervals.len());
-            println!("new intervals: {:#?}", new_intervals);
-
             for new_interval in new_intervals {
                 if new_interval.new.is_empty() {
-                    println!("EMPTY");
                     continue;
                 }
 
                 if new_interval.new.intersection(new_interval.from).is_empty() {
-                    println!("discard, no intersection of new and from");
-                    println!("new -> {}", new_interval.new);
-                    println!("from -> {}", new_interval.from);
-                    //panic!();
                     continue;
                 }
 
                 if new_interval.new == new_interval.from {
                     converged_intervals.push(new_interval.new);
                 } else {
-                    println!("new_interval = {:?}", new_interval);
                     search_intervals.push(new_interval.new);
                 }
             }
-
-            //println!("search_intervals = {:#?}", search_intervals);
-            //println!("converged_intervals = {:#?}", converged_intervals);
         }
 
         println!("search_intervals = {:#?}", search_intervals);
         println!("converged_intervals = {:#?}", converged_intervals);
 
-        //todo!()
         vec![]
     }
 }
