@@ -116,35 +116,41 @@ fn build_scene() -> Scene {
     {
         let c1 = model.create_arc(
             1.0,
-            deg(360.0),
+            deg(225.0),
+            /*
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+             */
+            Quat::ZERO,
             Vec3::ZERO,
         );
+
+        /*
         let c2 = model.create_arc(
             1.0,
             deg(360.0),
             Quat::ZERO,
             vec3(0.0, f64::SQRT_2 / 2.0, f64::SQRT_2 / 2.0),
         );
+         */
 
         /*
         let p0 = model.create_point3(vec3(0.0, -1.0, 0.0));
         let p1 = model.create_point3(vec3(0.0, 1.0, 0.0));
-        let p2 = model.create_point3(vec3(-1.0, 0.0, 0.0));
-        let p3 = model.create_point3(vec3(1.0, 0.0, 0.0));
-
         let c1 = model.create_line_between(p0, p1);
+
+          */
+        let p2 = model.create_point3(vec3(-2.0, 0.0, 0.0));
+        let p3 = model.create_point3(vec3(2.0, 0.0, 0.0));
         let c2 = model.create_line_between(p2, p3);
-         */
 
         let c1_solver = model.curve_solver(c1).unwrap();
         let c2_solver = model.curve_solver(c2).unwrap();
 
         c1_solver.intersect_curve(&c2_solver);
 
-        model.create_point3(*c1_solver.point(5.497787143647968).pos());
-        model.create_point3(*c2_solver.point(3.926990816713388).pos());
+        //model.create_point3(*c1_solver.point(5.497787143647968).pos());
+        //model.create_point3(*c2_solver.point(3.926990816713388).pos());
 
         //model.create_point3(*arc1_solver.point(3.92699).pos());
         //model.create_point3(*arc2_solver.point(5.49778).pos());

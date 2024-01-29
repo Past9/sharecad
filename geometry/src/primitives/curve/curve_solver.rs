@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
 use crate::{
-    math::{deg, vec2, Angle, Coincidence, Interval, Quat, Scalar, Vec2, Vec3},
+    math::{deg, vec2, Angle, Coincidence, Interval, Mat22, Quat, Scalar, Vec2, Vec3},
     primitives::Point,
     tessellate::{TessellatedCurve, TessellationTolerance},
 };
@@ -306,29 +306,51 @@ impl CurveSolver<f64> {
         let self_ivl: CurveSolver<Interval> = self.as_interval();
         let other_ivl: CurveSolver<Interval> = other.as_interval();
 
-        let dist2 = |u_ivls: Vec2<f64>| -> Interval {
+        let dist2 = |u_ivls: Vec2<f64>| -> Vec2<Interval> {
             let p0 = self_ivl.point(Interval::thin(u_ivls.u()));
             let p1 = other_ivl.point(Interval::thin(u_ivls.v()));
 
-            p1.der1().dot(*p1.pos() - *p0.pos())
+            vec2(
+                (*p0.pos() - *p1.pos()).dot(*p0.der1()),
+                (*p1.pos() - *p0.pos()).dot(*p1.der1()),
+            )
         };
 
-        let gradient = |u_ivls: Vec2<Interval>| -> Vec2<Interval> {
+        let jacobian = |u_ivls: Vec2<Interval>| -> Mat22<Interval> {
             let p0 = self_ivl.point(u_ivls.u());
             let p1 = other_ivl.point(u_ivls.v());
 
-            let du0 = p1.der1().dot(-*p0.der1());
-            let du1 = p1.der1().magnitude2() + p1.der2().dot(*p1.pos() - *p0.pos());
+            let p0du = (*p0.pos() - *p1.pos()).dot(*p0.der2()) + p0.der1().magnitude2();
+            let p0dv = (-*p1.der1()).dot(*p0.der1());
 
-            vec2(du0, du1)
+            let p1du = (-*p0.der1()).dot(*p1.der1());
+            let p1dv = (*p1.pos() - *p0.pos()).dot(*p1.der2()) + p1.der1().magnitude2();
+
+            Mat22::new(p0du, p0dv, p1du, p1dv)
+
+            //let du0 = p1.der1().dot(-*p0.der1());
+            //let du1 = p1.der1().magnitude2() + p1.der2().dot(*p1.pos() - *p0.pos());
+
+            // [p0du, p0dv]
+            // [p1du, p1dv]
+
+            //vec2(du0, du1)
+            //todo!()
         };
 
-        let nf_der = |u_ivls: Vec2<Interval>, gradient: Vec2<Interval>| -> Vec2<Interval> {
-            (u_ivls.mid().as_interval() - dist2(u_ivls.mid()) * gradient.recip())
-                .intersection(u_ivls)
+        let nf_der = |u_ivls: Vec2<Interval>, jacobian: Mat22<Interval>| -> Vec2<Interval> {
+            println!("JD = {:?}", jacobian.determinant());
+            println!("JI = {:?}", jacobian.inverse().unwrap());
+            println!(
+                "CORRECTED = {:?}",
+                (u_ivls.mid().as_interval() - jacobian.inverse().unwrap() * dist2(u_ivls.mid()))
+            );
+            let ji = jacobian.inverse().unwrap();
+            //let ji = ji.mid().as_interval();
+            (u_ivls.mid().as_interval() - ji * dist2(u_ivls.mid())).intersection(u_ivls)
         };
 
-        const MAX_ITER: u32 = 100;
+        const MAX_ITER: u32 = 50;
         let domains: Vec2<Interval> = vec2(self.domain().into(), other.domain().into());
         let mut search_intervals: Vec<Vec2<Interval>> = vec![domains];
         let mut converged_intervals: Vec<Vec2<Interval>> = vec![];
@@ -344,7 +366,8 @@ impl CurveSolver<f64> {
             iter += 1;
 
             println!("\niter = {}", iter);
-            println!("search_intervals = {:#?}", search_intervals);
+            println!("SI len = {}", search_intervals.len());
+            //println!("search_intervals = {:#?}", search_intervals);
 
             if search_intervals.len() == 0 {
                 break;
@@ -353,9 +376,10 @@ impl CurveSolver<f64> {
             let mut new_intervals: Vec<NewInterval> = vec![];
             for search_interval in search_intervals {
                 let mut pending_new_intervals = vec![];
-                for gs in gradient(search_interval).split_on_zero() {
+                println!("jac = {:#?}", jacobian(search_interval));
+                for split in jacobian(search_interval).split_on_zero() {
                     pending_new_intervals.push(NewInterval {
-                        new: nf_der(search_interval, gs).intersection(domains),
+                        new: nf_der(search_interval, split).intersection(domains),
                         from: search_interval,
                     });
                 }
@@ -367,6 +391,8 @@ impl CurveSolver<f64> {
                         .any(|remaining| remaining.new == last.new)
                     {
                         new_intervals.push(last);
+                    } else {
+                        //
                     }
                 }
             }

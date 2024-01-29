@@ -1,4 +1,4 @@
-use super::Scalar;
+use super::{Interval, Scalar};
 use gen_ops::gen_ops;
 use std::ops::Index;
 
@@ -50,6 +50,90 @@ impl<S: Scalar> Mat22<S> {
         equal
     }
      */
+}
+impl Mat22<f64> {
+    pub fn as_interval(&self) -> Mat22<Interval> {
+        Mat22::new(
+            Interval::thin(self[0][0]),
+            Interval::thin(self[0][1]),
+            Interval::thin(self[1][0]),
+            Interval::thin(self[1][1]),
+        )
+    }
+}
+impl Mat22<Interval> {
+    pub fn split_on_zero(&self) -> Vec<Self> {
+        let ivls_00 = self[0][0].split_on_zero();
+        let ivls_01 = self[0][1].split_on_zero();
+        let ivls_10 = self[1][0].split_on_zero();
+        let ivls_11 = self[1][1].split_on_zero();
+
+        let mut split_mats = vec![];
+        for i00 in ivls_00.iter() {
+            for i01 in ivls_01.iter() {
+                for i10 in ivls_10.iter() {
+                    for i11 in ivls_11.iter() {
+                        let mat = Mat22::new(*i00, *i01, *i10, *i11);
+                        if !mat.is_empty() {
+                            split_mats.push(mat);
+                        }
+                    }
+                }
+            }
+        }
+        split_mats
+
+        /*
+        let x_ivls = self.x.split_on_zero();
+        let y_ivls = self.y.split_on_zero();
+        let mut split_vecs = vec![];
+        for x in x_ivls.iter() {
+            for y in y_ivls.iter() {
+                split_vecs.push(Mat22::new(*x, *y));
+            }
+        }
+
+        split_vecs
+         */
+    }
+
+    pub fn mid(&self) -> Mat22<f64> {
+        Mat22::new(
+            self[0][0].mid(),
+            self[0][1].mid(),
+            self[1][0].mid(),
+            self[1][1].mid(),
+        )
+    }
+
+    pub fn intersection(&self, other: Self) -> Self {
+        let intersect_00 = self[0][0].intersection(other[0][0]);
+        let intersect_01 = self[0][1].intersection(other[0][1]);
+        let intersect_10 = self[1][0].intersection(other[1][0]);
+        let intersect_11 = self[1][1].intersection(other[1][1]);
+
+        if !intersect_00.is_empty()
+            && !intersect_01.is_empty()
+            && !intersect_10.is_empty()
+            && !intersect_11.is_empty()
+        {
+            Mat22::new(intersect_00, intersect_01, intersect_10, intersect_11)
+        } else {
+            Mat22::new(
+                Interval::EMPTY,
+                Interval::EMPTY,
+                Interval::EMPTY,
+                Interval::EMPTY,
+            )
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self[0][0].is_empty()
+            || self[0][1].is_empty()
+            || self[1][0].is_empty()
+            || self[1][1].is_empty()
+    }
 }
 impl<S: Scalar> Index<usize> for Mat22<S> {
     type Output = [S; 2];
