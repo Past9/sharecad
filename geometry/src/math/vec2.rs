@@ -119,6 +119,10 @@ impl Vec2<Interval> {
         split_vecs
     }
 
+    pub fn is_subset_of(&self, other: Self) -> bool {
+        self.x.is_subset_of(other.x) && self.y.is_subset_of(other.y)
+    }
+
     pub fn mid(&self) -> Vec2<f64> {
         vec2(self.x.mid(), self.y.mid())
     }

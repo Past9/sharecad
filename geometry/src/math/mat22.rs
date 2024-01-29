@@ -28,15 +28,6 @@ impl<S: Scalar> Mat22<S> {
         Self([[self[1][1], -self[0][1]], [-self[1][0], self[0][0]]])
     }
 
-    pub fn inverse(self) -> Option<Self> {
-        let det = self.determinant();
-        if det == S::ZERO {
-            None
-        } else {
-            Some(det.recip() * self.adjoint())
-        }
-    }
-
     /*
     pub fn approx_eq(self, other: Self, tol: S) -> bool {
         let mut equal = true;
@@ -60,8 +51,34 @@ impl Mat22<f64> {
             Interval::thin(self[1][1]),
         )
     }
+
+    pub fn inverse(self) -> Option<Self> {
+        let det = self.determinant();
+        if det == 0.0 {
+            None
+        } else {
+            Some(det.recip() * self.adjoint())
+        }
+    }
 }
 impl Mat22<Interval> {
+    pub fn inverse(self) -> Self {
+        let mid = self.mid();
+        let rad = self.rad();
+
+        let inv_mid = mid.inverse().unwrap();
+
+        let mid_det = mid.determinant();
+        let expand_rad = mid_det.recip().abs() * rad;
+
+        Self::new(
+            Interval::from_mid_rad(inv_mid[0][0], expand_rad[0][0]),
+            Interval::from_mid_rad(inv_mid[0][1], expand_rad[0][1]),
+            Interval::from_mid_rad(inv_mid[1][0], expand_rad[1][0]),
+            Interval::from_mid_rad(inv_mid[1][1], expand_rad[1][1]),
+        )
+    }
+
     pub fn split_on_zero(&self) -> Vec<Self> {
         let ivls_00 = self[0][0].split_on_zero();
         let ivls_01 = self[0][1].split_on_zero();
@@ -103,6 +120,42 @@ impl Mat22<Interval> {
             self[0][1].mid(),
             self[1][0].mid(),
             self[1][1].mid(),
+        )
+    }
+
+    pub fn rad(&self) -> Mat22<f64> {
+        Mat22::new(
+            self[0][0].rad(),
+            self[0][1].rad(),
+            self[1][0].rad(),
+            self[1][1].rad(),
+        )
+    }
+
+    pub fn inf(&self) -> Mat22<f64> {
+        Mat22::new(
+            self[0][0].inf(),
+            self[0][1].inf(),
+            self[1][0].inf(),
+            self[1][1].inf(),
+        )
+    }
+
+    pub fn sup(&self) -> Mat22<f64> {
+        Mat22::new(
+            self[0][0].sup(),
+            self[0][1].sup(),
+            self[1][0].sup(),
+            self[1][1].sup(),
+        )
+    }
+
+    pub fn from_bounds(inf: Mat22<f64>, sup: Mat22<f64>) -> Mat22<Interval> {
+        Self::new(
+            Interval::from_unordered(inf[0][0], sup[0][0]),
+            Interval::from_unordered(inf[0][1], sup[0][1]),
+            Interval::from_unordered(inf[1][0], sup[1][0]),
+            Interval::from_unordered(inf[1][1], sup[1][1]),
         )
     }
 
@@ -203,10 +256,12 @@ gen_ops!(
 /*
 #[cfg(test)]
 mod tests {
+    use crate::math::Coincidence;
+
     use super::*;
 
-    fn approx_eq(a: Mat22, b: Mat22) {
-        if !a.approx_eq(b, 1e-9) {
+    fn approx_eq<S: Scalar>(a: Mat22<S>, b: Mat22<S>) {
+        if !a.cc_tol(b, 1e-9) {
             panic!("Matrices not approximately equal: {:?}, {:?}", a, b);
         }
     }
@@ -224,4 +279,4 @@ mod tests {
         approx_eq(m.inverse().unwrap() * m, Mat22::IDENTITY);
     }
 }
- */
+*/

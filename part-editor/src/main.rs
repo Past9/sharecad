@@ -116,7 +116,7 @@ fn build_scene() -> Scene {
     {
         let c1 = model.create_arc(
             1.0,
-            deg(225.0),
+            deg(45.0),
             /*
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),

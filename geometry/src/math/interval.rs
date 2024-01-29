@@ -18,6 +18,14 @@ impl Interval {
         Self(val, val)
     }
 
+    pub fn from_unordered(a: f64, b: f64) -> Self {
+        Self(a.min(b), a.max(b))
+    }
+
+    pub fn from_mid_rad(mid: f64, rad: f64) -> Self {
+        Self(mid - rad, mid + rad)
+    }
+
     pub fn is_empty(self) -> bool {
         //self == Self::EMPTY
         self.0 > self.1
@@ -89,13 +97,22 @@ impl Interval {
 
     pub fn split_on_zero(&self) -> Vec<Self> {
         if self.0 < 0.0 && self.1 > 0.0 {
-            vec![Self(self.0, (-0.0).prev()), Self(0.0.next(), self.1)]
+            //vec![Self(self.0, (-0.0).prev()), Self(0.0.next(), self.1)]
+            vec![Self(self.0, -0.0), Self(0.0, self.1)]
         } else {
             vec![*self]
         }
         .into_iter()
         .filter(|ivl| !ivl.is_empty())
         .collect()
+    }
+
+    pub fn inf(&self) -> f64 {
+        self.0
+    }
+
+    pub fn sup(&self) -> f64 {
+        self.1
     }
 }
 impl From<(f64, f64)> for Interval {

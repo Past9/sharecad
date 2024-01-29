@@ -306,7 +306,7 @@ impl CurveSolver<f64> {
         let self_ivl: CurveSolver<Interval> = self.as_interval();
         let other_ivl: CurveSolver<Interval> = other.as_interval();
 
-        let dist2 = |u_ivls: Vec2<f64>| -> Vec2<Interval> {
+        let func = |u_ivls: Vec2<f64>| -> Vec2<Interval> {
             let p0 = self_ivl.point(Interval::thin(u_ivls.u()));
             let p1 = other_ivl.point(Interval::thin(u_ivls.v()));
 
@@ -327,35 +327,40 @@ impl CurveSolver<f64> {
             let p1dv = (*p1.pos() - *p0.pos()).dot(*p1.der2()) + p1.der1().magnitude2();
 
             Mat22::new(p0du, p0dv, p1du, p1dv)
-
-            //let du0 = p1.der1().dot(-*p0.der1());
-            //let du1 = p1.der1().magnitude2() + p1.der2().dot(*p1.pos() - *p0.pos());
-
-            // [p0du, p0dv]
-            // [p1du, p1dv]
-
-            //vec2(du0, du1)
-            //todo!()
         };
 
         let nf_der = |u_ivls: Vec2<Interval>, jacobian: Mat22<Interval>| -> Vec2<Interval> {
-            println!("JD = {:?}", jacobian.determinant());
-            println!("JI = {:?}", jacobian.inverse().unwrap());
-            println!(
-                "CORRECTED = {:?}",
-                (u_ivls.mid().as_interval() - jacobian.inverse().unwrap() * dist2(u_ivls.mid()))
-            );
-            let ji = jacobian.inverse().unwrap();
-            //let ji = ji.mid().as_interval();
-            (u_ivls.mid().as_interval() - ji * dist2(u_ivls.mid())).intersection(u_ivls)
+            /*
+            let ji = match jacobian.inverse() {
+                Some(ji) => ji,
+                None => return vec2(Interval::EMPTY, Interval::EMPTY),
+            };
+             */
+            let ji = jacobian.inverse();
+            //println!("ji * j = {:?}", (ji * jacobian).mid());
+            //println!("JI = {:#?}", ji);
+            let corrected = u_ivls.mid().as_interval() - ji * func(u_ivls.mid());
+            //println!("CORRECTED = {:#?}", corrected);
+            (corrected).intersection(u_ivls)
         };
+
+        /*
+        let nf_der = |u_ivls: Vec2<Interval>, jacobian: Mat22<Interval>| -> Vec2<Interval> {
+            let ji = jacobian.inverse().unwrap();
+            println!("ji * j = {:?}", (ji * jacobian).mid());
+            //println!("JI = {:#?}", ji);
+            let corrected = u_ivls.mid().as_interval() - ji * func(u_ivls.mid());
+            println!("CORRECTED = {:#?}", corrected);
+            (corrected).intersection(u_ivls)
+        };
+         */
 
         const MAX_ITER: u32 = 50;
         let domains: Vec2<Interval> = vec2(self.domain().into(), other.domain().into());
         let mut search_intervals: Vec<Vec2<Interval>> = vec![domains];
         let mut converged_intervals: Vec<Vec2<Interval>> = vec![];
 
-        #[derive(PartialEq, Debug)]
+        #[derive(PartialEq, Debug, Copy, Clone)]
         struct NewInterval {
             new: Vec2<Interval>,
             from: Vec2<Interval>,
@@ -367,7 +372,10 @@ impl CurveSolver<f64> {
 
             println!("\niter = {}", iter);
             println!("SI len = {}", search_intervals.len());
-            //println!("search_intervals = {:#?}", search_intervals);
+            /*
+            println!("search_intervals = {:#?}", search_intervals);
+            println!("converged_intervals = {:#?}", converged_intervals);
+             */
 
             if search_intervals.len() == 0 {
                 break;
@@ -376,7 +384,14 @@ impl CurveSolver<f64> {
             let mut new_intervals: Vec<NewInterval> = vec![];
             for search_interval in search_intervals {
                 let mut pending_new_intervals = vec![];
+                /*
                 println!("jac = {:#?}", jacobian(search_interval));
+                println!(
+                    "num splits = {:#?}",
+                    jacobian(search_interval).split_on_zero()
+                );
+                 */
+                //for split in jacobian(search_interval).split_on_zero() {
                 for split in jacobian(search_interval).split_on_zero() {
                     pending_new_intervals.push(NewInterval {
                         new: nf_der(search_interval, split).intersection(domains),
@@ -384,7 +399,31 @@ impl CurveSolver<f64> {
                     });
                 }
 
+                for pending in pending_new_intervals.iter() {
+                    if pending_new_intervals
+                        .iter()
+                        .filter(|p| p.new == pending.new)
+                        .count()
+                        == 1
+                    {
+                        new_intervals.push(*pending);
+                    }
+                }
+
+                /*
                 while pending_new_intervals.len() > 0 {
+                    for pending in pending_new_intervals.iter() {
+                        if pending_new_intervals
+                            .iter()
+                            .filter(|p| p.new == pending.new)
+                            .count()
+                            == 1
+                        {
+                            new_intervals.push(*pending);
+                        }
+                    }
+
+                    /*
                     let last = pending_new_intervals.pop().unwrap();
                     if !pending_new_intervals
                         .iter()
@@ -393,25 +432,44 @@ impl CurveSolver<f64> {
                         new_intervals.push(last);
                     } else {
                         //
+                        //new_intervals.push(last);
                     }
+                    */
                 }
+                */
             }
 
             search_intervals = vec![];
 
             for new_interval in new_intervals {
+                println!("NI: {} from {}", new_interval.new, new_interval.from);
                 if new_interval.new.is_empty() {
+                    println!("EMPTY");
                     continue;
                 }
 
+                /*
                 if new_interval.new.intersection(new_interval.from).is_empty() {
                     continue;
                 }
+                 */
 
-                if new_interval.new == new_interval.from {
-                    converged_intervals.push(new_interval.new);
+                if new_interval.new.is_subset_of(new_interval.from) {
+                    // If the new interval is a subset of the old one,
+                    // then it contains exactly one zero
+                    if new_interval.new == new_interval.from {
+                        // If the new interval is equal to the old one,
+                        // then it's done converging on the zero
+                        converged_intervals.push(new_interval.new);
+                        println!("CONVERGED");
+                    } else {
+                        // Otherwise, refine it again on the next iteration
+                        search_intervals.push(new_interval.new);
+                        println!("REFINE NEXT");
+                    }
                 } else {
-                    search_intervals.push(new_interval.new);
+                    // There are no zeros in the new interval, so discard it
+                    println!("DISCARD");
                 }
             }
         }
