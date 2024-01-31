@@ -336,7 +336,11 @@ impl CurveSolver<f64> {
                 None => return vec2(Interval::EMPTY, Interval::EMPTY),
             };
              */
+            println!("split eig = {:?}", jacobian.mid().eigenvalues());
+            println!("is_reg = {}", jacobian.is_regular());
+
             let ji = jacobian.inverse().unwrap();
+            //let ji = jacobian;
             //println!("ji * j = {:?}", (ji * jacobian).mid());
             //println!("JI = {:#?}", ji);
             let corrected = u_ivls.mid().as_interval() - ji * func(u_ivls.mid());
@@ -393,6 +397,11 @@ impl CurveSolver<f64> {
                  */
                 //for split in jacobian(search_interval).split_on_zero() {
                 println!("JAC = {:#?}", jacobian(search_interval));
+                println!(
+                    "JAC eig = {:?}",
+                    jacobian(search_interval).mid().eigenvalues()
+                );
+                println!("JAC is reg = {:?}", jacobian(search_interval).is_regular());
                 for split in jacobian(search_interval).split_on_zero() {
                     pending_new_intervals.push(NewInterval {
                         new: nf_der(search_interval, split).intersection(domains),

@@ -1,4 +1,4 @@
-use super::{Interval, Scalar};
+use super::{Coincidence, Interval, Scalar};
 use gen_ops::gen_ops;
 use std::ops::Index;
 
@@ -41,6 +41,14 @@ impl<S: Scalar> Mat22<S> {
         equal
     }
      */
+    pub fn el_mul(self, other: Self) -> Self {
+        Self::new(
+            self[0][0] * other[0][0],
+            self[0][1] * other[0][1],
+            self[1][0] * other[1][0],
+            self[1][1] * other[1][1],
+        )
+    }
 }
 impl Mat22<f64> {
     pub fn as_interval(&self) -> Mat22<Interval> {
@@ -60,6 +68,61 @@ impl Mat22<f64> {
             Some(det.recip() * self.adjoint())
         }
     }
+
+    pub fn signum(self) -> Self {
+        Self::new(
+            self[0][0].signum(),
+            self[0][1].signum(),
+            self[1][0].signum(),
+            self[1][1].signum(),
+        )
+    }
+
+    /*
+    pub fn abs(self) -> Self {
+        Self::new(
+            self[0][0].abs(),
+            self[0][1].abs(),
+            self[1][0].abs(),
+            self[1][1].abs(),
+        )
+    }
+     */
+
+    pub fn eigenvalues(&self) -> Vec<f64> {
+        let a = self[0][0];
+        let b = self[0][1];
+        let c = self[1][0];
+        let d = self[1][1];
+
+        let root = (a.powi(2) + 4.0 * b * c - 2.0 * a * d + d.powi(2)).sqrt();
+
+        let e0 = (a + d - root) / 2.0;
+        let e1 = (a + d + root) / 2.0;
+
+        vec![e0, e1]
+    }
+
+    pub fn spectral_radius(&self) -> f64 {
+        let mut ev_abs = self
+            .eigenvalues()
+            .into_iter()
+            .map(|ev| ev.abs())
+            .collect::<Vec<_>>();
+
+        ev_abs.sort_by(|a, b| a.total_cmp(b));
+
+        ev_abs.into_iter().last().unwrap()
+    }
+
+    pub fn tys() -> Vec<Self> {
+        vec![
+            Self::new(1.0, 0.0, 0.0, 1.0),
+            Self::new(1.0, 0.0, 0.0, -1.0),
+            Self::new(-1.0, 0.0, 0.0, 1.0),
+            Self::new(-1.0, 0.0, 0.0, -1.0),
+        ]
+    }
 }
 impl Mat22<Interval> {
     /*
@@ -73,6 +136,23 @@ impl Mat22<Interval> {
     }
     */
 
+    pub fn signaccord(A: Mat22<f64>, B: Mat22<f64>, b: f64) -> Mat22<f64> {
+        todo!()
+    }
+
+    pub fn inverse(self) -> Option<Self> {
+        //let mut bys = vec![];
+        for ty in Mat22::<f64>::tys() {
+            let A = self.mid();
+            let B = -ty * self.rad();
+            let b = todo!();
+            //let (x, S, flag) = Self::signaccord(A, B, b);
+        }
+
+        todo!()
+    }
+
+    /*
     pub fn inverse(self) -> Option<Self> {
         let mid = self.mid();
         let rad = self.rad();
@@ -88,6 +168,17 @@ impl Mat22<Interval> {
             Interval::from_mid_rad(inv_mid[1][0], expand_rad[1][0]),
             Interval::from_mid_rad(inv_mid[1][1], expand_rad[1][1]),
         ))
+    }
+     */
+
+    /*
+    pub fn inverse(self) -> Option<Self> {
+        self.mid().inverse().map(|inv| inv.as_interval())
+    }
+      */
+
+    pub fn is_regular(&self) -> bool {
+        (self.mid().inverse().unwrap().determinant() * self.rad()).spectral_radius() < 1.0
     }
 
     pub fn split_on_zero(&self) -> Vec<Self> {
@@ -227,6 +318,24 @@ impl<S: Scalar> std::fmt::Debug for Mat22<S> {
         f.write_fmt(format_args!("{:?}", self.0))
     }
 }
+
+gen_ops!(
+    <S>;
+    types Mat22<S> => Mat22<S>;
+    for - call |m: &Mat22<S>| {
+        Self([
+            [
+                -m[0][0],
+                -m[0][1],
+            ],
+            [
+                -m[1][0],
+                -m[1][1],
+            ],
+        ])
+    };
+    where S: Scalar
+);
 
 gen_ops!(
     <S>;
