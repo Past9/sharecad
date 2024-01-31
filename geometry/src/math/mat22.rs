@@ -62,7 +62,18 @@ impl Mat22<f64> {
     }
 }
 impl Mat22<Interval> {
-    pub fn inverse(self) -> Self {
+    /*
+    pub fn inverse(self) -> Option<Self> {
+        let det = self.determinant();
+        if det == Interval::ZERO {
+            None
+        } else {
+            Some(det.recip() * self.adjoint())
+        }
+    }
+    */
+
+    pub fn inverse(self) -> Option<Self> {
         let mid = self.mid();
         let rad = self.rad();
 
@@ -71,12 +82,12 @@ impl Mat22<Interval> {
         let mid_det = mid.determinant();
         let expand_rad = mid_det.recip().abs() * rad;
 
-        Self::new(
+        Some(Self::new(
             Interval::from_mid_rad(inv_mid[0][0], expand_rad[0][0]),
             Interval::from_mid_rad(inv_mid[0][1], expand_rad[0][1]),
             Interval::from_mid_rad(inv_mid[1][0], expand_rad[1][0]),
             Interval::from_mid_rad(inv_mid[1][1], expand_rad[1][1]),
-        )
+        ))
     }
 
     pub fn split_on_zero(&self) -> Vec<Self> {
@@ -250,10 +261,21 @@ gen_ops!(
             ],
         ])
     };
+    for / call |l: &Mat22<S>, r: &S| {
+        Self([
+            [
+                l[0][0] / *r,
+                l[0][1] / *r,
+            ],
+            [
+                l[1][0] / *r,
+                l[1][1] / *r,
+            ],
+        ])
+    };
     where S: Scalar
 );
 
-/*
 #[cfg(test)]
 mod tests {
     use crate::math::Coincidence;
@@ -271,6 +293,10 @@ mod tests {
         let m = Mat22::new(1.0, 2.0, 3.0, 4.0);
         let inv = Mat22::new(-2.0, 1.0, 1.5, -0.5);
 
+        println!("f64 m = {:#?}", m);
+        println!("f64 inv = {:#?}", inv);
+        println!("f64 inv * m = {:#?}", inv * m);
+
         approx_eq(m.inverse().unwrap(), inv);
         approx_eq(inv.inverse().unwrap(), m);
         approx_eq(m * inv, Mat22::IDENTITY);
@@ -278,5 +304,22 @@ mod tests {
         approx_eq(m * m.inverse().unwrap(), Mat22::IDENTITY);
         approx_eq(m.inverse().unwrap() * m, Mat22::IDENTITY);
     }
+
+    /*
+    #[test]
+    fn inverts_interval_matrix() {
+        let m = Mat22::new(1.0, 2.0, 3.0, 4.0).as_interval();
+        let inv = m.inverse().unwrap();
+        println!("ivl m = {:#?}", m);
+        println!("ivl inv = {:#?}", inv);
+        println!("ivl inv * m = {:#?}", inv * m);
+
+        approx_eq(m.inverse().unwrap(), inv);
+        approx_eq(inv.inverse().unwrap(), m);
+        approx_eq(m * inv, Mat22::IDENTITY);
+        approx_eq(inv * m, Mat22::IDENTITY);
+        approx_eq(m * m.inverse().unwrap(), Mat22::IDENTITY);
+        approx_eq(m.inverse().unwrap() * m, Mat22::IDENTITY);
+    }
+     */
 }
-*/

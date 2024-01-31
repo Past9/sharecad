@@ -114,6 +114,38 @@ impl Interval {
     pub fn sup(&self) -> f64 {
         self.1
     }
+
+    fn div(self, other: Self) -> Self {
+        let a = self;
+        let b = other;
+
+        if a.is_empty() || b.is_empty() {
+            return Interval::EMPTY;
+        }
+
+        if !b.contains_zero() {
+            a * Interval(b.1.recip(), b.0.recip())
+        } else if a.contains_zero() && b.contains_zero() {
+            Interval(f64::NEG_INFINITY, f64::INFINITY)
+        } else if a.1 < 0.0 && b.0 < b.1 && b.1 == 0.0 {
+            Interval(a.1 / b.0, f64::INFINITY)
+        } else if a.1 < 0.0 && b.0 < 0.0 && 0.0 < b.1 {
+            Interval(a.1 / b.0, a.1 / b.1)
+        } else if a.1 < 0.0 && 0.0 == b.0 && b.0 < b.1 {
+            Interval(f64::NEG_INFINITY, a.1 / b.1)
+        } else if 0.0 < a.0 && b.0 < b.1 && b.1 == 0.0 {
+            Interval(f64::NEG_INFINITY, a.0 / b.0)
+        } else if 0.0 < a.0 && b.0 < 0.0 && 0.0 < b.1 {
+            Interval(a.0 / b.1, a.0 / b.0)
+        } else if 0.0 < a.0 && 0.0 < b.0 && b.0 < b.1 {
+            Interval(a.0 / b.1, f64::INFINITY)
+        } else if !a.contains_zero() && b == Interval(0.0, 0.0) {
+            Interval::EMPTY
+        } else {
+            panic!("Cannot divide {} / {}", a, b);
+        }
+        .round_out()
+    }
 }
 impl From<(f64, f64)> for Interval {
     fn from(value: (f64, f64)) -> Self {
@@ -296,6 +328,10 @@ gen_ops!(
         .round_out()
     };
     for / call |l: &Interval, r: &Interval| {
+        l.div(*r)
+    };
+    /*
+    for / call |l: &Interval, r: &Interval| {
         if l.is_empty() || r.is_empty() {
             return Interval::EMPTY;
         }
@@ -315,6 +351,7 @@ gen_ops!(
         )
         .round_out()
     };
+     */
 );
 
 gen_ops!(
@@ -675,3 +712,16 @@ mod tests {
     }
 }
 */
+
+#[cfg(test)]
+mod tests {
+    use float_cmp::Ulps;
+
+    #[test]
+    fn next_inf() {
+        let inf: f64 = 0.0;
+        println!("inf.next() = {}", inf.next().next());
+        println!("-0 == 0 = {}", -0.0 == 0.0);
+        println!("-0 = {}", -0.0);
+    }
+}
