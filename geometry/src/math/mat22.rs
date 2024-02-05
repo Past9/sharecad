@@ -140,6 +140,7 @@ impl Mat22<Interval> {
         todo!()
     }
 
+    /*
     pub fn inverse(self) -> Option<Self> {
         //let mut bys = vec![];
         for ty in Mat22::<f64>::tys() {
@@ -151,6 +152,7 @@ impl Mat22<Interval> {
 
         todo!()
     }
+     */
 
     /*
     pub fn inverse(self) -> Option<Self> {
@@ -340,6 +342,18 @@ gen_ops!(
 gen_ops!(
     <S>;
     types Mat22<S>, Mat22<S> => Mat22<S>;
+    for - call |l: &Mat22<S>, r: &Mat22<S>| {
+        Self([
+            [
+                l[0][0] - r[0][0],
+                l[0][1] - r[0][1],
+            ],
+            [
+                l[1][0] - r[1][0],
+                l[1][1] - r[1][1],
+            ],
+        ])
+    };
     for * call |l: &Mat22<S>, r: &Mat22<S>| {
         Self([
             [

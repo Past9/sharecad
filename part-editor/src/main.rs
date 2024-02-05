@@ -116,7 +116,7 @@ fn build_scene() -> Scene {
     {
         let c1 = model.create_arc(
             1.0,
-            deg(45.0),
+            deg(170.0),
             /*
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
@@ -140,8 +140,8 @@ fn build_scene() -> Scene {
         let c1 = model.create_line_between(p0, p1);
 
           */
-        let p2 = model.create_point3(vec3(-2.0, 0.0, 0.0));
-        let p3 = model.create_point3(vec3(2.0, 0.0, 0.0));
+        let p2 = model.create_point3(vec3(0.5, -3.0, 0.0));
+        let p3 = model.create_point3(vec3(0.5, 2.0, 0.0));
         let c2 = model.create_line_between(p2, p3);
 
         let c1_solver = model.curve_solver(c1).unwrap();

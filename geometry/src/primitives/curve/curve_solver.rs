@@ -306,9 +306,9 @@ impl CurveSolver<f64> {
         let self_ivl: CurveSolver<Interval> = self.as_interval();
         let other_ivl: CurveSolver<Interval> = other.as_interval();
 
-        let func = |u_ivls: Vec2<f64>| -> Vec2<Interval> {
-            let p0 = self_ivl.point(Interval::thin(u_ivls.u()));
-            let p1 = other_ivl.point(Interval::thin(u_ivls.v()));
+        let func = |u_ivls: Vec2<Interval>| -> Vec2<Interval> {
+            let p0 = self_ivl.point(u_ivls.u());
+            let p1 = other_ivl.point(u_ivls.v());
 
             vec2(
                 (*p0.pos() - *p1.pos()).dot(*p0.der1()),
@@ -329,35 +329,42 @@ impl CurveSolver<f64> {
             Mat22::new(p0du, p0dv, p1du, p1dv)
         };
 
-        let nf_der = |u_ivls: Vec2<Interval>, jacobian: Mat22<Interval>| -> Vec2<Interval> {
-            /*
-            let ji = match jacobian.inverse() {
-                Some(ji) => ji,
-                None => return vec2(Interval::EMPTY, Interval::EMPTY),
-            };
-             */
-            println!("split eig = {:?}", jacobian.mid().eigenvalues());
-            println!("is_reg = {}", jacobian.is_regular());
+        let jacobian_f64 = |u_ivls: Vec2<f64>| -> Mat22<f64> {
+            let p0 = self.point(u_ivls.u());
+            let p1 = other.point(u_ivls.v());
 
-            let ji = jacobian.inverse().unwrap();
-            //let ji = jacobian;
-            //println!("ji * j = {:?}", (ji * jacobian).mid());
-            //println!("JI = {:#?}", ji);
-            let corrected = u_ivls.mid().as_interval() - ji * func(u_ivls.mid());
-            println!("CORRECTED = {:#?} from {:#?}", corrected, u_ivls);
-            (corrected).intersection(u_ivls)
+            let p0du = (*p0.pos() - *p1.pos()).dot(*p0.der2()) + p0.der1().magnitude2();
+            let p0dv = (-*p1.der1()).dot(*p0.der1());
+
+            let p1du = (-*p0.der1()).dot(*p1.der1());
+            let p1dv = (*p1.pos() - *p0.pos()).dot(*p1.der2()) + p1.der1().magnitude2();
+
+            Mat22::new(p0du, p0dv, p1du, p1dv)
         };
 
-        /*
-        let nf_der = |u_ivls: Vec2<Interval>, jacobian: Mat22<Interval>| -> Vec2<Interval> {
-            let ji = jacobian.inverse().unwrap();
-            println!("ji * j = {:?}", (ji * jacobian).mid());
-            //println!("JI = {:#?}", ji);
-            let corrected = u_ivls.mid().as_interval() - ji * func(u_ivls.mid());
-            println!("CORRECTED = {:#?}", corrected);
+        let nf_der = |u_ivls: Vec2<Interval>, jac: Mat22<Interval>| -> Vec2<Interval> {
+            let mid = u_ivls.mid().as_interval();
+            let mid_jac_inv = jacobian(mid).mid().inverse().unwrap().as_interval();
+
+            let corrected = mid - mid_jac_inv * func(mid)
+                + (Mat22::IDENTITY - mid_jac_inv * jac)
+                    * vec2(
+                        Interval(-u_ivls.x.rad(), u_ivls.x.rad()),
+                        Interval(-u_ivls.y.rad(), u_ivls.y.rad()),
+                    );
+
+            println!("u_ivls = {:?}", u_ivls);
+            println!("jacobian(mid) = {:?}", jacobian(mid));
+            println!("mid = {:?}", mid);
+            println!("mid_jac_inv = {:?}", mid_jac_inv);
+            println!("1 clause = {:?}", mid - mid_jac_inv * func(mid));
+            println!(
+                "2 clause = {:?}",
+                (Mat22::IDENTITY - mid_jac_inv * jac) * (u_ivls - mid)
+            );
+            println!("corrected = {:?}", corrected);
             (corrected).intersection(u_ivls)
         };
-         */
 
         const MAX_ITER: u32 = 50;
         let domains: Vec2<Interval> = vec2(self.domain().into(), other.domain().into());
@@ -376,8 +383,8 @@ impl CurveSolver<f64> {
 
             println!("\niter = {}", iter);
             println!("SI len = {}", search_intervals.len());
-            /*
             println!("search_intervals = {:#?}", search_intervals);
+            /*
             println!("converged_intervals = {:#?}", converged_intervals);
              */
 
@@ -395,16 +402,11 @@ impl CurveSolver<f64> {
                     jacobian(search_interval).split_on_zero()
                 );
                  */
-                //for split in jacobian(search_interval).split_on_zero() {
-                println!("JAC = {:#?}", jacobian(search_interval));
-                println!(
-                    "JAC eig = {:?}",
-                    jacobian(search_interval).mid().eigenvalues()
-                );
-                println!("JAC is reg = {:?}", jacobian(search_interval).is_regular());
-                for split in jacobian(search_interval).split_on_zero() {
+                //for jac in jacobian(search_interval).split_on_zero() {
+                for jac in vec![jacobian(search_interval)] {
+                    //.split_on_zero() {
                     pending_new_intervals.push(NewInterval {
-                        new: nf_der(search_interval, split).intersection(domains),
+                        new: nf_der(search_interval, jac), //.intersection(domains),
                         from: search_interval,
                     });
                 }
