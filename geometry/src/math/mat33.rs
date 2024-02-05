@@ -1,26 +1,25 @@
-use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+use super::{vec3, Quat, Scalar, Vec3};
+use gen_ops::gen_ops;
 use std::ops::Index;
 
-use super::{rad, vec2, vec3, Angle, Quat, Vec2, Vec3};
-
 #[derive(Copy, Clone)]
-pub struct Mat33(pub [[f64; 3]; 3]);
-impl Mat33 {
+pub struct Mat33<S: Scalar>(pub [[S; 3]; 3]);
+impl<S: Scalar> Mat33<S> {
     pub const IDENTITY: Self = Self([
-        [1.0, 0.0, 0.0], //
-        [0.0, 1.0, 0.0], //
-        [0.0, 0.0, 1.0], //
+        [S::ONE, S::ZERO, S::ZERO], //
+        [S::ZERO, S::ONE, S::ZERO], //
+        [S::ZERO, S::ZERO, S::ONE], //
     ]);
 
-    pub fn new(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64, g: f64, h: f64, i: f64) -> Self {
+    pub fn new(a: S, b: S, c: S, d: S, e: S, f: S, g: S, h: S, i: S) -> Self {
         Self([[a, b, c], [d, e, f], [g, h, i]])
     }
 
-    pub fn from_col_vecs(x: Vec3, y: Vec3, z: Vec3) -> Self {
+    pub fn from_col_vecs(x: Vec3<S>, y: Vec3<S>, z: Vec3<S>) -> Self {
         Self([[x.x, y.x, z.x], [x.y, y.y, z.y], [x.z, y.z, z.z]])
     }
 
-    pub fn into_axes(&self) -> (Vec3, Vec3, Vec3) {
+    pub fn into_axes(self) -> (Vec3<S>, Vec3<S>, Vec3<S>) {
         (
             vec3(self[0][0], self[1][0], self[2][0]),
             vec3(self[0][1], self[1][1], self[2][1]),
@@ -28,7 +27,7 @@ impl Mat33 {
         )
     }
 
-    pub fn transpose(&self) -> Self {
+    pub fn transpose(self) -> Self {
         Self([
             [self[0][0], self[1][0], self[2][0]],
             [self[0][1], self[1][1], self[2][1]],
@@ -36,64 +35,15 @@ impl Mat33 {
         ])
     }
 
-    pub fn translation(vec: Vec2) -> Self {
+    pub fn zero_translation(self) -> Self {
         Self([
-            [1.0, 0.0, vec.x], //
-            [0.0, 1.0, vec.y], //
-            [0.0, 0.0, 1.0],   //
-        ])
-    }
-
-    pub fn rotation(angle: Angle) -> Self {
-        let cos = angle.cos();
-        let sin = angle.sin();
-        Self([
-            [cos, -sin, 0.0], //
-            [sin, cos, 0.0],  //
-            [0.0, 0.0, 1.0],  //
-        ])
-    }
-
-    pub fn rotation_from_axes(x: Vec2, y: Vec2) -> Self {
-        //println!("x={}, y={}", x, y);
-        /*
-        // Arithmetic average of angle between local and global X-axes
-        let x_axis_angle = (x.y.asin() + x.x.acos()) / 2.0;
-        // Arithmetic average of angle between local and global Y-axes
-        let y_axis_angle = (y.x.asin() + y.y.acos()) / 2.0;
-        */
-
-        let x_axis_angle = (x.y).atan2(x.x);
-        let y_axis_angle = (-y.x).atan2(y.y);
-
-        // Arithmetic average of X and Y angles
-        let angle = (x_axis_angle + y_axis_angle) / 2.0;
-
-        Self::rotation(rad(angle))
-    }
-
-    pub fn zero_translation(&self) -> Self {
-        Self([
-            [self[0][0], self[0][1], 0.0],
-            [self[1][0], self[1][1], 0.0],
+            [self[0][0], self[0][1], S::ZERO],
+            [self[1][0], self[1][1], S::ZERO],
             [self[2][0], self[2][1], self[2][2]],
         ])
     }
 
-    pub fn get_translation(&self) -> Vec2 {
-        vec2(self[0][2], self[1][2])
-    }
-
-    pub fn get_rotation(&self) -> Angle {
-        // Arithmetic average of reversing the trig operations
-        // used to create the rotation elements
-        rad(
-            (self[0][0].acos() + (-self[0][1]).asin() + self[1][0].asin() + self[1][1].acos())
-                / 4.0,
-        )
-    }
-
-    pub fn determinant(&self) -> f64 {
+    pub fn determinant(self) -> S {
         let a = self[0][0];
         let b = self[0][1];
         let c = self[0][2];
@@ -107,9 +57,9 @@ impl Mat33 {
         (a * e * i) + (b * f * g) + (c * d * h) - (c * e * g) - (b * d * i) - (a * f * h)
     }
 
-    pub fn inverse(&self) -> Option<Self> {
+    pub fn inverse(self) -> Option<Self> {
         let det = self.determinant();
-        if det == 0.0 {
+        if det == S::ZERO {
             None
         } else {
             let a = self[0][0];
@@ -132,14 +82,14 @@ impl Mat33 {
             let i_h = -(a * f - c * d);
             let i_i = a * e - b * d;
 
-            let inv =
-                self.determinant().recip() * Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i);
+            let inv = det.recip() * Self::new(i_a, i_d, i_g, i_b, i_e, i_h, i_c, i_f, i_i);
 
             Some(inv)
         }
     }
 
-    pub fn approx_eq(&self, other: Self, tol: f64) -> bool {
+    /*
+    pub fn approx_eq(self, other: Self, tol: f64) -> bool {
         let mut equal = true;
         for r in 0..3 {
             for c in 0..3 {
@@ -150,42 +100,47 @@ impl Mat33 {
         }
         equal
     }
+     */
 
-    pub fn col0(&self) -> Vec3 {
+    pub fn col0(self) -> Vec3<S> {
         vec3(self[0][0], self[1][0], self[2][0])
     }
 
-    pub fn col1(&self) -> Vec3 {
+    pub fn col1(self) -> Vec3<S> {
         vec3(self[0][1], self[1][1], self[2][1])
     }
 
-    pub fn col2(&self) -> Vec3 {
+    pub fn col2(self) -> Vec3<S> {
         vec3(self[0][2], self[1][2], self[2][2])
     }
 }
-impl Index<usize> for Mat33 {
-    type Output = [f64; 3];
+impl<S: Scalar> Index<usize> for Mat33<S> {
+    type Output = [S; 3];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
 }
-impl From<Mat33> for [[f64; 3]; 3] {
-    fn from(mat: Mat33) -> Self {
-        mat.0
-    }
-}
-impl From<Mat33> for [[f32; 3]; 3] {
-    fn from(mat: Mat33) -> Self {
+impl<S: Scalar> From<Mat33<S>> for [[f64; 3]; 3] {
+    fn from(mat: Mat33<S>) -> Self {
         [
-            [mat[0][0] as f32, mat[0][1] as f32, mat[0][2] as f32],
-            [mat[1][0] as f32, mat[1][1] as f32, mat[1][2] as f32],
-            [mat[2][0] as f32, mat[2][1] as f32, mat[2][2] as f32],
+            [mat[0][0].as_f64(), mat[0][1].as_f64(), mat[0][2].as_f64()],
+            [mat[1][0].as_f64(), mat[1][1].as_f64(), mat[1][2].as_f64()],
+            [mat[2][0].as_f64(), mat[2][1].as_f64(), mat[2][2].as_f64()],
         ]
     }
 }
-impl From<Quat> for Mat33 {
-    fn from(quat: Quat) -> Self {
+impl<S: Scalar> From<Mat33<S>> for [[f32; 3]; 3] {
+    fn from(mat: Mat33<S>) -> Self {
+        [
+            [mat[0][0].as_f32(), mat[0][1].as_f32(), mat[0][2].as_f32()],
+            [mat[1][0].as_f32(), mat[1][1].as_f32(), mat[1][2].as_f32()],
+            [mat[2][0].as_f32(), mat[2][1].as_f32(), mat[2][2].as_f32()],
+        ]
+    }
+}
+impl<S: Scalar> From<Quat<S>> for Mat33<S> {
+    fn from(quat: Quat<S>) -> Self {
         let x2 = quat.v.x + quat.v.x;
         let y2 = quat.v.y + quat.v.y;
         let z2 = quat.v.z + quat.v.z;
@@ -204,18 +159,69 @@ impl From<Quat> for Mat33 {
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Mat33::new(
-            1.0 - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,
-            xy2 + sz2,        1.0 - xx2 - zz2,  yz2 - sx2,
-            xz2 - sy2,        yz2 + sx2,        1.0 - xx2 - yy2,
+            S::ONE - yy2 - zz2,  xy2 - sz2,        xz2 + sy2,
+            xy2 + sz2,        S::ONE - xx2 - zz2,  yz2 - sx2,
+            xz2 - sy2,        yz2 + sx2,        S::ONE - xx2 - yy2,
         )
     }
 }
-impl std::fmt::Debug for Mat33 {
+impl<S: Scalar> std::fmt::Debug for Mat33<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{:?}", self.0))
     }
 }
 
+gen_ops!(
+    <S>;
+    types Mat33<S>, Mat33<S> => Mat33<S>;
+    for * call |l: &Mat33<S>, r: &Mat33<S>| {
+        Self([
+            [
+                l[0][0] * r[0][0] + l[0][1] * r[1][0] + l[0][2] * r[2][0],
+                l[0][0] * r[0][1] + l[0][1] * r[1][1] + l[0][2] * r[2][1],
+                l[0][0] * r[0][2] + l[0][1] * r[1][2] + l[0][2] * r[2][2],
+            ],
+            [
+                l[1][0] * r[0][0] + l[1][1] * r[1][0] + l[1][2] * r[2][0],
+                l[1][0] * r[0][1] + l[1][1] * r[1][1] + l[1][2] * r[2][1],
+                l[1][0] * r[0][2] + l[1][1] * r[1][2] + l[1][2] * r[2][2],
+            ],
+            [
+                l[2][0] * r[0][0] + l[2][1] * r[1][0] + l[2][2] * r[2][0],
+                l[2][0] * r[0][1] + l[2][1] * r[1][1] + l[2][2] * r[2][1],
+                l[2][0] * r[0][2] + l[2][1] * r[1][2] + l[2][2] * r[2][2],
+            ],
+        ])
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Mat33<S>, S => Mat33<S>;
+    for * call |l: &Mat33<S>, r: &S| {
+        Self([
+            [
+                l[0][0] * *r,
+                l[0][1] * *r,
+                l[0][2] * *r,
+            ],
+            [
+                l[1][0] * *r,
+                l[1][1] * *r,
+                l[1][2] * *r,
+            ],
+            [
+                l[2][0] * *r,
+                l[2][1] * *r,
+                l[2][2] * *r,
+            ],
+        ])
+    };
+    where S: Scalar
+);
+
+/*
 impl_op_ex!(*|m: &Mat33, v: &Vec3| -> Vec3 {
     Vec3::new(
         m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
@@ -281,15 +287,17 @@ impl_op_ex_commutative!(*|s: f64, m: &Mat33| -> Mat33 {
         m[2][2] * s,
     )
 });
+*/
 
+/*
 #[cfg(test)]
 mod tests {
-    use crate::math::{deg, point2};
+    use crate::math::{deg, vec2, Coincidence};
 
     use super::*;
 
-    fn approx_eq(a: Mat33, b: Mat33) {
-        if !a.approx_eq(b, 1e-9) {
+    fn approx_eq(a: Mat33<f64>, b: Mat33<f64>) {
+        if !a.cc_tol(b, 1e-9) {
             panic!("Matrices not approximaltey equal: {:?}, {:?}", a, b);
         }
     }
@@ -411,30 +419,5 @@ mod tests {
                 .transform(Mat33::rotation(deg(90.0)) * Mat33::translation(vec2(3.0, 1.0)))
         );
     }
-
-    #[test]
-    fn gets_rotation_from_axes() {
-        let x_axis = vec2(2.0, 1.0).normalize();
-        let y_axis = x_axis.orthogonal();
-
-        println!("x_axis = {}", x_axis);
-
-        let mat1 = Mat33::rotation(deg(45.0));
-        let rot1 = mat1.get_rotation();
-        println!("rot1 = {}", rot1.degrees());
-
-        let mat2 = Mat33::rotation_from_axes(x_axis, y_axis);
-        let rot2 = mat2.get_rotation();
-        println!("rot2 = {}", rot2.degrees());
-
-        println!("mat1 {:#?}", mat1);
-        println!("mat2 {:#?}", mat2);
-
-        /*
-        assert_cc!(
-            Mat33::rotation(deg(90.0)),
-            Mat33::rotation_from_axes(x_axis, y_axis)
-        );
-         */
-    }
 }
+*/

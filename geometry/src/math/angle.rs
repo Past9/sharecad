@@ -1,120 +1,150 @@
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
+use gen_ops::gen_ops;
 use std::f64::consts::PI;
 
-const PI2_1: f64 = PI * 2.0;
-const PI1_2: f64 = PI / 2.0;
-const PI1_4: f64 = PI / 4.0;
-const DEG_TO_RAD: f64 = PI / 180.0;
-const RAD_TO_DEG: f64 = 180.0 / PI;
+use super::{Interval, Scalar};
 
-pub fn deg(deg: f64) -> Angle {
+pub fn deg<S: Scalar>(deg: S) -> Angle<S> {
     Angle::deg(deg)
 }
 
-pub fn rad(rad: f64) -> Angle {
+pub fn rad<S: Scalar>(rad: S) -> Angle<S> {
     Angle::rad(rad)
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct Angle(pub f64);
-impl Angle {
-    pub const ZERO: Self = Self(0.0);
-    pub const RAD_PI: Self = Self(PI);
-    pub const RAD_2PI: Self = Self(PI2_1);
-    pub const RAD_1_2_PI: Self = Self(PI1_2);
-    pub const RAD_1_4_PI: Self = Self(PI1_4);
+pub struct Angle<S: Scalar>(pub S);
+impl<S: Scalar> Angle<S> {
+    pub const ZERO: Self = Self(S::ZERO);
+    pub const RAD_PI: Self = Self(S::PI);
+    pub const RAD_2PI: Self = Self(S::TAU);
+    pub const RAD_1_2_PI: Self = Self(S::FRAC_PI_2);
+    pub const RAD_1_4_PI: Self = Self(S::FRAC_PI_4);
 
-    pub const DEG_180: Self = Self(PI);
-    pub const DEG_360: Self = Self(PI2_1);
-    pub const DEG_90: Self = Self(PI1_2);
-    pub const DEG_45: Self = Self(PI1_4);
+    pub const DEG_180: Self = Self(S::PI);
+    pub const DEG_360: Self = Self(S::TAU);
+    pub const DEG_90: Self = Self(S::FRAC_PI_2);
+    pub const DEG_45: Self = Self(S::FRAC_PI_4);
 
     pub fn is_zero(&self) -> bool {
-        self.0 == 0.0
+        self.0 == S::ZERO
     }
 
-    pub fn deg(deg: f64) -> Self {
-        Self(deg * DEG_TO_RAD)
+    pub fn deg(deg: S) -> Self {
+        Self(deg * (S::PI / S::exact(180.0)))
     }
 
-    pub fn rad(rad: f64) -> Self {
+    pub fn rad(rad: S) -> Self {
         Self(rad)
     }
 
-    pub fn degrees(&self) -> f64 {
-        self.0 * RAD_TO_DEG
+    pub fn degrees(&self) -> S {
+        self.0 * (S::exact(180.0) / S::PI)
     }
 
-    pub fn radians(&self) -> f64 {
+    pub fn radians(&self) -> S {
         self.0
     }
 
-    pub fn sin(&self) -> f64 {
+    pub fn sin(&self) -> S {
         self.0.sin()
     }
 
-    pub fn cos(&self) -> f64 {
+    pub fn cos(&self) -> S {
         self.0.cos()
     }
 
-    pub fn tan(&self) -> f64 {
+    pub fn tan(&self) -> S {
         self.0.tan()
     }
 
-    pub fn csc(&self) -> f64 {
+    pub fn csc(&self) -> S {
         self.0.sin().recip()
     }
 
-    pub fn sec(&self) -> f64 {
+    pub fn sec(&self) -> S {
         self.0.cos().recip()
     }
 
-    pub fn cot(&self) -> f64 {
+    pub fn cot(&self) -> S {
         self.0.tan().recip()
     }
 
-    pub fn sin_cos(&self) -> (f64, f64) {
+    pub fn sin_cos(&self) -> (S, S) {
         self.0.sin_cos()
     }
 
+    /*
     // Angle from `self` to `other` going counterclockwise
-    pub fn angle_ccw(&self, other: Self) -> Angle {
+    pub fn angle_ccw(&self, other: Self) -> Self {
         (other.normalize() - self.normalize()).normalize()
     }
 
     // Makes the angle always between 0 and 2pi
     pub fn normalize(&self) -> Self {
-        let pi_2 = PI2_1;
+        let pi_2 = S::TAU;
         let mut rads = self.0 % pi_2;
-        if rads < 0.0 {
+        if rads < S::ZERO {
             rads += pi_2;
         }
 
         rad(rads)
     }
+     */
 }
-impl From<Angle> for f64 {
-    fn from(value: Angle) -> Self {
-        value.0
+impl Angle<f64> {
+    pub fn as_interval(&self) -> Angle<Interval> {
+        Angle(Interval::thin(self.0))
     }
 }
-impl std::fmt::Debug for Angle {
+impl<S: Scalar> From<Angle<S>> for f64 {
+    fn from(value: Angle<S>) -> Self {
+        value.0.as_f64()
+    }
+}
+impl<S: Scalar> std::fmt::Debug for Angle<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}ᶜ", self.0))
     }
 }
-impl std::fmt::Display for Angle {
+impl<S: Scalar> std::fmt::Display for Angle<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}ᶜ", self.0))
     }
 }
 
-impl_op_ex!(-|a: Angle| -> Angle { Angle::rad(-a.0) });
-impl_op_ex!(+|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 + b.0) });
-impl_op_ex!(-|a: Angle, b: Angle| -> Angle { Angle::rad(a.0 - b.0) });
-impl_op_ex!(/|a: Angle, b: f64| -> Angle { Angle::rad(a.0 / b) });
-impl_op_ex!(/|a: Angle, b: Angle| -> f64 { a.0 / b.0 });
-impl_op_ex_commutative!(*|a: Angle, b: f64| -> Angle { Angle::rad(a.0 * b) });
+gen_ops!(
+    <S>;
+    types Angle<S> => Angle<S>;
+    for - call |a: &Angle<S>| {
+        Angle(-a.0)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Angle<S>, Angle<S> => Angle<S>;
+    for + call |l: &Angle<S>, r: &Angle<S>| {
+        Angle(l.0 + r.0)
+    };
+    for - call |l: &Angle<S>, r: &Angle<S>| {
+        Angle(l.0 - r.0)
+    };
+    where S: Scalar
+);
+
+gen_ops!(
+    <S>;
+    types Angle<S>, S => Angle<S>;
+    for * call |l: &Angle<S>, r: &S| {
+        Angle(l.0 * *r)
+    };
+    for / call |l: &Angle<S>, r: &S| {
+        Angle(l.0 / *r)
+    };
+    where S: Scalar
+);
 
 #[cfg(test)]
 mod tests {
@@ -122,6 +152,7 @@ mod tests {
 
     use crate::math::{deg, rad, Angle};
 
+    /*
     #[test]
     fn angle_ccw() {
         assert_cc!(deg(90.0), deg(315.0).angle_ccw(deg(45.0)));
@@ -130,6 +161,7 @@ mod tests {
         assert_cc!(deg(0.0), deg(45.0).angle_ccw(deg(405.0)));
         assert_cc!(deg(0.0), deg(405.0).angle_ccw(deg(765.0)));
     }
+     */
 
     #[test]
     fn is_rad_internally() {

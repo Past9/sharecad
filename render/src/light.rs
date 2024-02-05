@@ -4,11 +4,11 @@ use visual::color::Rgb;
 
 #[derive(Debug, Clone)]
 pub struct DirectionalLight {
-    pub direction: Vec3,
+    pub direction: Vec3<f64>,
     pub color: Rgb,
 }
 impl DirectionalLight {
-    pub fn new(direction: Vec3, color: Rgb) -> Self {
+    pub fn new(direction: Vec3<f64>, color: Rgb) -> Self {
         Self { direction, color }
     }
 

@@ -6,10 +6,10 @@ pub use bsp::*;
 pub use curve::*;
 pub use surface::*;
 
-use crate::math::Angle;
+use crate::math::{Angle, Scalar};
 
 pub enum TessellationTolerance {
     Distance(f64),
-    Angle(Angle),
-    DistanceAndAngle(f64, Angle),
+    Angle(Angle<f64>),
+    DistanceAndAngle(f64, Angle<f64>),
 }

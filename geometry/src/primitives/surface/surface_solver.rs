@@ -1,57 +1,54 @@
 use super::{ISurfacePoint, SurfacePoint, SweepSolver};
 use crate::{
-    math::{
-        deg, point2, richardson_extrapolate, vec2, Coincidence, Mat22, Point2, Point3, Vec2, Vec3,
-        COINCIDENT_TOL,
-    },
+    math::{deg, richardson_extrapolate, vec2, Coincidence, Mat22, Scalar, Vec2, Vec3},
     primitives::curve::CurveSolver,
     tessellate::{BspTree, TessellatedSurface, TessellationTolerance},
 };
 use std::{cell::OnceCell, rc::Rc};
 
-pub trait ISurfaceSolver<'a> {
-    type Point: ISurfacePoint;
+pub trait ISurfaceSolver<'a, S: Scalar> {
+    type Point: ISurfacePoint<S>;
 
-    fn domain(&self) -> (Point2, Point2);
+    fn domain(&self) -> (Vec2<S>, Vec2<S>);
 
-    fn domain_span(&self) -> Vec2 {
+    fn domain_span(&self) -> Vec2<S> {
         let (min, max) = self.domain();
         max - min
     }
 
-    fn point(&'a self, uv: Point2) -> Self::Point;
+    fn point(&'a self, uv: Vec2<S>) -> Self::Point;
 }
 
 #[derive(Debug, Clone)]
-pub struct PointToSurfaceProjection {
+pub struct PointToSurfaceProjection<S: Scalar> {
     pub iter: u32,
-    pub uv: Point2,
-    pub pos: Point3,
-    pub du: Vec3,
-    pub dv: Vec3,
-    pub diff: Vec3,
-    pub dist: f64,
+    pub uv: Vec2<S>,
+    pub pos: Vec3<S>,
+    pub du: Vec3<S>,
+    pub dv: Vec3<S>,
+    pub diff: Vec3<S>,
+    pub dist: S,
 }
 
 #[derive(Debug)]
-pub enum SurfaceSolverKind {
-    Sweep(SweepSolver),
+pub enum SurfaceSolverKind<S: Scalar> {
+    Sweep(SweepSolver<S>),
 }
-impl From<SweepSolver> for SurfaceSolverKind {
-    fn from(solver: SweepSolver) -> Self {
+impl<S: Scalar> From<SweepSolver<S>> for SurfaceSolverKind<S> {
+    fn from(solver: SweepSolver<S>) -> Self {
         Self::Sweep(solver)
     }
 }
 
 #[derive(Debug)]
-pub struct SurfaceSolver {
-    kind: SurfaceSolverKind,
+pub struct SurfaceSolver<S: Scalar> {
+    kind: SurfaceSolverKind<S>,
     is_closed_u: OnceCell<bool>,
     is_closed_v: OnceCell<bool>,
     projection_bsp: Rc<OnceCell<BspTree>>,
 }
-impl SurfaceSolver {
-    pub(super) fn new(kind: SurfaceSolverKind) -> Self {
+impl<S: Scalar> SurfaceSolver<S> {
+    pub(super) fn new(kind: SurfaceSolverKind<S>) -> Self {
         Self {
             kind,
             is_closed_u: OnceCell::new(),
@@ -60,17 +57,17 @@ impl SurfaceSolver {
         }
     }
 
-    pub fn sweep(profile: CurveSolver, path: CurveSolver) -> Self {
+    pub fn sweep(profile: CurveSolver<S>, path: CurveSolver<S>) -> Self {
         SweepSolver::new(profile, path).into()
     }
 
-    pub fn domain(&self) -> (Point2, Point2) {
+    pub fn domain(&self) -> (Vec2<S>, Vec2<S>) {
         match &self.kind {
             SurfaceSolverKind::Sweep(sweep) => sweep.domain(),
         }
     }
 
-    pub fn point(&self, uv: Point2) -> SurfacePoint {
+    pub fn point(&self, uv: Vec2<S>) -> SurfacePoint<S> {
         match &self.kind {
             SurfaceSolverKind::Sweep(sweep) => SurfacePoint::from(sweep.point(uv)),
         }
@@ -78,10 +75,10 @@ impl SurfaceSolver {
 
     pub fn is_closed_u(&self) -> bool {
         *self.is_closed_u.get_or_init(|| {
-            let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
-            let v_mid = (v_min + v_max) / 2.0;
-            let start = self.point(point2(u_min, v_mid));
-            let end = self.point(point2(u_max, v_mid));
+            let (Vec2 { x: u_min, y: v_min }, Vec2 { x: u_max, y: v_max }) = self.domain();
+            let v_mid = (v_min + v_max) / S::TWO;
+            let start = self.point(vec2(u_min, v_mid));
+            let end = self.point(vec2(u_max, v_mid));
             let (start_du, _) = start.der1();
             let (end_du, _) = end.der1();
             start.pos().cc(*end.pos()) && start_du.normalize().cc(end_du.normalize())
@@ -90,17 +87,18 @@ impl SurfaceSolver {
 
     pub fn is_closed_v(&self) -> bool {
         *self.is_closed_v.get_or_init(|| {
-            let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
-            let u_mid = (u_min + u_max) / 2.0;
-            let start = self.point(point2(u_mid, v_min));
-            let end = self.point(point2(u_mid, v_max));
+            let (Vec2 { x: u_min, y: v_min }, Vec2 { x: u_max, y: v_max }) = self.domain();
+            let u_mid = (u_min + u_max) / S::TWO;
+            let start = self.point(vec2(u_mid, v_min));
+            let end = self.point(vec2(u_mid, v_max));
             let (_, start_dv) = start.der1();
             let (_, end_dv) = end.der1();
             start.pos().cc(*end.pos()) && start_dv.normalize().cc(end_dv.normalize())
         })
     }
 
-    pub fn project_point(&self, point: Point3) -> Vec<PointToSurfaceProjection> {
+    /*
+    pub fn project_point(&self, point: Vec3<S>) -> Vec<PointToSurfaceProjection<S>> {
         let initial_guesses = self.projection_starting_params(point, true, true);
         let mut results = vec![];
 
@@ -135,7 +133,7 @@ impl SurfaceSolver {
                     (tangent_u, tangent_v)
                 };
 
-                if tangent_u.dot(res.diff).cc(0.0) && tangent_v.dot(res.diff).cc(0.0) {
+                if tangent_u.dot(res.diff).cc(S::ZERO) && tangent_v.dot(res.diff).cc(S::ZERO) {
                     results.push(res);
                 }
             }
@@ -154,19 +152,19 @@ impl SurfaceSolver {
 
     pub fn projection_starting_params(
         &self,
-        p: Point3,
+        p: Vec3<S>,
         allow_above_focal_point: bool,
         allow_below_focal_point: bool,
-    ) -> Vec<Point2> {
+    ) -> Vec<Vec2<S>> {
         let mut start_params = vec![];
 
         let bsp = self.projection_bsp();
 
         bsp.visit_spaces(&mut |n: f64, s: f64, w: f64, e: f64| {
-            let nw = self.point(point2(w, n));
-            let ne = self.point(point2(e, n));
-            let sw = self.point(point2(w, s));
-            let se = self.point(point2(e, s));
+            let nw = self.point(vec2(w, n));
+            let ne = self.point(vec2(e, n));
+            let sw = self.point(vec2(w, s));
+            let se = self.point(vec2(e, s));
 
             let perp_to_n = || {
                 Self::is_perpendicular(
@@ -217,7 +215,7 @@ impl SurfaceSolver {
             };
 
             if (perp_to_e() || perp_to_w()) && (perp_to_n() || perp_to_s()) {
-                start_params.push(point2((w + e) / 2.0, (s + n) / 2.0));
+                start_params.push(vec2((w + e) / S::TWO, (s + n) / S::TWO));
             }
         });
 
@@ -225,11 +223,11 @@ impl SurfaceSolver {
     }
 
     fn is_perpendicular(
-        p: Point3,
-        p0_pos: Point3,
-        p0_d1: Vec3,
-        p1_pos: Point3,
-        p1_d1: Vec3,
+        p: Vec3<S>,
+        p0_pos: Vec3<S>,
+        p0_d1: Vec3<S>,
+        p1_pos: Vec3<S>,
+        p1_d1: Vec3<S>,
         allow_above_focal_point: bool,
         allow_below_focal_point: bool,
     ) -> bool {
@@ -240,21 +238,21 @@ impl SurfaceSolver {
         let r2 = p_p1.dot(p1_d1);
 
         // perpendicular at p0 or p1
-        (r1 == 0.0 || r2 == 0.0) ||
-                // perpendicular from outside of curve or inside "focal point" 
-                (allow_above_focal_point && r1 > 0.0 && r2 > 0.0) ||
+        (r1 == S::ZERO || r2 == S::ZERO) ||
+                // perpendicular from outside of curve or inside "focal point"
+                (allow_above_focal_point && r1 > S::ZERO && r2 > S::ZERO) ||
                 // perpendicular from below curve beyond the "focal point"
-                (allow_below_focal_point && r1 < 0.0 && r2 < 0.0)
+                (allow_below_focal_point && r1 < S::ZERO && r2 < S::ZERO)
     }
 
     fn project_from_starting_param(
         &self,
-        point: Point3,
-        mut uv: Point2,
-    ) -> Option<PointToSurfaceProjection> {
+        point: Vec3<S>,
+        mut uv: Vec2<S>,
+    ) -> Option<PointToSurfaceProjection<S>> {
         const MAX_ITER: u32 = 32;
 
-        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = self.domain();
+        let (Vec2 { x: u_min, y: v_min }, Vec2 { x: u_max, y: v_max }) = self.domain();
 
         for iter in 0..MAX_ITER {
             let cp = self.point(uv);
@@ -332,7 +330,7 @@ impl SurfaceSolver {
                 v_next.clamp(v_min, v_max)
             };
 
-            let uv_next = point2(u_next, v_next);
+            let uv_next = vec2(u_next, v_next);
 
             // Additional stopping condition: parameters haven't changed significantly or
             // are off the end of the curve (if unclosed).
@@ -348,10 +346,13 @@ impl SurfaceSolver {
 
         None
     }
+    */
 
-    pub fn est_tangent_u(&self, uv: Point2) -> Option<Vec3> {
-        let (Point2 { y: v_min, .. }, Point2 { y: v_max, .. }) = self.domain();
-        const START_DIST: f64 = 0.1;
+    pub fn est_tangent_u(&self, uv: Vec2<S>) -> Option<Vec3<S>> {
+        panic!();
+        /*
+        let (Vec2 { y: v_min, .. }, Vec2 { y: v_max, .. }) = self.domain();
+        let start_dist = S::ONE / S::exact(10.0);
 
         let end_v = uv.v();
         let start_v = {
@@ -360,16 +361,16 @@ impl SurfaceSolver {
 
             if dist_to_max < dist_to_min {
                 // If closer to top of U range, start from below
-                end_v - START_DIST
+                end_v - start_dist
             } else {
                 // Otherwise start from above
-                end_v + START_DIST
+                end_v + start_dist
             }
         };
 
         richardson_extrapolate(
-            |v: f64| {
-                let point = self.point(point2(uv.u(), v));
+            |v: S| {
+                let point = self.point(vec2(uv.u(), v));
                 let (du, _) = point.der1();
                 du.normalize()
             },
@@ -377,13 +378,17 @@ impl SurfaceSolver {
             start_v,
             end_v,
             40,
-            COINCIDENT_TOL,
+            1e-10,
+            //COINCIDENT_TOL,
         )
+         */
     }
 
-    pub fn est_tangent_v(&self, uv: Point2) -> Option<Vec3> {
-        let (Point2 { x: u_min, .. }, Point2 { x: u_max, .. }) = self.domain();
-        const START_DIST: f64 = 0.1;
+    pub fn est_tangent_v(&self, uv: Vec2<S>) -> Option<Vec3<S>> {
+        panic!();
+        /*
+        let (Vec2 { x: u_min, .. }, Vec2 { x: u_max, .. }) = self.domain();
+        let start_dist = S::ONE / S::exact(10.0);
 
         let end_u = uv.u();
         let start_u = {
@@ -392,16 +397,16 @@ impl SurfaceSolver {
 
             if dist_to_max < dist_to_min {
                 // If closer to top of U range, start from below
-                end_u - START_DIST
+                end_u - start_dist
             } else {
                 // Otherwise start from above
-                end_u + START_DIST
+                end_u + start_dist
             }
         };
 
         richardson_extrapolate(
-            |u: f64| {
-                let point = self.point(point2(u, uv.v()));
+            |u: S| {
+                let point = self.point(vec2(u, uv.v()));
                 let (_, dv) = point.der1();
                 dv.normalize()
             },
@@ -409,12 +414,14 @@ impl SurfaceSolver {
             start_u,
             end_u,
             40,
-            COINCIDENT_TOL,
+            1e-10,
+            //COINCIDENT_TOL,
         )
+         */
     }
 }
-impl From<SweepSolver> for SurfaceSolver {
-    fn from(sweep: SweepSolver) -> Self {
+impl<S: Scalar> From<SweepSolver<S>> for SurfaceSolver<S> {
+    fn from(sweep: SweepSolver<S>) -> Self {
         Self::new(SurfaceSolverKind::Sweep(sweep))
     }
 }

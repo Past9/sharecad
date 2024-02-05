@@ -7,7 +7,7 @@ use crate::{
     scene::Scene,
 };
 use common::{CurveId, PointId, SurfaceId};
-use geometry::math::point2;
+use geometry::math::vec2;
 use render_macros::shader_src;
 use std::cell::OnceCell;
 use wgpu::util::DeviceExt;
@@ -512,8 +512,8 @@ impl ObjectRenderer {
                     let value = pixels[index as usize];
 
                     if let Some(id) = GeometryId::from_shader_value(value) {
-                        let pix_coords = point2(x as f64, y as f64);
-                        let center_coords = point2(coords.0 as f64, coords.1 as f64);
+                        let pix_coords = vec2(x as f64, y as f64);
+                        let center_coords = vec2(coords.0 as f64, coords.1 as f64);
                         let dist = (center_coords - pix_coords).magnitude();
                         match id {
                             GeometryId::Surface(id) => {

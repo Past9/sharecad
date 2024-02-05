@@ -1,26 +1,30 @@
 use egui::PointerButton;
-use geometry::math::{point2, vec2, Point2, Vec2};
+use geometry::math::{vec2, Vec2};
 
 #[derive(Debug, Clone)]
 pub enum InputEvent {
-    CursorMoved(Point2),
+    CursorMoved(Vec2<f64>),
     KeyDown(Key),
     KeyUp(Key),
     MouseDown(MouseButton),
     MouseUp(MouseButton),
-    MouseWheel(Vec2),
+    MouseWheel(Vec2<f64>),
     Unhandled,
 }
 #[cfg(feature = "egui")]
 impl InputEvent {
-    fn correct_pos(pos: &egui::Pos2, rect: &egui::Rect, pixels_per_point: f32) -> Option<Point2> {
+    fn correct_pos(
+        pos: &egui::Pos2,
+        rect: &egui::Rect,
+        pixels_per_point: f32,
+    ) -> Option<Vec2<f64>> {
         let pos = vec2((pos.x - rect.left()) as f64, (pos.y - rect.top()) as f64);
         if pos.x >= 0.0
             && pos.y >= 0.0
             && pos.x <= rect.width() as f64
             && pos.y <= rect.height() as f64
         {
-            Some((pos * pixels_per_point as f64).into_point())
+            Some(pos * pixels_per_point as f64)
         } else {
             None
         }
@@ -30,7 +34,7 @@ impl InputEvent {
         match event {
             egui::Event::PointerMoved(pos) => {
                 if let Some(pos) = Self::correct_pos(pos, rect, pixels_per_point) {
-                    Self::CursorMoved(point2(pos.x as f64, pos.y as f64))
+                    Self::CursorMoved(vec2(pos.x as f64, pos.y as f64))
                 } else {
                     Self::Unhandled
                 }

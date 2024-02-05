@@ -124,7 +124,7 @@ impl SurfaceMaterialSpec {
         self
     }
 
-    pub fn normal_vec(mut self, vec: Vec3) -> Self {
+    pub fn normal_vec(mut self, vec: Vec3<f64>) -> Self {
         self.normal = SurfaceVec3Spec::Vec3(vec);
         self
     }
@@ -366,7 +366,7 @@ impl SurfaceRgbSpec {
 #[derive(Debug)]
 pub enum SurfaceVec3Spec {
     Map(image::DynamicImage),
-    Vec3(Vec3),
+    Vec3(Vec3<f64>),
 }
 impl SurfaceVec3Spec {
     pub fn image(&self) -> image::DynamicImage {

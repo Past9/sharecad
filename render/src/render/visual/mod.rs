@@ -1051,11 +1051,7 @@ impl VisualRenderer {
                 (i * std::mem::size_of::<DirectionalLightRaw>()) as wgpu::BufferAddress,
                 bytemuck::bytes_of(&match is_camera {
                     true => DirectionalLight {
-                        direction: light
-                            .direction
-                            .into_point()
-                            .transform(view_matrix)
-                            .into_vec(),
+                        direction: light.direction.transform(view_matrix),
                         color: light.color.clone(),
                     }
                     .to_raw(),

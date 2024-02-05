@@ -1,4 +1,4 @@
-use geometry::math::{deg, vec2, Angle, Point2, Point3, Quat, Vec3};
+use geometry::math::{deg, vec2, Angle, Quat, Vec2, Vec3};
 
 use super::Camera;
 use crate::input::{InputEvent, MouseButton};
@@ -9,7 +9,7 @@ const ORBIT_SENSITIVITY: f64 = 0.4;
 #[derive(Debug, Clone)]
 struct OrbitParams {
     starting_camera: Camera,
-    rotation: Quat,
+    rotation: Quat<f64>,
 }
 
 #[derive(Debug)]
@@ -17,9 +17,9 @@ enum DragState<T> {
     None,
     Dragging {
         params: T,
-        start_pos: Point2,
-        last_pos: Point2,
-        current_pos: Point2,
+        start_pos: Vec2<f64>,
+        last_pos: Vec2<f64>,
+        current_pos: Vec2<f64>,
     },
 }
 
@@ -57,11 +57,11 @@ pub enum OrbitPointMode {
 pub struct CameraController {
     size: (u32, u32),
     camera: Camera,
-    orbit_point: Point3,
+    orbit_point: Vec3<f64>,
     orbit_point_mode: OrbitPointMode,
     scroll_delta: f64,
     is_ctrl_pressed: bool,
-    mouse_pos: Point2,
+    mouse_pos: Vec2<f64>,
     orbit_drag_state: DragState<OrbitParams>,
     pan_drag_state: DragState<()>,
 }
@@ -70,11 +70,11 @@ impl CameraController {
         Self {
             size: (0, 0),
             camera,
-            orbit_point: Point3::ZERO,
+            orbit_point: Vec3::ZERO,
             orbit_point_mode: OrbitPointMode::Adaptive,
             scroll_delta: 0.0,
             is_ctrl_pressed: false,
-            mouse_pos: Point2::ZERO,
+            mouse_pos: Vec2::ZERO,
             orbit_drag_state: DragState::None,
             pan_drag_state: DragState::None,
         }
@@ -88,11 +88,11 @@ impl CameraController {
         self.size = size;
     }
 
-    pub fn set_orbit_point(&mut self, orbit_point: Point3) {
+    pub fn set_orbit_point(&mut self, orbit_point: Vec3<f64>) {
         self.orbit_point = orbit_point;
     }
 
-    pub fn orbit_point(&self) -> Point3 {
+    pub fn orbit_point(&self) -> Vec3<f64> {
         self.orbit_point
     }
 
@@ -371,12 +371,14 @@ impl CameraController {
             // Move the camera around the orbit point according to the mouse movement
             let (x, y) = (current_pos.x - last_pos.x, current_pos.y - last_pos.y);
 
-            params.rotation *=
-                Quat::from_axis_angle(params.starting_camera.local_y(), deg(x * ORBIT_SENSITIVITY))
-                    + Quat::from_axis_angle(
-                        params.starting_camera.local_x(),
-                        deg(y * ORBIT_SENSITIVITY),
-                    );
+            params.rotation = params.rotation
+                * (Quat::from_axis_angle(
+                    params.starting_camera.local_y(),
+                    deg(x * ORBIT_SENSITIVITY),
+                ) + Quat::from_axis_angle(
+                    params.starting_camera.local_x(),
+                    deg(y * ORBIT_SENSITIVITY),
+                ));
 
             params.rotation = params.rotation.normalize();
 

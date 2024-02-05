@@ -8,7 +8,7 @@ use crate::{
     },
     scene::Scene,
 };
-use geometry::math::{deg, point3, Point2, Point3, Vec3};
+use geometry::math::{deg, vec3, Vec2, Vec3};
 use wgpu::Surface;
 
 pub struct ViewState {
@@ -119,7 +119,7 @@ impl ViewState {
         );
 
         let camera = Camera::new(
-            point3(0.0, 0.0, 0.0),
+            vec3(0.0, 0.0, 0.0),
             2.5,
             800.0 * 2f64.sqrt(),
             -Vec3::UNIT_Z,
@@ -206,7 +206,7 @@ impl ViewState {
         Ok(())
     }
 
-    fn get_orbit_point(&mut self) -> Point3 {
+    fn get_orbit_point(&mut self) -> Vec3<f64> {
         self.render_position().unwrap();
 
         let eye = self.camera_controller.camera().eye();
@@ -221,11 +221,11 @@ impl ViewState {
                     continue;
                 }
 
-                let pos = point3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
+                let pos = vec3(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64);
                 let dist_from_camera = (eye.location - pos).magnitude();
                 let weight = 1.0 / dist_from_camera;
 
-                avg_pos += pos.into_vec() * weight;
+                avg_pos = avg_pos + (pos * weight);
                 total_weight += weight;
             }
 
@@ -234,7 +234,7 @@ impl ViewState {
             }
         }));
 
-        avg_pos.into_point()
+        avg_pos
     }
 
     fn render_position(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -254,7 +254,7 @@ impl ViewState {
         }
     }
 
-    fn get_object_id_at(&mut self, coords: &Point2) -> Option<GeometryId> {
+    fn get_object_id_at(&mut self, coords: &Vec2<f64>) -> Option<GeometryId> {
         self.render_object().unwrap();
 
         let coords = (coords.x as u32, coords.y as u32);

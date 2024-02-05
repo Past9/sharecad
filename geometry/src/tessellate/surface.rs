@@ -1,5 +1,5 @@
 use crate::{
-    math::{point2, Angle, Coincidence, Point2, Point3, Vec3},
+    math::{vec2, Angle, Coincidence, Scalar, Vec2, Vec3},
     primitives::{ISurfacePoint, SurfacePoint, SurfaceSolver},
 };
 
@@ -11,9 +11,9 @@ use super::{
 pub struct SurfaceVert {
     pub u: f64,
     pub v: f64,
-    pub pos: Point3,
-    pub tangents: (Vec3, Vec3),
-    pub normal: Vec3,
+    pub pos: Vec3<f64>,
+    pub tangents: (Vec3<f64>, Vec3<f64>),
+    pub normal: Vec3<f64>,
 }
 
 pub struct TessellatedSurface {
@@ -21,17 +21,17 @@ pub struct TessellatedSurface {
     pub indices: Vec<u32>,
 }
 impl TessellatedSurface {
-    pub fn create_bsp(surface: &SurfaceSolver, tolerance: &TessellationTolerance) -> BspTree {
-        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = surface.domain();
+    pub fn create_bsp(surface: &SurfaceSolver<f64>, tolerance: &TessellationTolerance) -> BspTree {
+        let (Vec2 { x: u_min, y: v_min }, Vec2 { x: u_max, y: v_max }) = surface.domain();
 
         let mut bsp = BspTree::new(v_max, v_min, u_min, u_max);
 
         bsp.split_spaces(&|n: f64, s: f64, w: f64, e: f64| {
             //
-            let nw = point2(w, n);
-            let ne = point2(e, n);
-            let sw = point2(w, s);
-            let se = point2(e, s);
+            let nw = vec2(w, n);
+            let ne = vec2(e, n);
+            let sw = vec2(w, s);
+            let se = vec2(e, s);
 
             // Fron NW corner, right and down
             let sp_nw = surface.point(nw);
@@ -79,31 +79,31 @@ impl TessellatedSurface {
         bsp
     }
 
-    pub fn create(surface: &SurfaceSolver, tolerance: &TessellationTolerance) -> Self {
-        let (Point2 { x: u_min, y: v_min }, Point2 { x: u_max, y: v_max }) = surface.domain();
+    pub fn create(surface: &SurfaceSolver<f64>, tolerance: &TessellationTolerance) -> Self {
+        let (Vec2 { x: u_min, y: v_min }, Vec2 { x: u_max, y: v_max }) = surface.domain();
 
         // Get a BSP tree splitting the surface into quads by tolerance
         let bsp = Self::create_bsp(surface, tolerance);
 
         // Extract a list of parameter values from the BSP tree
         let mut params = vec![
-            point2(u_min, v_min),
-            point2(u_min, v_max),
-            point2(u_max, v_min),
-            point2(u_max, v_max),
+            vec2(u_min, v_min),
+            vec2(u_min, v_max),
+            vec2(u_max, v_min),
+            vec2(u_max, v_max),
         ];
 
         bsp.visit_splits(
             &mut |n: f64, s: f64, w: f64, e: f64, split: TreeSplit| match split {
                 TreeSplit::Ew => {
                     let u = (w + e) / 2.0;
-                    params.push(point2(u, n));
-                    params.push(point2(u, s));
+                    params.push(vec2(u, n));
+                    params.push(vec2(u, s));
                 }
                 TreeSplit::Ns => {
                     let v = (n + s) / 2.0;
-                    params.push(point2(w, v));
-                    params.push(point2(e, v));
+                    params.push(vec2(w, v));
+                    params.push(vec2(e, v));
                 }
             },
         );
@@ -124,11 +124,11 @@ impl TessellatedSurface {
         let points: Vec<SurfaceVert> = uv_flat
             .into_iter()
             .filter_map(|uv| {
-                let point = surface.point(point2(uv.x, uv.y));
+                let point = surface.point(vec2(uv.x, uv.y));
                 let (du, dv) = point.der1();
 
                 let dv = if dv.cc(Vec3::ZERO) {
-                    surface.est_tangent_v(point2(uv.x, uv.y))
+                    surface.est_tangent_v(vec2(uv.x, uv.y))
                     //Self::find_dv(surface, uv.x, uv.y)
                 } else {
                     Some(*dv)
@@ -154,7 +154,7 @@ impl TessellatedSurface {
         Self { points, indices }
     }
 
-    fn delta_u(point: &SurfacePoint, tolerance: &TessellationTolerance) -> f64 {
+    fn delta_u(point: &SurfacePoint<f64>, tolerance: &TessellationTolerance) -> f64 {
         match tolerance {
             TessellationTolerance::Distance(distance) => Self::delta_u_dist(point, *distance),
             TessellationTolerance::Angle(angle) => Self::delta_u_angle(point, *angle),
@@ -164,7 +164,7 @@ impl TessellatedSurface {
         }
     }
 
-    fn delta_v(point: &SurfacePoint, tolerance: &TessellationTolerance) -> f64 {
+    fn delta_v(point: &SurfacePoint<f64>, tolerance: &TessellationTolerance) -> f64 {
         match tolerance {
             TessellationTolerance::Distance(distance) => Self::delta_v_dist(point, *distance),
             TessellationTolerance::Angle(angle) => Self::delta_v_angle(point, *angle),
@@ -174,25 +174,25 @@ impl TessellatedSurface {
         }
     }
 
-    fn delta_u_angle(point: &SurfacePoint, angle: Angle) -> f64 {
+    fn delta_u_angle(point: &SurfacePoint<f64>, angle: Angle<f64>) -> f64 {
         let (du, _) = point.der1();
         let p = point.curvature_u().recip();
         (p * angle.radians()) / du.magnitude()
     }
 
-    fn delta_v_angle(point: &SurfacePoint, angle: Angle) -> f64 {
+    fn delta_v_angle(point: &SurfacePoint<f64>, angle: Angle<f64>) -> f64 {
         let (_, dv) = point.der1();
         let p = point.curvature_v().recip();
         (p * angle.radians()) / dv.magnitude()
     }
 
-    fn delta_u_dist(point: &SurfacePoint, dist: f64) -> f64 {
+    fn delta_u_dist(point: &SurfacePoint<f64>, dist: f64) -> f64 {
         let du = point.der1().0;
         let p = point.curvature_u().recip();
         2.0 * (dist * (2.0 * (p) - dist)).sqrt() / du.magnitude()
     }
 
-    fn delta_v_dist(point: &SurfacePoint, dist: f64) -> f64 {
+    fn delta_v_dist(point: &SurfacePoint<f64>, dist: f64) -> f64 {
         let dv = point.der1().1;
         let p = point.curvature_v().recip();
         2.0 * (dist * (2.0 * (p) - dist)).sqrt() / dv.magnitude()

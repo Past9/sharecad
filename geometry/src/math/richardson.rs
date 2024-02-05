@@ -1,47 +1,45 @@
 use std::ops::{Div, Mul, Sub};
 
-use crate::math::lerp;
+use super::{Coincidence, Scalar};
 
-use super::Coincidence;
-
-pub fn richardson_extrapolate<R, F, D>(
+pub fn richardson_extrapolate<R, F, D, S: Scalar>(
     func: F,
     diff: D,
-    start: f64,
-    end: f64,
+    start: S,
+    end: S,
     max_rows: usize,
     tolerance: f64,
 ) -> Option<R>
 where
-    R: Default + Clone + Sub<R, Output = R> + Mul<f64, Output = R> + Div<f64, Output = R>,
-    F: Fn(f64) -> R,
-    D: Fn(R, R) -> f64,
+    R: Default + Clone + Sub<R, Output = R> + Mul<S, Output = R> + Div<S, Output = R>,
+    F: Fn(S) -> R,
+    D: Fn(R, R) -> S,
 {
     let mut h = (end - start).abs();
 
     let mut a = vec![vec![R::default(); max_rows]; max_rows];
 
-    let test_param = lerp(start, end, 1.0 - h);
+    let test_param = start.lerp(end, S::ONE - h);
     a[0][0] = func(test_param);
 
     let mut solution = None;
 
     for i in 0..max_rows - 1 {
-        h /= 2.0;
+        h = h / S::TWO;
 
-        let test_param = lerp(start, end, 1.0 - h);
+        let test_param = start.lerp(end, S::ONE - h);
         a[i + 1][0] = func(test_param);
 
         for j in 0..=i {
-            let num = (a[i + 1][j].clone() * 4f64.powi(j as i32 + 1)) - a[i][j].clone();
-            let den = 4f64.powi(j as i32 + 1) - 1.0;
+            let num = (a[i + 1][j].clone() * S::FOUR.powi(j as i32 + 1)) - a[i][j].clone();
+            let den = S::FOUR.powi(j as i32 + 1) - S::ONE;
             a[i + 1][j + 1] = num / den;
         }
 
         let latest = a[i + 1][i + 1].clone();
         let previous = a[i][i].clone();
 
-        if diff(latest.clone(), previous).coincident(0.0, tolerance) {
+        if diff(latest.clone(), previous).cc_tol(S::ZERO, tolerance) {
             solution = Some(latest.clone());
             break;
         }

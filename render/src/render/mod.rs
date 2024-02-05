@@ -34,7 +34,7 @@ pub fn pad_u32(num: u32, pad: u32) -> u32 {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Zeroable, Pod)]
+#[derive(Debug, Clone, Copy, Zeroable, Pod)]
 struct GlobalsRaw {
     num_directional_lights: u32,
     _padding1: [u32; 3],

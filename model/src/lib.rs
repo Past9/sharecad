@@ -1,7 +1,7 @@
 use common::{CurveId, PointId, SurfaceId};
 use geometry::{
-    math::{Angle, Point3, Quat, Vec3},
-    primitives::{Curve, Point, SSCurveParams, Surface},
+    math::{Angle, Quat, Vec3},
+    primitives::{Curve, Point, Surface},
     IGeometry, PrimitiveGeometry,
 };
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use visual::{
 };
 
 pub struct PrimitiveModel {
-    geometry: PrimitiveGeometry,
+    geometry: PrimitiveGeometry<f64>,
     visuals: GeometryVisuals,
 }
 impl PrimitiveModel {
@@ -22,20 +22,20 @@ impl PrimitiveModel {
         }
     }
 }
-impl IGeometry for PrimitiveModel {
-    fn create_point(&mut self, point: Point) -> PointId {
+impl IGeometry<f64> for PrimitiveModel {
+    fn create_point(&mut self, point: Point<f64>) -> PointId {
         self.geometry.create_point(point)
     }
 
-    fn create_curve(&mut self, curve: Curve) -> CurveId {
+    fn create_curve(&mut self, curve: Curve<f64>) -> CurveId {
         self.geometry.create_curve(curve)
     }
 
-    fn create_surface(&mut self, surface: Surface) -> SurfaceId {
+    fn create_surface(&mut self, surface: Surface<f64>) -> SurfaceId {
         self.geometry.create_surface(surface)
     }
 
-    fn create_point3(&mut self, point: Point3) -> PointId {
+    fn create_point3(&mut self, point: Vec3<f64>) -> PointId {
         self.create_point(Point::Point(point))
     }
 
@@ -48,8 +48,8 @@ impl IGeometry for PrimitiveModel {
         r: f64,
         h: f64,
         n: f64,
-        orientation: Quat,
-        translation: Vec3,
+        orientation: Quat<f64>,
+        translation: Vec3<f64>,
     ) -> CurveId {
         self.geometry
             .create_helix(r, h, n, orientation, translation)
@@ -58,13 +58,14 @@ impl IGeometry for PrimitiveModel {
     fn create_arc(
         &mut self,
         r: f64,
-        angle: Angle,
-        orientation: Quat,
-        translation: Vec3,
+        angle: Angle<f64>,
+        orientation: Quat<f64>,
+        translation: Vec3<f64>,
     ) -> CurveId {
         self.geometry.create_arc(r, angle, orientation, translation)
     }
 
+    /*
     fn create_ss_curve(
         &mut self,
         s0: SurfaceId,
@@ -73,40 +74,41 @@ impl IGeometry for PrimitiveModel {
     ) -> CurveId {
         self.geometry.create_ss_curve(s0, s1, points)
     }
+     */
 
     fn create_sweep(&mut self, profile: CurveId, path: CurveId) -> SurfaceId {
         self.geometry.create_sweep(profile, path)
     }
 
-    fn point(&self, id: PointId) -> Option<&Point> {
+    fn point(&self, id: PointId) -> Option<&Point<f64>> {
         self.geometry.point(id)
     }
 
-    fn curve(&self, id: CurveId) -> Option<&Curve> {
+    fn curve(&self, id: CurveId) -> Option<&Curve<f64>> {
         self.geometry.curve(id)
     }
 
-    fn surface(&self, id: SurfaceId) -> Option<&Surface> {
+    fn surface(&self, id: SurfaceId) -> Option<&Surface<f64>> {
         self.geometry.surface(id)
     }
 
-    fn curve_solver(&self, id: CurveId) -> Option<geometry::primitives::CurveSolver> {
+    fn curve_solver(&self, id: CurveId) -> Option<geometry::primitives::CurveSolver<f64>> {
         self.geometry.curve_solver(id)
     }
 
-    fn surface_solver(&self, id: SurfaceId) -> Option<geometry::primitives::SurfaceSolver> {
+    fn surface_solver(&self, id: SurfaceId) -> Option<geometry::primitives::SurfaceSolver<f64>> {
         self.geometry.surface_solver(id)
     }
 
-    fn surfaces(&self) -> &HashMap<SurfaceId, Surface> {
+    fn surfaces(&self) -> &HashMap<SurfaceId, Surface<f64>> {
         self.geometry.surfaces()
     }
 
-    fn curves(&self) -> &HashMap<CurveId, Curve> {
+    fn curves(&self) -> &HashMap<CurveId, Curve<f64>> {
         self.geometry.curves()
     }
 
-    fn points(&self) -> &HashMap<PointId, Point> {
+    fn points(&self) -> &HashMap<PointId, Point<f64>> {
         self.geometry.points()
     }
 }

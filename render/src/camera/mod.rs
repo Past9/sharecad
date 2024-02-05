@@ -3,30 +3,30 @@ mod controller;
 use bytemuck::{Pod, Zeroable};
 
 pub use controller::*;
-use geometry::math::{Angle, Mat44, Point3, Quat, Vec3};
+use geometry::math::{Angle, Mat44, Quat, Vec3};
 
 pub struct Eye {
     pub dist: f64,
-    pub location: Point3,
+    pub location: Vec3<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Camera {
-    target: Point3,
+    target: Vec3<f64>,
     target_radius: f64,
     clip_radius: f64,
-    to_eye: Vec3,
-    up: Vec3,
-    half_fov: Angle,
+    to_eye: Vec3<f64>,
+    up: Vec3<f64>,
+    half_fov: Angle<f64>,
 }
 impl Camera {
     pub fn new(
-        target: Point3,
+        target: Vec3<f64>,
         target_radius: f64,
         clip_radius: f64,
-        to_eye: Vec3,
-        up: Vec3,
-        fov: Angle,
+        to_eye: Vec3<f64>,
+        up: Vec3<f64>,
+        fov: Angle<f64>,
     ) -> Self {
         Self {
             target,
@@ -38,34 +38,34 @@ impl Camera {
         }
     }
 
-    pub fn rotate_around(&mut self, orbit: Point3, rotation: Quat) {
+    pub fn rotate_around(&mut self, orbit: Vec3<f64>, rotation: Quat<f64>) {
         let orbit_to_target = self.target - orbit;
         self.set_target(orbit + rotation * orbit_to_target);
         self.set_to_eye(rotation * self.to_eye);
         self.up = (rotation * self.up).normalize();
     }
 
-    pub fn forward(&self) -> Vec3 {
+    pub fn forward(&self) -> Vec3<f64> {
         -self.to_eye
     }
 
-    pub fn up(&self) -> Vec3 {
+    pub fn up(&self) -> Vec3<f64> {
         self.up
     }
 
-    pub fn right(&self) -> Vec3 {
+    pub fn right(&self) -> Vec3<f64> {
         self.up.cross(self.forward()).normalize()
     }
 
-    pub fn local_z(&self) -> Vec3 {
+    pub fn local_z(&self) -> Vec3<f64> {
         self.forward()
     }
 
-    pub fn local_y(&self) -> Vec3 {
+    pub fn local_y(&self) -> Vec3<f64> {
         self.up()
     }
 
-    pub fn local_x(&self) -> Vec3 {
+    pub fn local_x(&self) -> Vec3<f64> {
         self.right()
     }
 
@@ -80,15 +80,15 @@ impl Camera {
         }
     }
 
-    pub fn target(&self) -> Point3 {
+    pub fn target(&self) -> Vec3<f64> {
         self.target
     }
 
-    pub fn set_target(&mut self, target: Point3) {
+    pub fn set_target(&mut self, target: Vec3<f64>) {
         self.target = target;
     }
 
-    pub fn set_to_eye(&mut self, to_eye: Vec3) {
+    pub fn set_to_eye(&mut self, to_eye: Vec3<f64>) {
         self.to_eye = to_eye.normalize();
     }
 
@@ -111,11 +111,11 @@ impl Camera {
         self.target_radius = target_radius;
     }
 
-    pub fn fov(&self) -> Angle {
+    pub fn fov(&self) -> Angle<f64> {
         self.half_fov * 2.0
     }
 
-    pub fn set_fov(&mut self, fov: Angle) {
+    pub fn set_fov(&mut self, fov: Angle<f64>) {
         self.half_fov = fov / 2.0;
     }
 
@@ -158,15 +158,15 @@ impl Camera {
         }
     }
 
-    pub fn view_rotation_matrix(&self) -> Mat44 {
+    pub fn view_rotation_matrix(&self) -> Mat44<f64> {
         Mat44::look_at_rh_rotation(self.eye().location, self.target, self.up)
     }
 
-    pub fn build_view_matrix(&self) -> Mat44 {
+    pub fn build_view_matrix(&self) -> Mat44<f64> {
         Mat44::look_at_rh(self.eye().location, self.target, self.up)
     }
 
-    pub fn build_projection_matrix(&self, aspect: f64) -> Mat44 {
+    pub fn build_projection_matrix(&self, aspect: f64) -> Mat44<f64> {
         match self.is_ortho() {
             true => Self::orthographic_matrix(
                 aspect,
@@ -186,11 +186,11 @@ impl Camera {
         }
     }
 
-    pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44 {
+    pub fn build_view_projection_matrix(&self, aspect: f64) -> Mat44<f64> {
         self.build_projection_matrix(aspect) * self.build_view_matrix()
     }
 
-    pub fn fovy(&self) -> Angle {
+    pub fn fovy(&self) -> Angle<f64> {
         self.half_fov * 2.0
     }
 
@@ -262,7 +262,7 @@ impl Camera {
         top: f64,
         near: f64,
         far: f64,
-    ) -> Mat44 {
+    ) -> Mat44<f64> {
         let c0r0 = match aspect > 1.0 {
             true => 2.0 / (right - left) / aspect,
             false => 2.0 / (right - left),
@@ -308,7 +308,7 @@ impl Camera {
         )
     }
 
-    fn perspective_matrix(fovy: Angle, aspect: f64, near: f64, far: f64) -> Mat44 {
+    fn perspective_matrix(fovy: Angle<f64>, aspect: f64, near: f64, far: f64) -> Mat44<f64> {
         let f = (fovy / 2.0).cot();
 
         let c0r0 = match aspect > 1.0 {

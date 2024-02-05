@@ -1,116 +1,134 @@
 use std::cell::OnceCell;
 
 use crate::{
-    math::{deg, Angle, Coincidence, Point3, Quat, Vec3},
+    math::{deg, vec2, Angle, Coincidence, Interval, Mat22, Quat, Scalar, Vec2, Vec3},
     primitives::Point,
     tessellate::{TessellatedCurve, TessellationTolerance},
 };
 
-use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver, SSCurveSolver};
+use super::{ArcSolver, CurvePoint, HelixSolver, ICurvePoint, LineSolver};
 
-pub trait ICurveSolver {
-    type PointSolver: ICurvePoint;
+pub trait ICurveSolver<S: Scalar> {
+    type PointSolver: ICurvePoint<S>;
 
-    fn domain(&self) -> (f64, f64);
+    fn domain(&self) -> (S, S);
 
-    fn domain_span(&self) -> f64 {
+    fn domain_span(&self) -> S {
         let (min, max) = self.domain();
         max - min
     }
 
-    fn point(&self, u: f64) -> Self::PointSolver;
+    fn point(&self, u: S) -> Self::PointSolver;
 
-    fn never_tangent(&self) -> &Vec3;
+    fn never_tangent(&self) -> &Vec3<S>;
 }
 
 #[derive(Clone, Debug)]
-pub enum CurveSolverKind {
-    Line(LineSolver),
-    Arc(ArcSolver),
-    Helix(HelixSolver),
-    SSCurve(SSCurveSolver),
+pub enum CurveSolverKind<S: Scalar> {
+    Line(LineSolver<S>),
+    Arc(ArcSolver<S>),
+    Helix(HelixSolver<S>),
+    //SSCurve(SSCurveSolver<S>),
 }
-impl From<LineSolver> for CurveSolverKind {
-    fn from(solver: LineSolver) -> Self {
+impl CurveSolverKind<f64> {
+    pub fn as_interval(&self) -> CurveSolverKind<Interval> {
+        match self {
+            CurveSolverKind::Line(line) => line.as_interval().into(),
+            CurveSolverKind::Arc(arc) => arc.as_interval().into(),
+            CurveSolverKind::Helix(helix) => helix.as_interval().into(),
+        }
+    }
+}
+impl<S: Scalar> From<LineSolver<S>> for CurveSolverKind<S> {
+    fn from(solver: LineSolver<S>) -> Self {
         Self::Line(solver)
     }
 }
-impl From<ArcSolver> for CurveSolverKind {
-    fn from(solver: ArcSolver) -> Self {
+impl<S: Scalar> From<ArcSolver<S>> for CurveSolverKind<S> {
+    fn from(solver: ArcSolver<S>) -> Self {
         Self::Arc(solver)
     }
 }
-impl From<HelixSolver> for CurveSolverKind {
-    fn from(solver: HelixSolver) -> Self {
+impl<S: Scalar> From<HelixSolver<S>> for CurveSolverKind<S> {
+    fn from(solver: HelixSolver<S>) -> Self {
         Self::Helix(solver)
     }
 }
-impl From<SSCurveSolver> for CurveSolverKind {
-    fn from(solver: SSCurveSolver) -> Self {
+/*
+impl<S: Scalar> From<SSCurveSolver<S>> for CurveSolverKind<S> {
+    fn from(solver: SSCurveSolver<S>) -> Self {
         Self::SSCurve(solver)
     }
 }
+ */
 
 #[derive(Debug, Clone)]
-pub struct PointToCurveProjection {
+pub struct PointToCurveProjection<S: Scalar> {
     pub iter: u32,
-    pub u: f64,
-    pub pos: Point3,
-    pub diff: Vec3,
-    pub dist: f64,
+    pub u: S,
+    pub pos: Vec3<S>,
+    pub diff: Vec3<S>,
+    pub dist: S,
+}
+
+#[derive(Debug, Clone)]
+pub struct CCIntersection<S: Scalar> {
+    pub u1: S,
+    pub u2: S,
+    pub pos: Vec3<S>,
 }
 
 #[derive(Debug)]
-pub struct CurveSolver {
-    kind: CurveSolverKind,
+pub struct CurveSolver<S: Scalar> {
+    kind: CurveSolverKind<S>,
     is_closed: OnceCell<bool>,
-    projection_tessellation: OnceCell<TessellatedCurve>,
+    //projection_tessellation: OnceCell<TessellatedCurve>,
 }
-impl CurveSolver {
-    pub(super) fn new(kind: CurveSolverKind) -> Self {
+impl<S: Scalar> CurveSolver<S> {
+    pub(super) fn new(kind: CurveSolverKind<S>) -> Self {
         Self {
             kind,
             is_closed: OnceCell::new(),
-            projection_tessellation: OnceCell::new(),
+            //projection_tessellation: OnceCell::new(),
         }
     }
 
-    pub fn line(start: Point, end: Point) -> Self {
+    pub fn line(start: Point<S>, end: Point<S>) -> Self {
         LineSolver::new(start, end).into()
     }
 
-    pub fn arc(r: f64, angle: Angle, orientation: Quat, translation: Vec3) -> Self {
+    pub fn arc(r: S, angle: Angle<S>, orientation: Quat<S>, translation: Vec3<S>) -> Self {
         ArcSolver::new(r, angle, orientation, translation).into()
     }
 
-    pub fn helix(r: f64, h: f64, n: f64, orientation: Quat, translation: Vec3) -> Self {
+    pub fn helix(r: S, h: S, n: S, orientation: Quat<S>, translation: Vec3<S>) -> Self {
         HelixSolver::new(r, h, n, orientation, translation).into()
     }
 
-    pub fn domain(&self) -> (f64, f64) {
+    pub fn domain(&self) -> (S, S) {
         match &self.kind {
             CurveSolverKind::Line(line) => line.domain(),
             CurveSolverKind::Helix(helix) => helix.domain(),
             CurveSolverKind::Arc(arc) => arc.domain(),
-            CurveSolverKind::SSCurve(ss_curve) => ss_curve.domain(),
+            //CurveSolverKind::SSCurve(ss_curve) => ss_curve.domain(),
         }
     }
 
-    pub fn point(&self, u: f64) -> CurvePoint {
+    pub fn point(&self, u: S) -> CurvePoint<S> {
         match &self.kind {
             CurveSolverKind::Line(line) => CurvePoint::from(line.point(u)),
             CurveSolverKind::Helix(helix) => CurvePoint::from(helix.point(u)),
             CurveSolverKind::Arc(arc) => CurvePoint::from(arc.point(u)),
-            CurveSolverKind::SSCurve(ss_curve) => CurvePoint::from(ss_curve.point(u)),
+            //CurveSolverKind::SSCurve(ss_curve) => CurvePoint::from(ss_curve.point(u)),
         }
     }
 
-    pub fn never_tangent(&self) -> &Vec3 {
+    pub fn never_tangent(&self) -> &Vec3<S> {
         match &self.kind {
             CurveSolverKind::Line(line) => line.never_tangent(),
             CurveSolverKind::Helix(helix) => helix.never_tangent(),
             CurveSolverKind::Arc(arc) => arc.never_tangent(),
-            CurveSolverKind::SSCurve(ss_curve) => ss_curve.never_tangent(),
+            //CurveSolverKind::SSCurve(ss_curve) => ss_curve.never_tangent(),
         }
     }
 
@@ -125,13 +143,14 @@ impl CurveSolver {
         })
     }
 
-    pub fn invert_point(&self, point: Point3) -> Vec<PointToCurveProjection> {
+    /*
+    pub fn invert_point(&self, point: Vec3<S>) -> Vec<PointToCurveProjection<S>> {
         let initial_guesses = self.projection_starting_params(point, true, false);
         let mut results = vec![];
 
         for guess in initial_guesses {
             if let Some(res) = self.project_from_starting_param(point, guess) {
-                if res.dist.cc(0.0) {
+                if res.dist.cc(S::ZERO) {
                     results.push(res);
                 }
             }
@@ -140,7 +159,7 @@ impl CurveSolver {
         results
     }
 
-    pub fn project_point(&self, point: Point3) -> Vec<PointToCurveProjection> {
+    pub fn project_point(&self, point: Vec3<S>) -> Vec<PointToCurveProjection<S>> {
         let initial_guesses = self.projection_starting_params(point, true, true);
         let mut results = vec![];
 
@@ -162,10 +181,10 @@ impl CurveSolver {
 
     fn projection_starting_params(
         &self,
-        p: Point3,
+        p: Vec3<S>,
         allow_above_focal_point: bool,
         allow_below_focal_point: bool,
-    ) -> Vec<f64> {
+    ) -> Vec<S> {
         let mut start_params = vec![];
         let samples = &self.projection_tessellation().points;
 
@@ -181,14 +200,14 @@ impl CurveSolver {
 
             let is_perpendicular =
                 // perpendicular at p0 or p1
-                (r1 == 0.0 || r2 == 0.0) ||
-                // perpendicular from outside of curve or inside "focal point" 
-                (allow_above_focal_point && r1 > 0.0 && r2 > 0.0) ||
+                (r1 == S::ZERO || r2 == S::ZERO) ||
+                // perpendicular from outside of curve or inside "focal point"
+                (allow_above_focal_point && r1 > S::ZERO && r2 > S::ZERO) ||
                 // perpendicular from below curve beyond the "focal point"
-                (allow_below_focal_point && r1 < 0.0 && r2 < 0.0);
+                (allow_below_focal_point && r1 < S::ZERO && r2 < S::ZERO);
 
             if is_perpendicular {
-                start_params.push((p0.u + p1.u) / 2.0);
+                start_params.push((p0.u + p1.u) / S::TWO);
             }
         }
 
@@ -197,9 +216,9 @@ impl CurveSolver {
 
     fn project_from_starting_param(
         &self,
-        point: Point3,
-        mut u: f64,
-    ) -> Option<PointToCurveProjection> {
+        point: Vec3<S>,
+        mut u: S,
+    ) -> Option<PointToCurveProjection<S>> {
         const MAX_ITER: u32 = 32;
 
         let (u_min, u_max) = self.domain();
@@ -210,13 +229,13 @@ impl CurveSolver {
             let pos = cp.pos();
             let d1 = cp.der1();
             let d2 = cp.der2();
-            let diff = pos - point;
+            let diff = *pos - point;
             let dist = diff.magnitude();
             let d1_dot_diff = d1.dot(diff);
 
             let delta_den = d2.dot(diff) + d1.magnitude2();
 
-            let delta = if !delta_den.cc(0.0) {
+            let delta = if !delta_den.cc(S::ZERO) {
                 d1_dot_diff / delta_den
             } else {
                 // The derivative (delta_den) of the function we're minimizing can
@@ -273,24 +292,227 @@ impl CurveSolver {
 
         None
     }
+    */
 }
-impl From<LineSolver> for CurveSolver {
-    fn from(line: LineSolver) -> Self {
+impl CurveSolver<f64> {
+    pub fn as_interval(&self) -> CurveSolver<Interval> {
+        CurveSolver {
+            kind: self.kind.as_interval(),
+            is_closed: OnceCell::from(self.is_closed()),
+        }
+    }
+
+    pub fn intersect_curve(&self, other: &Self) -> Vec<CCIntersection<Interval>> {
+        let self_ivl: CurveSolver<Interval> = self.as_interval();
+        let other_ivl: CurveSolver<Interval> = other.as_interval();
+
+        let func = |u_ivls: Vec2<Interval>| -> Vec2<Interval> {
+            let p0 = self_ivl.point(u_ivls.u());
+            let p1 = other_ivl.point(u_ivls.v());
+
+            vec2(
+                (*p0.pos() - *p1.pos()).dot(*p0.der1()),
+                (*p1.pos() - *p0.pos()).dot(*p1.der1()),
+            )
+        };
+
+        let jacobian = |u_ivls: Vec2<Interval>| -> Mat22<Interval> {
+            let p0 = self_ivl.point(u_ivls.u());
+            let p1 = other_ivl.point(u_ivls.v());
+
+            let p0du = (*p0.pos() - *p1.pos()).dot(*p0.der2()) + p0.der1().magnitude2();
+            let p0dv = (-*p1.der1()).dot(*p0.der1());
+
+            let p1du = (-*p0.der1()).dot(*p1.der1());
+            let p1dv = (*p1.pos() - *p0.pos()).dot(*p1.der2()) + p1.der1().magnitude2();
+
+            Mat22::new(p0du, p0dv, p1du, p1dv)
+        };
+
+        let jacobian_f64 = |u_ivls: Vec2<f64>| -> Mat22<f64> {
+            let p0 = self.point(u_ivls.u());
+            let p1 = other.point(u_ivls.v());
+
+            let p0du = (*p0.pos() - *p1.pos()).dot(*p0.der2()) + p0.der1().magnitude2();
+            let p0dv = (-*p1.der1()).dot(*p0.der1());
+
+            let p1du = (-*p0.der1()).dot(*p1.der1());
+            let p1dv = (*p1.pos() - *p0.pos()).dot(*p1.der2()) + p1.der1().magnitude2();
+
+            Mat22::new(p0du, p0dv, p1du, p1dv)
+        };
+
+        let nf_der = |u_ivls: Vec2<Interval>, jac: Mat22<Interval>| -> Vec2<Interval> {
+            let mid = u_ivls.mid().as_interval();
+            let mid_jac_inv = jacobian(mid).mid().inverse().unwrap().as_interval();
+
+            let corrected = mid - mid_jac_inv * func(mid)
+                + (Mat22::IDENTITY - mid_jac_inv * jac)
+                    * vec2(
+                        Interval(-u_ivls.x.rad(), u_ivls.x.rad()),
+                        Interval(-u_ivls.y.rad(), u_ivls.y.rad()),
+                    );
+
+            println!("u_ivls = {:?}", u_ivls);
+            println!("jacobian(mid) = {:?}", jacobian(mid));
+            println!("mid = {:?}", mid);
+            println!("mid_jac_inv = {:?}", mid_jac_inv);
+            println!("1 clause = {:?}", mid - mid_jac_inv * func(mid));
+            println!(
+                "2 clause = {:?}",
+                (Mat22::IDENTITY - mid_jac_inv * jac) * (u_ivls - mid)
+            );
+            println!("corrected = {:?}", corrected);
+            (corrected).intersection(u_ivls)
+        };
+
+        const MAX_ITER: u32 = 50;
+        let domains: Vec2<Interval> = vec2(self.domain().into(), other.domain().into());
+        let mut search_intervals: Vec<Vec2<Interval>> = vec![domains];
+        let mut converged_intervals: Vec<Vec2<Interval>> = vec![];
+
+        #[derive(PartialEq, Debug, Copy, Clone)]
+        struct NewInterval {
+            new: Vec2<Interval>,
+            from: Vec2<Interval>,
+        }
+
+        let mut iter = 0;
+        while iter < MAX_ITER {
+            iter += 1;
+
+            println!("\niter = {}", iter);
+            println!("SI len = {}", search_intervals.len());
+            println!("search_intervals = {:#?}", search_intervals);
+            /*
+            println!("converged_intervals = {:#?}", converged_intervals);
+             */
+
+            if search_intervals.len() == 0 {
+                break;
+            }
+
+            let mut new_intervals: Vec<NewInterval> = vec![];
+            for search_interval in search_intervals {
+                let mut pending_new_intervals = vec![];
+                /*
+                println!("jac = {:#?}", jacobian(search_interval));
+                println!(
+                    "num splits = {:#?}",
+                    jacobian(search_interval).split_on_zero()
+                );
+                 */
+                //for jac in jacobian(search_interval).split_on_zero() {
+                for jac in vec![jacobian(search_interval)] {
+                    //.split_on_zero() {
+                    pending_new_intervals.push(NewInterval {
+                        new: nf_der(search_interval, jac), //.intersection(domains),
+                        from: search_interval,
+                    });
+                }
+
+                println!("pending {:#?}", pending_new_intervals);
+
+                for pending in pending_new_intervals.iter() {
+                    if pending_new_intervals
+                        .iter()
+                        .filter(|p| p.new == pending.new)
+                        .count()
+                        == 1
+                    {
+                        new_intervals.push(*pending);
+                    }
+                }
+
+                /*
+                while pending_new_intervals.len() > 0 {
+                    for pending in pending_new_intervals.iter() {
+                        if pending_new_intervals
+                            .iter()
+                            .filter(|p| p.new == pending.new)
+                            .count()
+                            == 1
+                        {
+                            new_intervals.push(*pending);
+                        }
+                    }
+
+                    /*
+                    let last = pending_new_intervals.pop().unwrap();
+                    if !pending_new_intervals
+                        .iter()
+                        .any(|remaining| remaining.new == last.new)
+                    {
+                        new_intervals.push(last);
+                    } else {
+                        //
+                        //new_intervals.push(last);
+                    }
+                    */
+                }
+                */
+            }
+
+            search_intervals = vec![];
+
+            for new_interval in new_intervals {
+                println!("NI: {} from {}", new_interval.new, new_interval.from);
+                if new_interval.new.is_empty() {
+                    println!("EMPTY");
+                    continue;
+                }
+
+                /*
+                if new_interval.new.intersection(new_interval.from).is_empty() {
+                    continue;
+                }
+                 */
+
+                if new_interval.new.is_subset_of(new_interval.from) {
+                    // If the new interval is a subset of the old one,
+                    // then it contains exactly one zero
+                    if new_interval.new == new_interval.from {
+                        // If the new interval is equal to the old one,
+                        // then it's done converging on the zero
+                        converged_intervals.push(new_interval.new);
+                        println!("CONVERGED");
+                    } else {
+                        // Otherwise, refine it again on the next iteration
+                        search_intervals.push(new_interval.new);
+                        println!("REFINE NEXT");
+                    }
+                } else {
+                    // There are no zeros in the new interval, so discard it
+                    println!("DISCARD");
+                }
+            }
+        }
+
+        println!("search_intervals = {:#?}", search_intervals);
+        println!("converged_intervals = {:#?}", converged_intervals);
+
+        vec![]
+    }
+}
+impl<S: Scalar> From<LineSolver<S>> for CurveSolver<S> {
+    fn from(line: LineSolver<S>) -> Self {
         Self::new(CurveSolverKind::Line(line))
     }
 }
-impl From<ArcSolver> for CurveSolver {
-    fn from(arc: ArcSolver) -> Self {
+impl<S: Scalar> From<ArcSolver<S>> for CurveSolver<S> {
+    fn from(arc: ArcSolver<S>) -> Self {
         Self::new(CurveSolverKind::Arc(arc))
     }
 }
-impl From<HelixSolver> for CurveSolver {
-    fn from(helix: HelixSolver) -> Self {
+impl<S: Scalar> From<HelixSolver<S>> for CurveSolver<S> {
+    fn from(helix: HelixSolver<S>) -> Self {
         Self::new(CurveSolverKind::Helix(helix))
     }
 }
-impl From<SSCurveSolver> for CurveSolver {
-    fn from(ss_curve: SSCurveSolver) -> Self {
+/*
+impl<S: Scalar> From<SSCurveSolver<S>> for CurveSolver<S> {
+    fn from(ss_curve: SSCurveSolver<S>) -> Self {
         Self::new(CurveSolverKind::SSCurve(ss_curve))
     }
 }
+*/

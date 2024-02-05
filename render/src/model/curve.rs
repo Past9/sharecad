@@ -1,7 +1,7 @@
 use crate::render::VertexBuffer;
 use bytemuck::{Pod, Zeroable};
 use common::CurveId;
-use geometry::math::{Point3, Vec3};
+use geometry::math::Vec3;
 use geometry::tessellate::TessellatedCurve;
 use std::cell::OnceCell;
 use visual::material::CurveMaterialId;
@@ -135,8 +135,8 @@ impl CurveMesh {
 
 #[derive(Debug)]
 pub struct CurveVertex {
-    pub position: Point3,
-    pub direction: Vec3,
+    pub position: Vec3<f64>,
+    pub direction: Vec3<f64>,
 }
 impl CurveVertex {
     pub fn to_raw(&self, id: &CurveId, width: f32) -> CurveVertexRaw {

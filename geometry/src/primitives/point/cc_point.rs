@@ -1,6 +1,6 @@
 use common::CurveId;
 
-use crate::math::Point3;
+use crate::math::{Scalar, Vec3};
 
 #[derive(Debug, Clone)]
 pub enum CCPointKind {
@@ -9,22 +9,22 @@ pub enum CCPointKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct CCPoint {
+pub struct CCPoint<S: Scalar> {
     pub kind: CCPointKind,
-    pub pos: Point3,
+    pub pos: Vec3<S>,
     pub c0: CurveId,
     pub c1: CurveId,
-    pub c0_u: f64,
-    pub c1_u: f64,
+    pub c0_u: S,
+    pub c1_u: S,
 }
-impl CCPoint {
+impl<S: Scalar> CCPoint<S> {
     pub fn new(
         kind: CCPointKind,
-        pos: Point3,
+        pos: Vec3<S>,
         c0: CurveId,
         c1: CurveId,
-        c0_u: f64,
-        c1_u: f64,
+        c0_u: S,
+        c1_u: S,
     ) -> Self {
         Self {
             kind,

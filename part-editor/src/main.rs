@@ -8,8 +8,7 @@ use eframe::{
     Renderer,
 };
 use geometry::{
-    math::{deg, point2, point3, vec3, vec4, Quat, Vec3},
-    primitives::{SSCurveParams, SSCurveSampler},
+    math::{deg, vec3, vec4, Quat, Scalar, Vec3},
     tessellate::TessellationTolerance,
 };
 use geometry::{primitives::ISurfacePoint, IGeometry};
@@ -69,6 +68,7 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 fn build_scene() -> Scene {
+    let start = Instant::now();
     let mut scene = Scene::new();
 
     scene.set_ambient_light(AmbientLight::new(rgb(0.35, 0.35, 0.35)));
@@ -78,6 +78,7 @@ fn build_scene() -> Scene {
         DirectionalLight::new(vec3(0.0, 1.0, 0.0), rgb(1.5, 1.5, 1.0)),
     ]);
 
+    /*
     // Define materials
     let sweep1_material = scene.materials_mut().insert_surface_material(
         SurfaceMaterialSpec::default()
@@ -108,20 +109,53 @@ fn build_scene() -> Scene {
     let inverted_point_material = scene
         .materials_mut()
         .insert_point_material(PointMaterialSpec::default().color_rgb(rgb(1.0, 0.0, 0.0)));
+    */
 
     let mut model = PrimitiveModel::new();
 
     {
-        let profile1_start = model.create_point3(point3(-1.0, -1.0, 0.0));
-        let profile1_end = model.create_point3(point3(-1.0, 1.0, 0.0));
-        let profile1 = model.create_line_between(profile1_start, profile1_end);
-        let path1 = model.create_arc(
+        let c1 = model.create_arc(
             1.0,
-            deg(350.0),
+            deg(170.0),
+            /*
             Quat::from_axis_angle(Vec3::UNIT_Y, deg(180.0))
                 * Quat::from_axis_angle(Vec3::UNIT_X, deg(90.0)),
+             */
+            Quat::ZERO,
             Vec3::ZERO,
         );
+
+        /*
+        let c2 = model.create_arc(
+            1.0,
+            deg(360.0),
+            Quat::ZERO,
+            vec3(0.0, f64::SQRT_2 / 2.0, f64::SQRT_2 / 2.0),
+        );
+         */
+
+        /*
+        let p0 = model.create_point3(vec3(0.0, -1.0, 0.0));
+        let p1 = model.create_point3(vec3(0.0, 1.0, 0.0));
+        let c1 = model.create_line_between(p0, p1);
+
+          */
+        let p2 = model.create_point3(vec3(0.5, -3.0, 0.0));
+        let p3 = model.create_point3(vec3(0.5, 2.0, 0.0));
+        let c2 = model.create_line_between(p2, p3);
+
+        let c1_solver = model.curve_solver(c1).unwrap();
+        let c2_solver = model.curve_solver(c2).unwrap();
+
+        c1_solver.intersect_curve(&c2_solver);
+
+        //model.create_point3(*c1_solver.point(5.497787143647968).pos());
+        //model.create_point3(*c2_solver.point(3.926990816713388).pos());
+
+        //model.create_point3(*arc1_solver.point(3.92699).pos());
+        //model.create_point3(*arc2_solver.point(5.49778).pos());
+
+        /*
         let sweep1 = model.create_sweep(profile1, path1);
         model.set_surface_material(sweep1, sweep1_material);
 
@@ -165,10 +199,7 @@ fn build_scene() -> Scene {
 
             let mut intersection = SSCurveSampler::new(&s1_solver, &s2_solver, s1_uv, s2_uv);
 
-            let start = Instant::now();
             intersection.fill(step);
-            let end = Instant::now();
-            println!("{}us", (end - start).as_micros());
 
             let points = intersection.take_points();
 
@@ -180,21 +211,9 @@ fn build_scene() -> Scene {
                 len += (p1.pos - p0.pos).magnitude();
             }
 
-            println!("len = {}", len);
-            println!("num points = {}", points.len());
-
-            println!("start = {:#?}", points[0]);
-            println!("end = {:#?}", points[points.len() - 1]);
-            println!(
-                "start -> end dist = {}",
-                (points[0].pos - points[points.len() - 1].pos).magnitude()
-            );
-
             let ss_curve_id = model.create_ss_curve(sweep1, sweep2, points);
 
             let ss_curve_solver = model.curve_solver(ss_curve_id).unwrap();
-
-            println!("is closed: {}", ss_curve_solver.is_closed());
         }
 
         // Coordinate system
@@ -207,14 +226,20 @@ fn build_scene() -> Scene {
             model.create_line_between(origin, y_extent);
             model.create_line_between(origin, z_extent);
         }
+         */
     }
 
     let sm = SceneModel::from_primitive_model(
         &model,
-        &TessellationTolerance::DistanceAndAngle(0.0001, deg(0.30)),
+        &TessellationTolerance::DistanceAndAngle(0.0005, deg(3.0)),
     );
 
     scene.add_model(sm);
+
+    //println!("scene = {:#?}", scene);
+
+    let end = Instant::now();
+    println!("Model built in {}us", (end - start).as_micros());
 
     scene
 }
